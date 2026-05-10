@@ -1,0 +1,64 @@
+id: binance_p2p
+name: Binance P2P
+category: cex_p2p
+subcategory: in-app peer-to-peer offer book
+website: https://p2p.binance.com
+launched: '2019-10'
+
+legal_entity: Multiple regional Binance entities
+licenses:
+  - { jurisdiction: FR, type: PSAN registration }
+  - { jurisdiction: ES, type: VASP }
+
+direction: both
+countries_supported: []
+fiats: [USD, EUR, GBP, NGN, INR, BRL, ARS, TRY, VND, PHP, IDR, RUB]
+assets:
+  - { symbol: USDT, chain: multiple }
+  - { symbol: BTC, chain: bitcoin }
+  - { symbol: ETH, chain: ethereum }
+  - { symbol: BNB, chain: bsc }
+  - { symbol: FDUSD, chain: ethereum }
+payment_methods: [bank_wire, sepa, p2p_local, cash]
+delivery_chains: []
+
+kyc_tiers:
+  - { name: Verified, requirements: [id], min: 0, max: null, period: daily }
+  - { name: Verified Plus, requirements: [id, poa], min: 0, max: null, period: daily }
+non_kyc_available: false
+pii_floor: id
+
+pricing:
+  spread_method: marketmaker_quote
+  pricing_endpoint: https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search
+
+settlement_time:
+  value: { p2p_local: 15min-2h }
+  provenance: self_reported
+  last_verified: '2026-05-05'
+
+delivery_custody: hosted
+requires_account: true
+wallet_setup_required: false
+
+audits: []
+open_source:
+  is_open: false
+proof_of_reserves:
+  exists: true
+  url: https://www.binance.com/en/proof-of-reserves
+team_transparency: public
+
+integration_types: [rest_api]
+sdks: []
+kyc_inheritance: none
+white_label: no
+webhooks: false
+sandbox: false
+docs_url: https://binance-docs.github.io/apidocs/spot/en/
+
+address_linkage: internal
+third_party_sharing:
+  shares: true
+  partners: [law enforcement, regional regulators]
+onchain_privacy: none

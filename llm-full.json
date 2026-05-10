@@ -1,0 +1,1734 @@
+# Peerlytics — Full Technical Reference
+
+> Complete technical documentation for AI agents and integrations.
+> Short-form summary: https://peerlytics.xyz/llms.txt
+> Downloadable agent skill: https://peerlytics.xyz/skills/peerlytics.md
+> OpenAPI 3.1 JSON: https://peerlytics.xyz/api/openapi
+> Companion skill (USDC ↔ fiat offramp): https://usdctofiat.xyz/skills/usdctofiat.md
+> Starters (Next.js / Vite / Telegram bot): https://github.com/ADWilkinson/usdctofiat-peerlytics-starters
+
+> **API v2 — April 2026**: snake_case fields, Unix-seconds timestamps, cursor
+> pagination, dedicated key/webhook endpoints, `<resource>.<action>` webhook
+> event names, and the legacy `success: true` envelope flag removed. v1 clients
+> keep working through a compatibility window. Migration notes inline below.
+
+## Overview
+
+Peerlytics (peerlytics.xyz) is an analytics dashboard, protocol explorer, and trading platform for the ZKP2P peer-to-peer fiat-to-USDC protocol on Base (Ethereum L2). It provides real-time metrics, volume trends, liquidity analysis, transaction exploration, maker/taker leaderboards, and buy/sell flows for ZKP2P deposits and intents.
+
+Built with Next.js 16, React 19, TypeScript, Firebase, Envio, and ECharts. Auth via Privy (smart wallets, embedded wallets, external EOA).
+
+---
+
+## Paid API
+
+### Base URL
+
+```
+https://peerlytics.xyz/api/v1
+```
+
+### OpenAPI Spec
+
+```
+https://peerlytics.xyz/api/openapi
+```
+
+Add `?download=1` for file download.
+
+### Authentication
+
+Two authentication methods are supported:
+
+#### Option 1: API Key
+
+Provide your key via either header:
+- `x-api-key: pk_live_your_key_here`
+- `Authorization: Bearer pk_live_your_key_here`
+
+API keys are generated at peerlytics.xyz/developers by connecting a wallet. Keys are SHA-256 hashed before storage in Firestore. Maximum 5 active keys per wallet. Keys can be rotated (atomic disable-old + create-new) or revoked.
+
+Key format: `pk_live_` followed by 48 hex characters (24 random bytes).
+
+#### Option 2: x402 Pay-Per-Request (USDC on Base)
+
+No account or API key needed. Uses the x402 payment protocol (HTTP 402) by Coinbase.
+
+**Flow:**
+
+1. Send a request with no API key.
+2. Receive HTTP 402 with payment requirements:
+   - `PAYMENT-REQUIRED` header (base64-encoded JSON)
+   - `X-PAYMENT-REQUIRED` header (JSON string, legacy)
+   - Response body contains the full `PaymentRequired` object
+3. Build a payment payload using an x402 client library (e.g., `@x402/evm/exact/client`).
+4. Retry the same request with the payment in the `PAYMENT-SIGNATURE` header (base64-encoded JSON). Legacy `X-PAYMENT` header is also accepted.
+5. Server verifies the payment, serves your data, then settles on-chain.
+6. Response includes:
+   - `X-Payment-TxHash` header with the settlement transaction hash
+   - `PAYMENT-RESPONSE` header (base64-encoded JSON)
+   - `X-PAYMENT-RESPONSE` header (base64-encoded JSON, legacy)
+
+**Pricing:**
+- Analytics endpoints: $0.001 per request
+- Explorer endpoints: $0.001 per request
+
+**Network:** Base mainnet (eip155:8453), USDC settlement.
+
+**x402 settlement:** Uses the Coinbase x402 facilitator. Configurable via `CDP_API_KEY_ID` and `CDP_API_KEY_SECRET` environment variables, falling back to the public facilitator at `https://x402.org/facilitator`.
+
+x402 is supported on all endpoints except `/activity/stream` (SSE streaming requires an API key).
+
+Libraries: https://github.com/coinbase/x402
+
+### Rate Limits
+
+Rate limits are per-minute sliding windows, enforced per API key (or per IP for x402):
+
+| Plan | Analytics | Explorer |
+|------|-----------|----------|
+| Free | 60 rpm | 120 rpm |
+| Pro (paid credits or x402) | 180 rpm | 300 rpm |
+
+Rate limit state is stored in Firestore (`paid-api-rate-limits` collection) with in-memory fallback for dev/test.
+
+**Response headers on every request:**
+- `X-RateLimit-Limit` — Maximum requests in the window
+- `X-RateLimit-Remaining` — Requests remaining
+- `X-RateLimit-Reset` — Seconds until window resets
+
+When rate limited (HTTP 429):
+- `Retry-After` header with seconds to wait
+
+### Credits
+
+Credits control access for API key users:
+
+- **Free tier:** 1,000 requests/month (resets on the 1st of each month, UTC)
+- **Paid credits:** Purchased via ZKP2P Pay checkout (USDC on Base)
+- Credits consumed only on 2xx responses
+- Free credits consumed first, then paid credits
+- Having paid credits upgrades your rate limits to Pro tier
+
+**Credit packages:**
+
+| Package | Price (USDC) | Credits |
+|---------|-------------|---------|
+| Starter | $10 | 50,000 |
+| Growth | $29 | 150,000 |
+| Scale | $99 | 600,000 |
+
+**Response headers (API key only):**
+- `X-Credits-Remaining` — Total credits remaining (free + paid)
+- `X-Credits-Source` — `free` or `paid`
+
+### Credit Purchase Flow (ZKP2P Pay)
+
+1. Client calls internal checkout API with wallet address and package selection
+2. Server creates a Peer Pay checkout order via `api.pay.peer.xyz/api/v1/orders`
+3. User completes payment through the Peer Pay checkout page
+4. Webhook receives `ORDER_FULFILLED` after the order is fully settled
+5. Credits are atomically added to the user's Firestore balance
+6. Duplicate webhook deliveries are idempotent (deduplicated by `orderId`)
+
+Webhook verification: HMAC-SHA256 signature over `{timestamp}.{payload}`, with 5-minute timestamp tolerance.
+
+### Response Envelope
+
+Most `/api/v1/*` endpoints wrap their payload in `{ success, data }`:
+
+```json
+{
+  "success": true,
+  "data": { ... }
+}
+```
+
+Read `response.data` for the actual payload — don't treat the top-level object
+as the data itself.
+
+**Exceptions (no envelope, payload returned directly):**
+- `/analytics/summary`, `/analytics/overview`, `/analytics/leaderboard`
+- `/account/keys`, `/account/credits`, `/account/checkout`
+
+**List endpoints return paginated envelopes inside `data`, not raw arrays.**
+For example, `/activity` returns `{ events, count, hasMore, limit, offset, filters }`
+— iterate over `data.events`, not `data` itself. The same applies to
+`/deposits` (`data.deposits`), `/intents` (`data.intents`), and
+`/market/summary` (`data.markets`).
+
+The official `@peerlytics/sdk` unwraps all of this for you automatically.
+
+### Error Format
+
+All auth/rate/credit errors return:
+```json
+{
+  "error": {
+    "status": 401,
+    "code": "invalid_api_key",
+    "message": "API key is invalid or disabled"
+  }
+}
+```
+
+Error codes:
+- `missing_api_key` — No API key and x402 not available
+- `invalid_api_key` — Key not found or disabled
+- `domain_not_allowed` — Key restricted to specific domains
+- `ip_not_allowed` — Key restricted to specific IPs
+- `rate_limited` — Rate limit exceeded (429)
+- `insufficient_credits` — No credits remaining (402)
+- `invalid_payment` — x402 payment verification failed (402)
+- `x402_unavailable` — x402 system error (503)
+- `x402_settlement_failed` — Payment settlement failed (503)
+- `api_key_store_unavailable` — Firestore unavailable (503)
+- `credit_system_unavailable` — Credit system unavailable (503)
+
+Some endpoint validation errors use a simpler format:
+```json
+{
+  "success": false,
+  "error": "invalid_range"
+}
+```
+
+### Security Headers
+
+Every paid API response includes:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `X-XSS-Protection: 1; mode=block`
+- `CDN-Cache-Control: no-store` (prevents CDN caching of authenticated responses)
+- CORS: `Access-Control-Allow-Origin: *`
+
+### Domain and IP Restrictions
+
+API keys can optionally restrict access:
+- `allowedDomains` — Array of allowed origin domains (supports wildcard `*.example.com`)
+- `allowedIps` — Array of allowed client IP addresses
+
+Domain checks only apply when an `Origin` or `Referer` header is present (server-to-server calls without these headers are not restricted).
+
+---
+
+## Analytics Endpoints
+
+All analytics endpoints are category `analytics` (60/180 rpm).
+
+### Date filtering (windowed analytics + listings)
+
+Every analytics, listing, and history endpoint accepts a uniform set of
+date-window parameters:
+
+- `from` and `to` accept ISO-8601 strings (`2026-04-01T00:00:00Z`) OR unix-seconds (numeric). `to` is exclusive; if omitted, defaults to `now`.
+- `range` is a convenience shortcut. When supplied it overrides `from`/`to`. Supported values: `last_7d`, `last_30d`, `last_90d`, `last_365d`, `today`, `yesterday`, `mtd`, `qtd`, `ytd`, `all`.
+
+Hard cap: 400 days. Larger windows return `400 window_too_large`.
+
+Windowed responses include a `window` block — `{ from, to, fromIso, toIso, days, range, computedFor }` — so consumers can see exactly what was computed and when. `computedFor` is the server timestamp (it is not a cache hit indicator; cumulative endpoints carry `meta.cached_at` instead).
+
+The cumulative path remains the default. Endpoints fall back to live indexer compute the moment any window param is supplied; that path costs more credits than the cached path, but the per-endpoint `cost` setting still applies.
+
+### GET /analytics/summary
+
+Protocol summary metrics across multiple time periods.
+
+**Parameters:**
+- `from`, `to`: optional ISO-8601 or unix-seconds — switches to a windowed compute.
+- `range`: optional shortcut (`last_7d` … `all`).
+- `compare`: `prior_period` | `prior_year` — adds a `comparison` block with %-change vs the prior window. Only meaningful when a window is supplied.
+
+**Response example:**
+```json
+{
+  "timestamp": "2026-02-10T12:00:00.000Z",
+  "periods": {
+    "mtd": {
+      "range": { "start": "2026-02-01", "end": "2026-02-10", "days": 10 },
+      "metrics": {
+        "volume": 245000,
+        "trades": 312,
+        "intents": 450,
+        "fulfilled": 312,
+        "successRate": 69.3,
+        "uniqueUsers": 87,
+        "totalEvents": 1200
+      },
+      "avgHourlyVolume": 1020.8,
+      "avgDailyVolume": 24500
+    },
+    "3mtd": { "..." : "..." },
+    "ytd": { "..." : "..." }
+  },
+  "liquidity": {
+    "available": 185000,
+    "activeDeposits": 42
+  },
+  "spreads": {
+    "current_spread_bps": 125,
+    "min_spread_bps": 50,
+    "max_spread_bps": 300
+  },
+  "changes": {
+    "volume": {
+      "mtd_vs_prior_month": 12.5,
+      "qtd_vs_prior_quarter": -3.2,
+      "ytd_vs_prior_year": null
+    },
+    "users": {
+      "mtd_vs_prior_month": 8.1,
+      "qtd_vs_prior_quarter": 15.0,
+      "ytd_vs_prior_year": null
+    }
+  },
+  "topCurrencies": [
+    { "currency": "GBP", "volume": 120000, "trades": 156, "avg_rate": "0.7985" },
+    { "currency": "EUR", "volume": 85000, "trades": 98, "avg_rate": "0.9210" }
+  ],
+  "meta": {
+    "cached_at": "2026-02-10T11:30:00.000Z",
+    "cache_duration_seconds": 1800,
+    "source": "firebase"
+  }
+}
+```
+
+### GET /analytics/overview
+
+Investor-focused diligence view for a given time range.
+
+**Parameters:**
+- `range`: legacy enum (`mtd` | `3mtd` | `ytd` | `all`) reads cached buckets; any of the new shortcuts (`last_7d` … `qtd`) computes live.
+- `from`, `to`: optional ISO-8601 or unix-seconds — switches to a windowed compute. Cannot exceed 400 days.
+
+**Response:** Snapshot metrics for settled volume, liquidity, execution quality, participant growth, concentration, time-series for activity and liquidity, plus protocol version mix. Windowed responses include a `window` block; cumulative responses include `meta` with caching info.
+
+### GET /analytics/leaderboard
+
+Maker and taker leaderboards with rankings.
+
+**Parameters:**
+- `limit`: 1-100 (default: 20)
+- `offset`: number (default: 0)
+- `from`, `to`: optional ISO-8601 or unix-seconds — recomputes every aggregate (volumeUsd, fulfilledIntents, successRatePct, byPlatform, byCurrency) for the window. Hard cap 400 days.
+- `range`: optional shortcut — same as elsewhere (`last_7d`, `mtd`, etc.).
+
+**Windowed response shape:** the per-list arrays (`makers.byVolume`, `takers.byActivity`, etc.) carry the same fields as the cumulative shape, with `realizedProfitUsd`/`aprPct` set to `null` (lifetime-only). The response also includes `window`, `summary`, and `composition` blocks for the period.
+
+**Response example:**
+```json
+{
+  "makers": {
+    "byVolume": [
+      {
+        "rank": 1,
+        "address": "0x1234...abcd",
+        "addressShort": "0x1234...abcd",
+        "volumeUsd": 500000,
+        "grossDepositedUsd": 750000,
+        "activeDeposits": 5,
+        "fulfilledIntents": 1200,
+        "successRatePct": 95.2,
+        "realizedProfitUsd": 6250,
+        "realizedPnlPct": 1.25,
+        "aprPct": 42.5,
+        "updatedAt": "2026-02-10T12:00:00Z"
+      }
+    ],
+    "byAPR": ["..."],
+    "byProfit": ["..."]
+  },
+  "takers": {
+    "byVolume": [
+      {
+        "rank": 1,
+        "address": "0xabcd...1234",
+        "addressShort": "0xabcd...1234",
+        "volumeUsd": 250000,
+        "signalCount": 300,
+        "fulfillCount": 280,
+        "pruneCount": 20,
+        "successRatePct": 93.3,
+        "trustScore": 85,
+        "tier": "whale",
+        "tierCap": 50000,
+        "firstSeenAt": "2025-06-15T10:00:00Z",
+        "updatedAt": "2026-02-10T12:00:00Z"
+      }
+    ],
+    "byLockScore": ["..."],
+    "byActivity": ["..."]
+  },
+  "meta": {
+    "cached_at": "2026-02-10T11:30:00.000Z",
+    "cache_duration_seconds": 1800,
+    "source": "indexer_stats"
+  }
+}
+```
+
+### GET /analytics/vaults
+
+Delegated liquidity and rate-manager overview.
+
+**Parameters:**
+- `from`, `to`, `range`: optional date window. Without a window: cumulative view (total vault count, delegated AUM, delegation adoption rate, fee volume, daily AUM and fee series, per-vault summaries). With a window: per-vault rollup (`feesEarnedUsd`, `volumeRoutedUsd`, `aumChangeUsd`, `delegatorChange`, `tvlStartUsd`/`tvlEndUsd`) computed from daily snapshots inside the window.
+
+**Response (windowed mode):**
+```json
+{
+  "success": true,
+  "data": {
+    "window": { "from": 1774310400, "to": 1776902400, "days": 30, "range": "last_30d" },
+    "totals": { "feesEarnedUsd": 1234, "volumeRoutedUsd": 250000, "fulfilledIntents": 320, "pnlUsd": 1234 },
+    "vaults": [
+      {
+        "rateManagerAddress": "0xeed7...535f3",
+        "rateManagerId": "0x8666...fc41c",
+        "feesEarnedUsd": 1100,
+        "volumeRoutedUsd": 220000,
+        "aumChangeUsd": 4500,
+        "delegatorChange": 2
+      }
+    ],
+    "daily": [{ "date": "1774310400", "tvlUsd": 480000, "feesUsd": 120, "volumeUsd": 25000 }]
+  }
+}
+```
+
+---
+
+## Explorer Endpoints
+
+All explorer endpoints are category `explorer` (120/300 rpm).
+
+### GET /explorer/search
+
+Universal search across intents, deposits, and addresses.
+
+**Parameters:**
+- `q` (required): Search query string
+- `type`: `tx_or_hash` | `address` | `deposit_id` (auto-detected if omitted)
+- `role`: `owner` | `taker` | `recipient` | `verifier` (for address searches)
+- `limit`: 1-200 (default: 100)
+- `offset`: number (default: 0)
+
+**Response example:**
+```json
+{
+  "success": true,
+  "query": {
+    "raw": "0x1234...",
+    "type": "address"
+  },
+  "data": {
+    "intents": [
+      {
+        "intentHash": "0xabc...",
+        "depositId": "0x2f12...8888_42",
+        "owner": "0x1234...",
+        "amount": "100000000",
+        "amountUsd": 100,
+        "status": "FULFILLED",
+        "signalTimestamp": "1707580800",
+        "fulfillTimestamp": "1707581400",
+        "fiatCurrency": "0x...",
+        "currency": "GBP",
+        "platform": "Revolut",
+        "lifecycle": {
+          "signalTimestamp": 1707580800,
+          "fulfillTimestamp": 1707581400,
+          "pruneTimestamp": null,
+          "expiryTimestamp": null,
+          "durationSeconds": 600,
+          "outcome": "fulfilled"
+        }
+      }
+    ],
+    "deposits": []
+  },
+  "linked": {
+    "activity": {
+      "ownerIntents": [],
+      "takerIntents": [],
+      "recipientIntents": [],
+      "verifierIntents": [],
+      "makerDeposits": [],
+      "escrowContracts": []
+    }
+  }
+}
+```
+
+### GET /explorer/deposit/{id}
+
+Deposit details by composite ID (`0xescrow_123`) or numeric ID.
+
+**Parameters:**
+- `limit`: intents per page (default: 100)
+- `offset`: pagination offset (default: 0)
+
+**Response:** Deposit entity with USD-converted amounts, associated intents (enriched), payment details (currencies, verifiers, platforms), expired intents, alternate escrow deposits, and other deposits by the same maker.
+
+### GET /explorer/intent/{hash}
+
+Intent details by intent hash or related transaction hash.
+
+**Response:** Enriched intent with USD conversion, lifecycle timing, associated deposit, payment details, and related intents (same deposit, same owner).
+
+### GET /explorer/address/{address}
+
+Address activity overview.
+
+**Parameters:**
+- `limit`: 1-200 (default: 100)
+- `offset`: number (default: 0)
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "intents": ["...(IntentEntity[])"],
+    "deposits": ["...(DepositEntity[])"]
+  },
+  "linked": {
+    "activity": {
+      "ownerIntents": [],
+      "recipientIntents": [],
+      "verifierIntents": [],
+      "makerDeposits": [],
+      "escrowContracts": []
+    }
+  },
+  "stats": {
+    "intents_total": 150,
+    "intents_fulfilled": 140,
+    "intents_pruned": 10,
+    "deposits_total": 5,
+    "volume_total_usd": 250000,
+    "volume_as_taker_usd": 200000,
+    "volume_as_recipient_usd": 50000,
+    "volume_as_maker_usd": 0
+  }
+}
+```
+
+### GET /explorer/maker/{address}
+
+Maker portfolio and performance analysis.
+
+**Response example:**
+```json
+{
+  "success": true,
+  "data": {
+    "summary": {
+      "address": "0x1234...",
+      "totalDeposits": 8,
+      "activeDeposits": 3,
+      "totalLiquidityUsd": 50000,
+      "availableLiquidityUsd": 35000,
+      "lockedLiquidityUsd": 15000,
+      "totalFillVolumeUsd": 200000,
+      "totalProfitUsd": 2500,
+      "weightedAvgApr": 35.2,
+      "capitalEfficiencyScore": 4.0,
+      "successRate": 94.5,
+      "fulfilledIntents": 500,
+      "prunedIntents": 29,
+      "totalIntents": 529,
+      "firstSeenAt": "2025-06-01T00:00:00Z"
+    },
+    "deposits": [
+      {
+        "depositId": "42",
+        "escrowAddress": "0x2f12...8888",
+        "status": "active",
+        "availableUsd": 15000,
+        "totalUsd": 20000,
+        "outstandingUsd": 5000,
+        "currencies": ["GBP", "EUR"],
+        "platforms": ["Revolut"],
+        "fillVolumeUsd": 80000,
+        "turnover": 4.0,
+        "apr": 42.5,
+        "successRate": 96.0,
+        "fulfilledIntents": 200,
+        "prunedIntents": 8,
+        "totalIntents": 208,
+        "openedAt": "2025-08-01T00:00:00Z",
+        "lastActivityAt": "2026-02-10T10:00:00Z"
+      }
+    ],
+    "currencyAllocations": [
+      { "currency": "GBP", "label": "GBP", "volumeUsd": 120000, "percentage": 60, "fulfilledIntents": 300 }
+    ],
+    "platformAllocations": [
+      { "platform": "Revolut", "label": "Revolut", "volumeUsd": 150000, "percentage": 75, "fulfilledIntents": 375, "profitUsd": 1875 }
+    ]
+  }
+}
+```
+
+### GET /explorer/verifier/{address}
+
+Verifier stats and flow analysis.
+
+**Parameters:**
+- `limit`: 1-100 (default: 50)
+- `offset`: number (default: 0)
+
+**Response:** Verifier address, associated intents, aggregate stats (volume, success rate, active deposits), currency breakdown, top takers, top makers, and recent activity feed.
+
+### GET /explorer/vault/{id}
+
+Vault detail for a specific rate manager.
+
+**Parameters:**
+- `id` (required): Composite vault id in the format `{rateManagerAddress}_{rateManagerId}`
+- `days`: 1-365 (default: 30)
+
+**Response:** Manager metadata, aggregate stats, daily snapshots, manager stats, linked delegated deposits, linked oracle configs, and linked floor configs.
+
+---
+
+## Deposits Endpoint
+
+### GET /deposits
+
+Query deposits with filters. Category: `explorer`.
+
+**At least one filter is required.** Either provide one of `depositor`, `delegate`, `platform`, `currency`, OR a date window via `from`/`to`/`range` (filters on deposit creation `timestamp`). A call with no filters at all returns `400 missing_filter`.
+
+**Parameters:**
+- `depositor`: maker address
+- `delegate`: delegate address
+- `platform`: platform ID (repeatable) -- see `/meta/platforms`
+- `currency`: currency code or 0x hash (repeatable) -- see `/meta/currencies`
+- `status`: `ACTIVE` | `CLOSED`
+- `accepting`: `true` | `false`
+- `from`, `to`: ISO-8601 or unix-seconds — filter on deposit creation timestamp.
+- `range`: `last_7d` … `all` shortcut.
+- `sort`: `asc` | `desc` (default: `desc`).
+- `limit`: 1-200 (default: 50)
+- `offset`: number (default: 0)
+
+**Response example:**
+```json
+{
+  "success": true,
+  "data": {
+    "deposits": [
+      {
+        "id": "0x2f12...8888_42",
+        "chainId": 8453,
+        "escrowAddress": "0x2f12...8888",
+        "depositId": "42",
+        "depositor": "0x1234...",
+        "delegate": "0x25ca...",
+        "token": "0x8335...",
+        "remainingDeposits": "15000000000",
+        "intentAmountMin": "1000000",
+        "intentAmountMax": "50000000000",
+        "acceptingIntents": true,
+        "status": "ACTIVE",
+        "outstandingIntentAmount": "5000000000",
+        "totalAmountTaken": "80000000000",
+        "totalWithdrawn": "0",
+        "totalIntents": 208,
+        "signaledIntents": 3,
+        "fulfilledIntents": 200,
+        "prunedIntents": 5,
+        "successRateBps": 9760,
+        "availableUsd": 15000,
+        "outstandingUsd": 5000,
+        "totalUsd": 100000,
+        "takenUsd": 80000,
+        "withdrawnUsd": 0,
+        "currencies": [
+          {
+            "depositId": "0x2f12...8888_42",
+            "paymentMethodHash": "0x...",
+            "currencyCode": "0xc4ae21...",
+            "currency": "GBP",
+            "minConversionRate": "798500000000000000",
+            "conversionRate": "797700000000000000",
+            "takerConversionRate": "798500000000000000"
+          }
+        ],
+        "markets": [
+          {
+            "platform": "Revolut",
+            "currency": "GBP",
+            "rate": 0.7985,
+            "paymentMethodHash": "0x...",
+            "currencyCode": "0xc4ae21...",
+            "minConversionRate": "798500000000000000",
+            "conversionRate": "797700000000000000",
+            "takerConversionRate": "798500000000000000",
+            "managerRate": "797700000000000000",
+            "managerFee": "1000000000000000",
+            "rateSource": "ORACLE",
+            "rateManagerId": "0xc32f4ec2...",
+            "oracleRate": "790000000000000000",
+            "effectiveOracleRate": "797700000000000000",
+            "adapter": "Chainlink",
+            "kind": "oracle_chainlink",
+            "isOracleBacked": true,
+            "oracleSource": "Chainlink",
+            "spreadBps": 97,
+            "isDelegated": true
+          }
+        ]
+      }
+    ],
+    "count": 1,
+    "hasMore": false,
+    "limit": 50,
+    "offset": 0,
+    "filters": {
+      "depositor": "0x1234...",
+      "delegate": null,
+      "status": null,
+      "accepting": null,
+      "platforms": [],
+      "currencies": []
+    }
+  }
+}
+```
+
+Currency resolution: The API accepts both human-readable codes (`GBP`, `EUR`) and raw keccak256 hashes. When a code is provided, the server generates both keccak256 and ASCII-padded bytes32 candidates for matching.
+
+**Hashes vs codes in responses.** On-chain, currencies are stored as `bytes32`. Both `deposit.currencies[]` and `deposit.markets[]` expose two fields for every entry:
+- `currencyCode` — raw bytes32 hash (e.g. `0xc4ae21...`)
+- `currency` — resolved human-readable ISO code (e.g. `"GBP"`), or `null` if the hash couldn't be matched
+
+If you need to build your own hash→code mapping independently, call `/meta/currencies`, which returns each supported currency with its `code`, `label`, `flag`, and all matching `hashes`.
+
+`markets[]` is the DRM-aware surface for bots: it includes both the taker-facing display rate and the underlying manager/oracle metadata needed to reason about delegated deposits.
+
+---
+
+## Intents Endpoint
+
+### GET /intents
+
+Query intents with filters. Category: `explorer`.
+
+**At least one of `owner`, `recipient`, `verifier`, `depositId`, or `status` is required.**
+A call with none of these returns:
+
+**At least one filter is required.** Either provide one of `owner/taker`, `recipient/toAddress`, `verifier`, `depositId`, `status`, OR a date window (`from`/`to`/`range`). Otherwise the API returns `400 missing_filter`.
+
+**Parameters:**
+- `owner`: address (alias: `taker`)
+- `recipient`: address (alias: `toAddress`)
+- `verifier`: address
+- `depositId`: numeric or composite (repeatable)
+- `status`: `signaled` | `fulfilled` | `completed` | `pruned` (repeatable, comma-separated)
+- `from`, `to`: ISO-8601 or unix-seconds — filter on `signalTimestamp`.
+- `range`: `last_7d` … `all` shortcut.
+- `sort`: `asc` | `desc` (default: `desc`).
+- `limit`: 1-200 (default: 50)
+- `offset`: number (default: 0)
+
+Notes:
+- `fulfilled` and `completed` include manually released intents
+- `pruned` matches all PRUNED-like statuses
+
+**Response:** Paginated envelope with enriched intents (USD amounts, exchange rates, fiat amounts, platform/currency labels, lifecycle data). Includes `window` block when a window filter is supplied.
+
+---
+
+## Orderbook Endpoint
+
+### GET /orderbook
+
+Full network orderbook. Category: `explorer`.
+
+**Parameters:**
+- `currency`: fiat currency code (USD, GBP, EUR). Without filter returns top 6 currencies by liquidity.
+- `platform`: payment platform name (Revolut, Monzo, Venmo)
+- `minSize`: minimum USD liquidity per level (default: 50)
+
+**Implementation note:** the API prefers the indexer's denormalized `OrderbookEntry`
+projection for canonical `(deposit, platform, currency)` rows and falls back
+to legacy deposit aggregation when that projection is unavailable. Bank-specific
+Zelle variants collapse into a single `Zelle` surface. Check
+`meta.orderbookSource` to see which path served the response.
+
+**Response example:**
+```json
+{
+  "success": true,
+  "data": {
+    "stats": {
+      "totalLiquidityUsd": 185000,
+      "activeMakers": 42,
+      "volume24hUsd": 24500,
+      "activeIntents": 8
+    },
+    "orderbooks": [
+      {
+        "currency": "GBP",
+        "levels": [
+          {
+            "rate": 0.7950,
+            "totalLiquidityUsd": 45000,
+            "depositCount": 5,
+            "platforms": ["Monzo", "Revolut"],
+            "topDeposit": { "depositor": "0x1234...", "depositId": "42", "escrowAddress": "0x0ffd...d777" },
+            "pricingMode": "mixed",
+            "oracleSpreadBpsMin": 80,
+            "oracleSpreadBpsMax": 140,
+            "oracleSources": ["Chainlink"],
+            "delegatedEntryCount": 3
+          }
+        ],
+        "totalLiquidityUsd": 120000,
+        "bestRate": 0.7950,
+        "fxMidRate": 0.7920
+      }
+    ],
+    "activity": [
+      {
+        "id": "0xabc...",
+        "type": "fulfill",
+        "amountUsd": 500,
+        "currency": "GBP",
+        "platform": "Revolut",
+        "timestamp": 1707580800
+      }
+    ],
+    "filters": {
+      "applied": { "currency": "GBP", "platform": null, "minSize": 50 },
+      "available": {
+        "currencies": ["AUD", "EUR", "GBP", "USD"],
+        "platforms": ["CashApp", "Monzo", "Revolut", "Venmo"]
+      }
+    }
+  },
+  "meta": {
+    "escrows": [
+      "0x0ffdc232e735f9c009efd8e1129772157a06d777",
+      "0x2f121cddca6d652f35e8b3e560f9760898888888"
+    ],
+    "chainId": 8453,
+    "activityWindow": "24h",
+    "maxLevels": 200,
+    "orderbookSource": "projection",
+    "timestamp": "2026-02-10T12:00:00.000Z"
+  }
+}
+```
+
+Rate levels are rounded to 4 decimal places. Deposits at 0.99501 and 0.99504 aggregate to the same 0.9950 level. Deposit deduplication via ID prevents double-counting when deposits span multiple currency/platform pairs. Levels with spread > 50% from FX mid-rate are filtered out. `pricingMode` lets clients separate fixed, oracle-backed, and mixed liquidity.
+
+---
+
+## Market Endpoint
+
+### GET /market/summary
+
+Current market rates and liquidity by platform/currency. Category: `explorer`.
+
+**Parameters:**
+- `platform`: platform ID (repeatable)
+- `currency`: currency code (repeatable)
+- `includeRates`: `true` | `false` (default: false) -- include per-rate-level breakdown
+- `limit`: 1-500 (default: 200)
+- `offset`: number (default: 0)
+
+**Response:** Array of market entries per platform/currency pair with sample size, total liquidity, percentile rates (p25, median, p75, p90), suggested rate, and optional rate entries.
+
+---
+
+## Activity Endpoints
+
+### GET /activity
+
+Recent protocol events. Category: `explorer`.
+
+**Parameters:**
+- `type`: Event type filter (repeatable). Types: `intent_signaled`, `intent_fulfilled`, `intent_pruned`, `deposit_created`, `deposit_topup`, `deposit_withdrawn`, `deposit_closed`, `deposit_rate_updated`. Aliases supported (e.g., `signal`, `fulfill`, `prune`, `created`, `withdraw`, `rate`).
+- `intentHash`: string (repeatable)
+- `depositId`: string (repeatable)
+- `address`: address (repeatable) -- matches owner/toAddress/depositor/fundsTransferredTo
+- `owner`: address
+- `depositor`: address
+- `recipient`: address
+- `since` / `after`: lower bound — unix seconds | unix ms | ISO timestamp
+- `to`: upper bound (exclusive) — unix seconds | unix ms | ISO timestamp
+- `range`: `last_7d` … `all` shortcut. With `from`/`to` it goes through `resolveDateWindow`, so the same 400-day cap applies.
+- `cursor`: opaque string returned as `nextCursor` on the previous page; pass it back to walk older events without offset drift. Recommended over `offset` for streaming-style backfills.
+- `limit`: 1-200 (default: 50)
+- `offset`: number (default: 0)
+
+**Response shape:** `{ success: true, data: { events, count, hasMore, limit, offset, nextCursor, filters, window } }`. Iterate over `data.events` — this is **not** a raw array at the top level. Each event has chain/block/log metadata, USD amounts, platform/currency labels, exchange rates, and event-specific fields (intentHash, depositId, etc.). When `hasMore=true`, the response also carries a `nextCursor` (`c_<unixSeconds>`) — pass it back as `cursor` for the next page.
+
+### GET /activity/stream
+
+Server-Sent Events (SSE) for real-time protocol events. Requires API key (x402 not supported).
+
+**Parameters:**
+- `type`: same as /activity (aliases supported)
+- `since` / `after`: unix seconds | ms | ISO timestamp
+- `limit`: 1-200 (default: 100)
+- `intervalMs`: 2000-30000 (default: 5000)
+
+**SSE event names:**
+- `activity` — Event payload (same structure as GET /activity)
+- `cursor` — `{ lastSent: <unix_seconds> }` after each batch
+- `error` — Error payload `{ message, code? }`
+
+**Credit consumption:** 1 credit per minute of streaming (checked every 60 seconds). Stream closes with `credits_exhausted` error when credits run out.
+
+**Heartbeat:** `: ping` comment every 15 seconds to keep the connection alive.
+
+**Deduplication:** Server tracks up to 1,000 sent event IDs to avoid duplicate delivery.
+
+---
+
+## Time-Series Endpoint
+
+### GET /analytics/timeseries
+
+Bucketed time-series of deposits, intents, or fulfilled volume. Pro tier only (gated via plan limits + per-call cost = 20 credits). Category: `analytics`.
+
+**Parameters:**
+- `entity` (required): `deposits` | `intents` | `volume`
+- `granularity`: `hour` | `day` (default: `day`)
+- `from`, `to`: ISO-8601 or unix-seconds. Default window depends on granularity (7d for hour, 90d for day). Hard cap: 2000 buckets per response.
+- `groupBy`: `platform` | `currency` | `maker` | `verifier`. When set, the response carries `series[]` (up to 25 keys ordered by total value) instead of a single global `buckets` array. Note: `groupBy=currency|verifier` is rejected for `entity=deposits` because that entity does not pin a single currency or verifier — switch to `entity=intents|volume`.
+- `platform`, `currency`, `maker`, `verifier`: repeatable or comma-separated filters (OR semantics) applied to the underlying data before bucketing.
+
+**Response shape:**
+
+Without `groupBy`:
+```json
+{
+  "success": true,
+  "data": {
+    "entity": "volume",
+    "granularity": "day",
+    "groupBy": null,
+    "from": "2026-04-01T00:00:00.000Z",
+    "to": "2026-04-30T00:00:00.000Z",
+    "buckets": [{ "bucket": "2026-04-01", "value": 24500 }],
+    "series": null,
+    "cached": false
+  }
+}
+```
+
+With `groupBy=platform`:
+```json
+{
+  "data": {
+    "entity": "volume",
+    "groupBy": "platform",
+    "buckets": null,
+    "series": [
+      { "key": "0xpm-cashapp", "label": "cash app", "buckets": [...] },
+      { "key": "0xpm-venmo", "label": "venmo", "buckets": [...] }
+    ]
+  }
+}
+```
+
+`series[].key` is the canonical hash (or address); use `series[].label` for display.
+
+---
+
+## Metadata Endpoints
+
+### GET /meta/platforms
+
+List of supported payment platforms with their method hashes.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "platforms": [
+      { "id": "revolut", "label": "Revolut", "methodHashes": ["0x..."] },
+      { "id": "venmo", "label": "Venmo", "methodHashes": ["0x..."] }
+    ]
+  }
+}
+```
+
+### GET /meta/currencies
+
+List of supported fiat currencies with hashes.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "currencies": [
+      { "code": "GBP", "label": "British Pound", "flag": "gb", "hashes": ["0x..."] },
+      { "code": "EUR", "label": "Euro", "flag": "eu", "hashes": ["0x..."] }
+    ]
+  }
+}
+```
+
+---
+
+## History Endpoints
+
+### GET /makers/{address}/history
+
+Maker aggregates with deposit and intent summaries.
+
+**Parameters:**
+- `from`, `to`, `range`: optional date window. When supplied, every intent metric (`volumeUsd`, `successRate`, `byPlatform`, `byCurrency`, fulfillment durations) recomputes for the period and the `recent` array is paginated within that window.
+- `limit`: 1-200 (default: 30). Pages the `intents.recent` cursor.
+- `offset`: number (default: 0). Pages the `intents.recent` cursor.
+
+**Response:** Deposit stats (total, active, volume, platform/currency breakdowns, recent deposits), intent stats (total, fulfilled, pruned, success rate, volume, avg/median fulfillment time, currency/platform breakdowns, recent intents with `limit`/`offset`/`hasMore` cursor), taker intent summary, and a top-level `window` block when filtering by date.
+
+### GET /takers/{address}/history
+
+Taker aggregates with intent summaries and trust scoring.
+
+**Parameters:** Same window + pagination semantics as `/makers/{address}/history`.
+
+**Response:** Intent stats (same structure as maker; within a window the totals/volume reflect the period only — outside a window they fall back to lifetime TakerStats), plus taker-specific stats: lock score, tier, tier progress (current, next, progress percentage, volume needed), first seen date, last intent date. Includes a `window` block when filtering by date.
+
+---
+
+## Account Management Endpoints
+
+These endpoints use API key authentication but do **not** consume credits. They allow programmatic management of API keys and credit purchases.
+
+### GET /account/keys
+
+List all API keys for the authenticated wallet.
+
+**Parameters:** None
+
+**Response example:**
+```json
+{
+  "data": [
+    {
+      "object": "api_key",
+      "id": "f7c3...e9d2",
+      "masked_key": "pk_live_a1b2...c3d4",
+      "label": "my-bot",
+      "status": "active",
+      "created": 1736930400,
+      "last_used_at": 1739176200
+    }
+  ]
+}
+```
+
+Note: account endpoints return `{ data, ... }` like every other v1 endpoint. The `id` field is a stable opaque identifier (sha256 of the raw key) — pass it to rotate/delete.
+
+### POST /account/keys
+
+Create a new API key. To rotate or delete, use the dedicated endpoints below — the legacy `action` enum was retired with v2.
+
+**Request body:**
+- `label` (optional): human-readable label
+
+**Response example:**
+```json
+{
+  "data": {
+    "object": "api_key",
+    "id": "f7c3...e9d2",
+    "key": "pk_live_a1b2c3d4e5f6...",
+    "masked_key": "pk_live_a1b2...c3d4",
+    "label": "my-bot",
+    "status": "active",
+    "created": 1739190000
+  }
+}
+```
+
+The full `key` value is only returned on create/rotate. Store it securely — it cannot be retrieved later.
+
+### POST /account/keys/{id}/rotate
+
+Rotate an API key by its opaque `id`. Atomically disables the previous key and emits a new one. Returns the same shape as create.
+
+### DELETE /account/keys/{id}
+
+Permanently delete an API key by its opaque `id`. Returns `{ "data": { "object": "api_key", "id": "...", "deleted": true } }`.
+
+### GET /account/credits
+
+Get credit balance, purchase history, and available packages for the authenticated wallet.
+
+**Parameters:** None
+
+**Response example:**
+```json
+{
+  "data": {
+    "object": "credit_balance",
+    "paid_credits": 48500,
+    "free_credits_used": 320,
+    "free_credits_limit": 1000,
+    "free_credits_reset_at": 1709251200,
+    "total_purchased": 50000,
+    "total_used": 1820
+  },
+  "purchases": [],
+  "packages": {
+    "starter": { "price": 10, "credits": 50000, "label": "Starter" },
+    "growth": { "price": 29, "credits": 150000, "label": "Growth" },
+    "scale": { "price": 99, "credits": 600000, "label": "Scale" }
+  }
+}
+```
+
+(Note: `free_credits_reset_at` is now Unix seconds, not ms — see the v2 migration notes.)
+
+### POST /account/checkout
+
+Create a credit checkout order to purchase API credits via Peer Pay.
+
+**Request body:**
+- `package` (required): `starter` | `growth` | `scale`
+
+**Response example:**
+```json
+{
+  "data": {
+    "object": "checkout_session",
+    "checkout_url": "https://pay.peer.xyz/?order=ord_abc123&token=tok_abc123",
+    "order_id": "ord_abc123",
+    "order_token": "tok_abc123",
+    "package": {
+      "key": "starter",
+      "price": 10,
+      "credits": 50000,
+      "label": "Starter"
+    }
+  }
+}
+```
+
+### SDK Methods
+
+The `@peerlytics/sdk` provides methods for account management:
+
+```typescript
+// List API keys
+const { keys } = await client.listKeys();
+
+// Create a new API key
+const { key } = await client.createKey('my-bot');
+
+// Rotate an existing key (pass the opaque `id` from listKeys)
+const { key: rotated } = await client.rotateKey(keys[0].id);
+
+// Delete an API key
+await client.deleteKey(keys[0].id);
+
+// Check credit balance and purchase history
+const { balance, purchases, packages } = await client.getCredits();
+
+// Create a credit checkout order
+const { checkoutUrl, orderId, orderToken } = await client.createCheckout('starter');
+```
+
+### Example curl Commands
+
+```bash
+# List API keys
+curl -H "x-api-key: pk_live_xxx" \
+  "https://peerlytics.xyz/api/v1/account/keys"
+
+# Create a new API key
+curl -X POST -H "x-api-key: pk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"label":"my-bot"}' \
+  "https://peerlytics.xyz/api/v1/account/keys"
+
+# Rotate an existing key (use the opaque `id` from listKeys)
+curl -X POST -H "x-api-key: pk_live_xxx" \
+  "https://peerlytics.xyz/api/v1/account/keys/<key_id>/rotate"
+
+# Delete an API key
+curl -X DELETE -H "x-api-key: pk_live_xxx" \
+  "https://peerlytics.xyz/api/v1/account/keys/<key_id>"
+
+# Check credit balance
+curl -H "x-api-key: pk_live_xxx" \
+  "https://peerlytics.xyz/api/v1/account/credits"
+
+# Create a credit checkout order
+curl -X POST -H "x-api-key: pk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{"package":"starter"}' \
+  "https://peerlytics.xyz/api/v1/account/checkout"
+```
+
+---
+
+## Outbound Webhooks (integrator endpoints)
+
+Pro-tier and paid-credit accounts can register webhook endpoints that Peerlytics calls when protocol events land. Management lives at `/api/v1/account/webhooks` (GET / POST list endpoint, POST / DELETE on `/{id}`). Dispatch is driven by a 1-minute systemd cron on dappnode (`peerlytics-cron.service`), not by the Next.js runtime.
+
+### Events
+
+Canonical event names (v2, aligned with the `LiveEvent.type` vocabulary on `/activity`):
+
+- `deposit.created` — emitted when a new deposit lands on Base
+- `intent.signaled` — emitted when a buyer signals intent against a deposit
+- `intent.fulfilled` — emitted when an intent is fulfilled / released
+- `deposit.rate_updated` — emitted when a deposit's conversion rate changes (manager update or vault rebalance)
+
+Legacy event names (`intent.created`, `intent.filled`, `rate.updated`) are still accepted on registration but are normalized to the canonical names server-side. Each registered endpoint subscribes to a subset via the `events` array on registration.
+
+### Update / delete
+
+- `POST /api/v1/account/webhooks/{id}` — body `{ "status": "active" | "disabled" }`. Idempotent — sending the same status repeatedly is a no-op. (PATCH was retired with v2.)
+- `DELETE /api/v1/account/webhooks/{id}` — permanently removes the endpoint.
+
+### Headers
+
+Every delivery includes:
+
+- `X-Peerlytics-Signature: t=<unix_seconds>,v1=<hex>` — HMAC-SHA256 over `${timestamp}.${rawBody}` with the endpoint's secret. 5-minute replay window.
+- `X-Peerlytics-Event: <event_name>` — the event type
+- `X-Peerlytics-Delivery-Id: <uuid>` — unique per delivery attempt
+- `Content-Type: application/json`
+
+### Verification
+
+```ts
+import crypto from "node:crypto";
+
+function verify(rawBody: string, header: string, secret: string) {
+  const [tPart, v1Part] = header.split(",");
+  const timestamp = tPart?.split("=")[1] ?? "";
+  const received = v1Part?.split("=")[1] ?? "";
+  if (Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(`${timestamp}.${rawBody}`)
+    .digest("hex");
+  return (
+    received.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(received, "hex"), Buffer.from(expected, "hex"))
+  );
+}
+```
+
+### Delivery semantics
+
+- Up to 5 attempts with exponential backoff (1m, 5m, 15m, 60m, 6h)
+- Per-event cursor stored in Firestore (`integrator-webhook-cursors`)
+- Per-delivery log at `integrator-webhook-deliveries/{apiKeyHash}/deliveries/{id}`
+- SSRF blocklist refuses internal / loopback URLs at registration time
+
+---
+
+## Two-Tier Caching Architecture
+
+Peerlytics uses a two-tier caching system to balance freshness with performance:
+
+### Tier 1: Firebase Cloud Functions (Pre-computed)
+
+Firebase Cloud Functions Gen2 (us-central1, 2GiB memory, 540s timeout) run on schedules:
+
+| Function | Schedule | Purpose |
+|----------|----------|---------|
+| `analyticsSync` | Every 30 min | Investor analytics (mtd/3mtd summary + overview), leaderboard, vaults, market intel |
+| `analyticsSyncHeavy` | Every 2 hours | Long-range investor analytics (ytd/all) and time-to-fill |
+| `relaySync` | Every 4 hours | Relay bridge transfer metrics |
+
+**Incremental sync strategy:** Historical data is immutable. Only today's data needs refreshing:
+1. Load cached historical intents/deposits from Firestore
+2. Fetch only today's data from Envio indexer
+3. Merge and compute aggregations
+4. Active deposits and leaderboards always fetched fresh
+
+**Computed Firestore documents:**
+- `analytics/investor_period_*`, `analytics/summary`, `analytics/leaderboard`
+- `analytics/vaults`, `analytics/time-to-fill`, `analytics/market-intel`
+- `analytics/cache_*` (historical data cache for on-demand detailed analytics)
+- `relay/bridging_*`, `relay/cache_*`
+
+### Tier 2: Direct Envio Indexer (On-Demand Detailed Analytics)
+
+Internal detailed analytics routes recompute directly from the Envio GraphQL indexer and use Next.js caching rather than precomputed Firestore period docs.
+
+**Freshness model:** Investor endpoints stay Firebase-backed only. Internal detailed views can recompute from Envio when the cached application payload expires.
+
+**Configuration:** `ANALYTICS_SOURCE=firebase` controls the primary data source.
+
+### Investor API semantics
+
+Public investor endpoints do not fall back to legacy period docs. If the investor Firestore documents have not been produced yet, the API responds with `analytics_unavailable`.
+
+---
+
+## GraphQL / Envio Indexer Schema
+
+Data is sourced from the Envio indexer, a public Hasura GraphQL endpoint indexing ZKP2P escrow events on Base (chain ID 8453). Both EscrowV2 (current) and the legacy escrow are indexed.
+
+### Endpoint
+
+```
+POST https://indexer.zkp2p.xyz/v1/graphql
+Content-Type: application/json
+```
+
+No authentication required. Rate-limited (429 responses retried after 2s). Client-side throttle: 100ms minimum between requests.
+
+### Escrow contracts
+
+- EscrowV2 (current): `0x777777779d229cdF3110e9de47943791c26300Ef` on Base mainnet
+- Legacy escrow (read-only liquidity): `0x2f121CDDCA6d652f35e8B3E560f9760898888888`
+
+The indexer surfaces deposits and intents from both escrows; new deposits route to EscrowV2.
+
+### Key Entities
+
+`OrderbookEntry` is the preferred orderbook surface. Peerlytics still joins
+legacy `Deposit` and `MethodCurrency` rows as a fallback during projection
+rollout windows.
+
+#### OrderbookEntry (preferred orderbook surface)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | String | Composite canonical tuple key |
+| `depositId` | String | Composite deposit key (`chain_escrow_depositId`) |
+| `depositIdOnContract` | String | Numeric on-chain deposit ID |
+| `paymentPlatform` | String | Canonical visible platform label (`zelle`, `revolut`, etc.) |
+| `currencyCode` | String | keccak256 hash of ISO currency code |
+| `currency` | String | Human-readable fiat code (`USD`, `GBP`, etc.) |
+| `price` | String | Canonical orderbook quote (divide by `1e18`) |
+| `availableTokenAmount` | String | USDC remaining for the visible tuple (raw 6-decimal units) |
+| `hasMinLiquidity` | Boolean | Whether the row clears the min-liquidity threshold |
+| `isActive` | Boolean | Whether the row is currently visible in the orderbook |
+
+**Important:** rows are unique per `(depositId, paymentPlatform, currencyCode)`. Bank-specific Zelle variants are collapsed to a single `paymentPlatform = "zelle"` row.
+
+#### Deposit (fallback source)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | String | Composite indexer key (escrowAddress_depositId) |
+| `depositId` | String | On-chain deposit ID |
+| `depositor` | String | Maker's Ethereum address |
+| `delegate` | String | Delegate address (if delegated) |
+| `token` | String | Token address (USDC) |
+| `remainingDeposits` | String | USDC remaining (raw 6-decimal units) |
+| `outstandingIntentAmount` | String | USDC locked in pending intents |
+| `totalAmountTaken` | String | Historical total fulfilled |
+| `totalWithdrawn` | String | Total withdrawn by maker |
+| `acceptingIntents` | Boolean | Whether deposit accepts signals |
+| `status` | String | ACTIVE, CLOSED, etc. |
+| `successRateBps` | Number | Success rate in basis points |
+
+**Important:** Use `depositId`, `remainingDeposits`, `outstandingIntentAmount`. There are no `amount` or `createdTimestamp` fields on Deposit.
+
+#### MethodCurrency (fallback join source)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `depositId` | String | Links to Deposit.id |
+| `paymentMethodHash` | String | keccak256 hash of payment method |
+| `currencyCode` | String | keccak256 hash of ISO currency code |
+| `minConversionRate` | String | Exchange rate (divide by 1e18 for human-readable) |
+
+#### Intent (Intent_V3)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `intentHash` | String | Unique intent identifier |
+| `amount` | String | USDC amount (raw 6-decimal units) |
+| `status` | String | SIGNALED, FULFILLED, PRUNED |
+| `signalTimestamp` | Numeric | When buyer signaled (Unix seconds) |
+| `fulfillTimestamp` | Numeric | When trade completed (null if pending) |
+| `fiatCurrency` | String | keccak256 hash of currency code |
+| `paymentMethodHash` | String | keccak256 hash of payment method |
+| `conversionRate` | String | Exchange rate at signal time |
+
+**Important:** Use `signalTimestamp` not `timestamp`.
+
+### Hash Resolution
+
+Currency and payment method identifiers on-chain are keccak256 hashes. The `@zkp2p/sdk` package resolves them:
+
+```typescript
+import {
+  getPaymentMethodsCatalog,
+  resolvePaymentMethodNameFromHash,
+  getCurrencyInfoFromHash,
+} from '@zkp2p/sdk';
+
+const catalog = getPaymentMethodsCatalog(8453, 'production');
+const platformName = resolvePaymentMethodNameFromHash(hash, catalog);
+const currencyInfo = getCurrencyInfoFromHash(hash);
+const currencyCode = currencyInfo?.currencyCode; // e.g., "GBP"
+```
+
+---
+
+## Deposit State Matrix
+
+| status | acceptingIntents | Meaning | In available liquidity? |
+|--------|-----------------|---------|------------------------|
+| ACTIVE | true | Normal operation | Yes |
+| ACTIVE | false | Paused by maker | No |
+| CLOSED | - | Permanently closed | No |
+
+### Liquidity Calculation
+
+```
+availableLiquidity = sum(remainingDeposits) WHERE status=ACTIVE AND acceptingIntents=true
+activeDepositCount = count(*) WHERE status=ACTIVE (includes paused)
+```
+
+- `remainingDeposits`: USDC immediately available for new intents
+- `outstandingIntentAmount`: USDC locked in pending (signaled) intents
+- `totalAmountTaken`: Historical total USDC fulfilled to buyers
+
+---
+
+## Dashboard Analytics
+
+The dashboard at peerlytics.xyz/ shows pre-computed analytics with ECharts visualizations:
+
+- **Hero cards:** Total volume, active liquidity, unique users, success rate -- with delta comparisons
+- **Volume charts:** Daily/hourly volume over configurable time ranges
+- **Currency breakdown:** Volume by fiat currency (pie/bar charts)
+- **Platform trends:** Activity by payment method
+- **Liquidity depth:** Available USDC across deposits
+- **Spread analysis:** Current, min, max spread in basis points
+- **Live events:** Real-time contract events via WebSocket
+
+Data flows through `useDashboardData` hook using React Query with `networkMode: offlineFirst` and `useNetworkStatus` for offline detection.
+
+---
+
+## Explorer Features
+
+The explorer at peerlytics.xyz/explorer provides:
+
+- **Universal search:** Paste any address, intent hash, transaction hash, or deposit ID
+- **Auto-detection:** Query type (address, hash, deposit_id) is automatically inferred
+- **Role filtering:** For addresses, filter by role (owner, taker, recipient, verifier)
+- **Deposit detail page:** Full deposit info with intent history, payment methods, expired intents, maker's other deposits
+- **Intent detail page:** Full intent info with lifecycle timing, associated deposit, related intents
+- **Address page:** Combined view of all deposits and intents associated with an address, with aggregate stats
+- **Maker portfolio:** Deep analysis of a maker's entire portfolio with per-deposit metrics, currency/platform allocations, APR, turnover
+- **Verifier page:** Stats on a specific verifier (payment method) with currency breakdown, top takers/makers
+
+---
+
+## Buy and Sell Flows
+
+### Sell Flow (peerlytics.xyz/sell)
+
+1. Connect wallet via Privy
+2. Set deposit amount, payment methods, currencies, and exchange rates
+3. Create deposit via ZKP2P SDK on Base
+4. Deposit appears in the public orderbook
+5. Monitor deposit health, fills, and PnL on the profile page
+
+### Buy Flow (peerlytics.xyz/buy)
+
+1. Connect wallet via Privy
+2. Enter purchase amount and select payment method/currency
+3. View available maker quotes
+4. Signal intent to a deposit
+5. Complete fiat payment via PeerAuth extension (desktop) or Peer Mobile (mobile)
+6. ZK proof verification releases USDC to buyer
+7. Fulfillment polling with 30-minute timeout
+
+---
+
+## Webhook Payloads (ZKP2P Pay)
+
+The credit purchase system receives webhooks from ZKP2P Pay:
+
+### Headers
+
+- `x-webhook-id` — Unique webhook delivery ID
+- `x-webhook-timestamp` — Unix timestamp (seconds)
+- `x-webhook-signature` — HMAC-SHA256 signature (hex)
+
+### Signature Verification
+
+```
+signedPayload = "{timestamp}.{body}"
+expectedSignature = HMAC-SHA256(secret, signedPayload)
+```
+
+Timestamp tolerance: 5 minutes. Timing-safe comparison.
+
+### Payload Structure
+
+```json
+{
+  "id": "evt_123",
+  "type": "ORDER_FULFILLED",
+  "timestamp": "2026-02-10T12:00:00Z",
+  "data": {
+    "order": {
+      "id": "ord_xyz",
+      "status": "FULFILLED",
+      "requestedUsdcAmount": "29.00",
+      "notes": {
+        "walletAddress": "0x1234...",
+        "package": "growth",
+        "credits": 150000
+      }
+    },
+    "payment": {
+      "id": "pay_abc",
+      "status": "SETTLED",
+      "fulfillTransaction": "0xdef..."
+    }
+  }
+}
+```
+
+---
+
+## SDK Integration (@peerlytics/sdk)
+
+The Peerlytics SDK is available on npm as `@peerlytics/sdk`.
+
+### Installation
+
+```bash
+npm install @peerlytics/sdk
+# or
+bun add @peerlytics/sdk
+```
+
+### Quick Start
+
+```typescript
+import { Peerlytics } from '@peerlytics/sdk';
+
+const client = new Peerlytics({
+  apiKey: 'pk_live_your_key_here',
+});
+
+// Get protocol summary
+const summary = await client.getProtocolSummary();
+console.log(summary.mtd.activeLiquidityUsd);
+
+// Get the full investor diligence view
+const overview = await client.getProtocolOverview('all');
+console.log(overview.snapshot.settledVolumeUsd);
+
+// Search for an address
+const results = await client.search('0x1234...');
+console.log(results.intents.length, 'intents found');
+
+// Get GBP orderbook
+const orderbook = await client.getOrderbook({ currency: 'GBP' });
+console.log(orderbook.stats.totalLiquidityUsd);
+```
+
+### Configuration
+
+```typescript
+const client = new Peerlytics({
+  baseUrl: 'https://peerlytics.xyz',  // default
+  apiKey: 'pk_live_...',              // optional (required for streaming)
+  headers: { 'X-Custom': 'value' },   // optional extra headers
+  fetch: customFetchFn,               // optional fetch override
+});
+```
+
+### Methods
+
+#### Analytics
+
+| Method | Description |
+|--------|-------------|
+| `getProtocolSummary()` | Investor summary buckets |
+| `getProtocolOverview(range)` | Investor diligence payload |
+| `getLeaderboard(params?)` | Maker/taker rankings |
+| `getVaultsOverview()` | Delegated liquidity and vault overview |
+
+#### Explorer
+
+| Method | Description |
+|--------|-------------|
+| `search(query, opts?)` | Universal search |
+| `getDeposit(id, params?)` | Deposit detail with linked data |
+| `getVault(id, params?)` | Vault detail with delegated deposits and configs |
+| `getIntent(hash)` | Intent detail with linked data |
+| `getAddress(address, params?)` | Address activity and stats |
+| `getMaker(address)` | Maker portfolio analysis |
+| `getVerifier(address, params?)` | Verifier stats and breakdowns |
+
+#### Data
+
+| Method | Description |
+|--------|-------------|
+| `getDeposits(filters)` | Query deposits with filters |
+| `getIntents(filters)` | Query intents with filters |
+| `getActivity(filters?)` | Recent protocol events |
+| `getMarketSummary(opts?)` | Market rates and liquidity |
+| `getOrderbook(opts?)` | Full orderbook with levels |
+
+#### Meta & History
+
+| Method | Description |
+|--------|-------------|
+| `getCurrencies()` | Supported fiat currencies |
+| `getPlatforms()` | Supported payment platforms |
+| `getMakerHistory(address)` | Maker aggregates and history |
+| `getTakerHistory(address)` | Taker aggregates and trust score |
+
+#### Account Management
+
+| Method | Description |
+|--------|-------------|
+| `listKeys()` | List API keys for authenticated wallet |
+| `createKey(label?)` | Create a new API key |
+| `rotateKey(oldKey)` | Rotate an existing API key |
+| `deleteKey(key)` | Delete an API key |
+| `getCredits()` | Get credit balance, purchase history, and packages |
+| `createCheckout(pkg)` | Create a credit checkout order for purchase |
+
+### Error Handling
+
+```typescript
+import {
+  PeerlyticsError,
+  RateLimitError,
+  NotFoundError,
+  ValidationError,
+} from '@peerlytics/sdk';
+
+try {
+  const deposit = await client.getDeposit('999999');
+} catch (err) {
+  if (err instanceof RateLimitError) {
+    console.log('Retry after:', err.retryAfter, 'seconds');
+  } else if (err instanceof NotFoundError) {
+    console.log('Deposit not found');
+  } else if (err instanceof ValidationError) {
+    console.log('Validation error:', err.code, err.message);
+  } else if (err instanceof PeerlyticsError) {
+    console.log('API error:', err.status, err.code, err.message);
+  }
+}
+```
+
+### Data Refresh Intervals
+
+When building real-time integrations, recommended polling intervals:
+
+| Data | Interval | Notes |
+|------|----------|-------|
+| Summary | 5 min | Pre-computed, updates every 30 min |
+| Period analytics | 5 min | Pre-computed, updates every 30 min |
+| Leaderboard | 10 min | Updates every 30 min |
+| Deposits | 30-60s | Direct indexer query |
+| Intents | 15-30s | Direct indexer query |
+| Orderbook | 30-60s | Aggregated from live data |
+| Activity | 15s | Direct indexer query |
+| Market summary | 60s | Direct indexer query |
+
+For real-time needs, use the SSE stream (`/activity/stream`) instead of polling.
+
+---
+
+## Agent Skills
+
+Peer Agent Skills provide programmatic access to protocol data for AI agents.
+
+Source: https://github.com/zkp2p/zkp2p-skills
+
+Install: `cp -r skills/<skill> .claude/skills/<skill>`
+
+Key skills:
+- `/analyze-peer-protocol` — Protocol health, volume trends, liquidity, leaderboards
+- `/look-up-peer-data` — Search deposits, intents, addresses, maker portfolios
+- `/monitor-peer-activity` — Real-time protocol events (polling or SSE streaming)
+- `/check-fx-rates` — Live fiat-to-USDC rates, spreads, and liquidity
+
+Agent integration guide: https://peerlytics.xyz/agents
+
+Works with Claude Code, Codex, OpenClaw, Cursor, Gemini CLI, and any AgentSkills-compatible runtime.
+
+---
+
+## Application Routes
+
+| Route | Description |
+|-------|-------------|
+| `/` | Dashboard — protocol analytics and metrics |
+| `/explorer` | Universal search and transaction explorer |
+| `/trade` | Trading interface |
+| `/sell` | Create USDC deposits as a maker |
+| `/buy` | Purchase USDC via P2P |
+| `/profile` | Personal stats, deposit health, settings |
+| `/data` | Data page with exportable analytics |
+| `/developers` | API docs, key management, credit purchase |
+| `/agents` | Agent integration guide with code examples |
+| `/help` | FAQ and support |
+| `/bridge` | Bridge interface |
+| `/wrapped` | ZKP2P Wrapped 2025 annual review |
+
+---
+
+## Tech Stack
+
+- **Framework:** Next.js 16, React 19
+- **Language:** TypeScript (strict mode)
+- **Auth:** Privy (smart wallets, embedded wallets, external EOA)
+- **Data:** Envio GraphQL indexer, Firebase Firestore
+- **Charts:** ECharts
+- **Payments:** x402 protocol (Coinbase), ZKP2P Pay
+- **Blockchain:** Base mainnet (Chain ID 8453)
+- **Hosting:** Firebase App Hosting
+- **Functions:** Firebase Cloud Functions Gen2 (Node 20, ESM, us-central1)
+- **SDK:** `@peerlytics/sdk` on npm
+
+---
+
+## Ecosystem
+
+Peerlytics is part of the ZKP2P ecosystem:
+
+- **USDCtoFiat** (https://usdctofiat.xyz) — P2P USDC on/off-ramp interface
+  - LLM docs: https://usdctofiat.xyz/llms.txt
+- **Delegate** (https://delegate.usdctofiat.xyz) — Automated deposit rate management
+  - LLM docs: https://delegate.usdctofiat.xyz/llms.txt
+- **Peer Orderbook** (https://network.peerlytics.xyz) — Public P2P orderbook viewer
+  - LLM docs: https://network.peerlytics.xyz/llms.txt
+- **ZKP2P Protocol** (https://peer.xyz) — The underlying decentralized protocol
+  - Docs: https://docs.peer.xyz
+- **peer-cli** (https://agents.peer.xyz) — Agent CLI and MCP server for protocol operations (89 commands)
+
+All apps interact with the same ZKP2P escrow contracts on Base (EscrowV2 + legacy) and share the Envio indexer as data source.
+
+---
+
+## Links
+
+- App: https://peerlytics.xyz
+- API: https://peerlytics.xyz/api/v1
+- OpenAPI: https://peerlytics.xyz/api/openapi
+- SDK: https://www.npmjs.com/package/@peerlytics/sdk
+- Agent Skills: https://github.com/zkp2p/zkp2p-skills
+- Support: gm@galleonlabs.io
+- X: https://x.com/andrewwilkinson
+- Telegram: https://t.me/DavyJones_0x
+- Discord: https://discord.gg/h3rzP79jj3

@@ -1,0 +1,66 @@
+id: ramp_network
+name: Ramp Network
+category: ramp
+subcategory: integrator-friendly on/off-ramp
+website: https://ramp.network
+launched: '2017'
+
+legal_entity: Ramp Swaps Ltd (UK), with EU subsidiaries
+licenses:
+  - { jurisdiction: GB, type: FCA registered cryptoasset firm }
+  - { jurisdiction: IE, type: VASP }
+  - { jurisdiction: US, type: MTL (partial state coverage) }
+
+direction: both
+countries_supported: []
+fiats: [USD, EUR, GBP, AUD, CAD, JPY, BRL, MXN]
+assets:
+  - { symbol: USDC, chain: ethereum }
+  - { symbol: USDC, chain: base }
+  - { symbol: USDC, chain: polygon }
+  - { symbol: ETH, chain: ethereum }
+  - { symbol: BTC, chain: bitcoin }
+payment_methods: [card, sepa, ach, fps, apple_pay, google_pay, pix, spei]
+delivery_chains: [ethereum, polygon, arbitrum, optimism, base, solana, avalanche]
+
+kyc_tiers:
+  - { name: Basic, requirements: [email, phone], min: 0, max: null, period: lifetime }
+  - { name: Enhanced, requirements: [id, selfie], min: 0, max: null, period: monthly }
+non_kyc_available: false
+pii_floor: email
+
+pricing:
+  spread_method: vs_mid
+  pricing_endpoint: https://api.rampnetwork.com/api/host-api/v3/onramp/quote/all
+
+settlement_time:
+  value: { card: instant, sepa: 1-2d, ach: 1-3d }
+  provenance: self_reported
+  last_verified: '2026-05-05'
+
+chargeback_protection: true
+
+delivery_custody: self
+requires_account: false
+wallet_setup_required: true
+
+audits: []
+open_source:
+  is_open: false
+team_transparency: public
+
+integration_types: [widget, rest_api, sdk, hosted_checkout]
+sdks:
+  - { platform: web, url: https://github.com/RampNetwork/ramp-instant-sdk }
+kyc_inheritance: none
+white_label: yes
+webhooks: true
+sandbox: true
+docs_url: https://docs.rampnetwork.com
+integrator_fee_model: rev_share
+
+address_linkage: shared_with_partners
+third_party_sharing:
+  shares: true
+  partners: [KYC providers, payment processors, blockchain analytics]
+onchain_privacy: none

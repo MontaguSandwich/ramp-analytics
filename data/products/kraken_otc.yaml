@@ -1,0 +1,57 @@
+id: kraken_otc
+name: Kraken OTC
+category: otc
+subcategory: institutional voice/RFQ desk
+website: https://www.kraken.com/otc
+launched: '2018'
+
+legal_entity: Payward Inc. (parent)
+licenses:
+  - { jurisdiction: US, type: MSB + state MTLs }
+  - { jurisdiction: GB, type: FCA registered cryptoasset firm }
+  - { jurisdiction: IE, type: VASP }
+
+direction: both
+countries_supported: []
+fiats: [USD, EUR, GBP, CHF, AUD, CAD, JPY]
+assets: []
+payment_methods: [bank_wire]
+delivery_chains: []
+
+kyc_tiers:
+  - { name: Institutional, requirements: [kyb, ubo_disclosure, source_of_funds, id_for_signatories], min: 100000, max: null, period: per_trade }
+non_kyc_available: false
+pii_floor: enhanced
+
+pricing:
+  spread_method: marketmaker_quote
+  min_ticket_usd: 100000
+
+settlement_time:
+  value: { wire: T+0 to T+1 }
+  provenance: self_reported
+  last_verified: '2026-05-05'
+
+delivery_custody: either
+requires_account: true
+
+audits: []
+open_source:
+  is_open: false
+proof_of_reserves:
+  exists: true
+  url: https://www.kraken.com/proof-of-reserves
+team_transparency: public
+
+integration_types: [none]
+sdks: []
+kyc_inheritance: none
+white_label: no
+webhooks: false
+docs_url: https://www.kraken.com/otc
+
+address_linkage: internal
+third_party_sharing:
+  shares: true
+  partners: [law enforcement, regulators]
+onchain_privacy: none

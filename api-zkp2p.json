@@ -1,0 +1,2728 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Peerlytics Paid API",
+    "version": "2.0.0",
+    "description": "Paid API for ZKP2P protocol analytics, explorer data, and market intelligence. v2 (April 2026) ships breaking conventions: snake_case fields, Unix-seconds timestamps, cursor-based pagination, dedicated key/webhook endpoints, and `<resource>.<action>` webhook event names. See `/llms.txt` for the migration guide.",
+    "contact": {
+      "name": "Galleon Labs",
+      "email": "gm@galleonlabs.io",
+      "url": "https://x.com/andrewwilkinson"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://peerlytics.xyz"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    },
+    {
+      "BearerAuth": []
+    },
+    {
+      "x402Payment": []
+    },
+    {
+      "x402PaymentLegacy": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "analytics",
+      "description": "Investor-facing protocol analytics and diligence."
+    },
+    {
+      "name": "explorer",
+      "description": "Explorer lookups and filtered data."
+    },
+    {
+      "name": "vaults",
+      "description": "Delegation, rate-manager, and vault analytics."
+    },
+    {
+      "name": "market",
+      "description": "Market intelligence snapshots."
+    },
+    {
+      "name": "activity",
+      "description": "Activity feeds and streaming."
+    },
+    {
+      "name": "meta",
+      "description": "Static metadata for platforms/currencies."
+    },
+    {
+      "name": "history",
+      "description": "Maker/taker history aggregates."
+    },
+    {
+      "name": "account",
+      "description": "API key management, credit purchases, and outbound webhook subscriptions. Authenticated via API key but does not consume credits."
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      },
+      "x402Payment": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "PAYMENT-SIGNATURE",
+        "description": "x402 payment payload (base64-encoded JSON). Send a request without auth to receive 402 with payment requirements, then retry with this header. USDC on Base. See https://github.com/coinbase/x402"
+      },
+      "x402PaymentLegacy": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-PAYMENT",
+        "description": "Legacy x402 header for backwards compatibility. Prefer PAYMENT-SIGNATURE."
+      }
+    },
+    "schemas": {
+      "PaidApiError": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "status",
+              "code",
+              "message"
+            ],
+            "properties": {
+              "status": {
+                "type": "integer"
+              },
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "PaginatedList": {
+        "type": "object",
+        "description": "Cursor-paginated envelope. When `has_more` is true, pass the `next_cursor` value back as `cursor=<token>` to fetch the next page without offset drift. The legacy `offset` field is still echoed for backwards compatibility but is deprecated.",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "Page of results. Each row carries an `object` discriminator."
+          },
+          "count": {
+            "type": "integer",
+            "description": "Number of items returned in this page."
+          },
+          "has_more": {
+            "type": "boolean",
+            "description": "Whether more items exist beyond this page."
+          },
+          "next_cursor": {
+            "type": "string",
+            "nullable": true,
+            "description": "Opaque cursor token. Present when `has_more` is true. Pass back as `?cursor=...` to walk forward."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Requested limit."
+          },
+          "offset": {
+            "type": "integer",
+            "description": "Deprecated. Server still respects `offset=N` for backwards compatibility, but cursor-based pagination is the supported path and the only one that remains stable under writes. Will be removed in a future major version.",
+            "deprecated": true
+          }
+        }
+      },
+      "AnalyticsMeta": {
+        "type": "object",
+        "properties": {
+          "cached_at": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds) when the cached snapshot was computed."
+          },
+          "cache_duration_seconds": {
+            "type": "integer"
+          },
+          "range": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "firebase",
+              "indexer"
+            ]
+          }
+        }
+      },
+      "MarketEntry": {
+        "type": "object",
+        "description": "Per-market pricing snapshot. Percentile fields (p25/median/p75/p90/suggested_rate) are liquidity-weighted and refreshed every 30 minutes by the analytics cron. Live fields (front_of_book_rate, front_of_book_liquidity_usd, fx_mid_rate) are fetched on-request from the indexer and FX provider with a 30-second response cache.",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "market_entry"
+            ],
+            "readOnly": true
+          },
+          "platform": {
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "sample_size": {
+            "type": "integer"
+          },
+          "total_liquidity": {
+            "type": "number"
+          },
+          "p25": {
+            "type": "number",
+            "nullable": true
+          },
+          "median": {
+            "type": "number",
+            "nullable": true
+          },
+          "p75": {
+            "type": "number",
+            "nullable": true
+          },
+          "p90": {
+            "type": "number",
+            "nullable": true
+          },
+          "suggested_rate": {
+            "type": "number",
+            "nullable": true
+          },
+          "front_of_book_rate": {
+            "type": "number",
+            "nullable": true,
+            "description": "Best (lowest) live taker rate available right now on this platform/currency. Null if no active deposit meets the minimum-liquidity threshold."
+          },
+          "front_of_book_liquidity_usd": {
+            "type": "number",
+            "nullable": true,
+            "description": "Total USDC liquidity sitting at front_of_book_rate."
+          },
+          "fx_mid_rate": {
+            "type": "number",
+            "nullable": true,
+            "description": "Reference FX mid rate (USD->currency). Sourced from exchangerate-api.com when EXCHANGE_API_KEY is configured, otherwise from open.er-api.com. May lag the spot market by up to ~1 hour; treat the on-chain rate as ground truth for tight pricing decisions."
+          }
+        }
+      },
+      "LiveEvent": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "event"
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "intent_signaled",
+              "intent_fulfilled",
+              "intent_pruned",
+              "deposit_created",
+              "deposit_topup",
+              "deposit_withdrawn",
+              "deposit_closed",
+              "deposit_rate_updated"
+            ]
+          },
+          "timestamp": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds)."
+          },
+          "intent_hash": {
+            "type": "string",
+            "nullable": true
+          },
+          "deposit_id": {
+            "type": "string",
+            "nullable": true
+          },
+          "owner": {
+            "type": "string",
+            "nullable": true
+          },
+          "to_address": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ApiKeyInfo": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "api_key"
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "type": "string",
+            "description": "Stable opaque identifier (sha256 of the raw key). Use for `DELETE /api/v1/account/keys/{id}` and `POST /api/v1/account/keys/{id}/rotate`."
+          },
+          "key": {
+            "type": "string",
+            "description": "Full key (only shown on create/rotate)."
+          },
+          "masked_key": {
+            "type": "string",
+            "description": "Masked key for display."
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          },
+          "created": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds)."
+          },
+          "last_used_at": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Unix timestamp (seconds) of the most recent successful auth."
+          }
+        }
+      },
+      "CreditBalance": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "credit_balance"
+            ],
+            "readOnly": true
+          },
+          "paid_credits": {
+            "type": "integer"
+          },
+          "free_credits_used": {
+            "type": "integer"
+          },
+          "free_credits_limit": {
+            "type": "integer"
+          },
+          "free_credits_reset_at": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds) when the free-tier counter resets."
+          },
+          "total_purchased": {
+            "type": "integer"
+          },
+          "total_used": {
+            "type": "integer"
+          }
+        }
+      },
+      "VaultSummary": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "vault"
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "manager": {
+            "type": "string"
+          },
+          "manager_short": {
+            "type": "string"
+          },
+          "aum": {
+            "type": "number"
+          },
+          "delegated_deposits": {
+            "type": "integer"
+          },
+          "total_volume": {
+            "type": "number"
+          },
+          "total_fees": {
+            "type": "number"
+          },
+          "fee_pct": {
+            "type": "number"
+          },
+          "max_fee_pct": {
+            "type": "number"
+          },
+          "created": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Unix timestamp (seconds)."
+          }
+        }
+      },
+      "VaultOracleConfig": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "vault_oracle_config"
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "deposit_id": {
+            "type": "string"
+          },
+          "payment_method_hash": {
+            "type": "string"
+          },
+          "currency_code": {
+            "type": "string"
+          },
+          "adapter": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true
+          },
+          "spread_bps": {
+            "type": "number",
+            "nullable": true
+          },
+          "oracle_rate_decimal": {
+            "type": "string",
+            "nullable": true,
+            "description": "Oracle rate as a decimal string (e.g. `\"1.0250\"`). String serialization avoids floating-point precision loss."
+          },
+          "max_staleness": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Maximum staleness in seconds before the oracle is considered stale."
+          },
+          "last_oracle_updated_at": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Unix timestamp (seconds)."
+          }
+        }
+      },
+      "VaultFloorConfig": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "vault_floor_config"
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "deposit_id": {
+            "type": "string"
+          },
+          "payment_method_hash": {
+            "type": "string"
+          },
+          "currency_code": {
+            "type": "string"
+          },
+          "floor_fixed_decimal": {
+            "type": "string"
+          },
+          "floor_spread_bps": {
+            "type": "number"
+          },
+          "oracle_adapter": {
+            "type": "string",
+            "nullable": true
+          },
+          "kind": {
+            "type": "string",
+            "nullable": true
+          },
+          "current_floor_rate_decimal": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "description": "Replaces the legacy `enabled: boolean` field — extensible to future states (`paused`, `pending`, ...) without a breaking change."
+          },
+          "max_staleness": {
+            "type": "integer",
+            "nullable": true
+          },
+          "last_oracle_updated_at": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Unix timestamp (seconds)."
+          }
+        }
+      },
+      "WebhookEndpoint": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "type": "string",
+            "enum": [
+              "webhook_endpoint"
+            ],
+            "readOnly": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "deposit.created",
+                "intent.signaled",
+                "intent.fulfilled",
+                "deposit.rate_updated"
+              ]
+            }
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "failed_permanent"
+            ],
+            "description": "Endpoints flip to `failed_permanent` after 10 consecutive delivery failures and stop receiving fanout until re-enabled."
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "created": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds)."
+          },
+          "updated_at": {
+            "type": "integer",
+            "description": "Unix timestamp (seconds)."
+          },
+          "last_delivery_at": {
+            "type": "integer",
+            "nullable": true
+          },
+          "last_delivery_status": {
+            "type": "string",
+            "enum": [
+              "success",
+              "failed"
+            ],
+            "nullable": true
+          },
+          "failure_count": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      }
+    },
+    "headers": {
+      "RateLimitLimit": {
+        "description": "Max requests per window.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "RateLimitRemaining": {
+        "description": "Remaining requests in the current window.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "RateLimitReset": {
+        "description": "Seconds until the rate limit window resets.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "CreditsRemaining": {
+        "description": "Remaining credits across paid + free.",
+        "schema": {
+          "type": "integer"
+        }
+      },
+      "CreditsSource": {
+        "description": "Credit bucket used for the request (API key auth only).",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "paid",
+            "free",
+            "none"
+          ]
+        }
+      },
+      "PaymentMethod": {
+        "description": "Authentication method used for the request.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "api-key",
+            "x402"
+          ]
+        }
+      },
+      "PaymentTxHash": {
+        "description": "On-chain settlement transaction hash (x402 payments only).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "PaymentRequired": {
+        "description": "x402 payment requirements. Provided as base64 JSON in PAYMENT-REQUIRED (v2) and as JSON string in X-PAYMENT-REQUIRED (legacy).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "PaymentResponse": {
+        "description": "x402 settlement response (base64 JSON). Provided as PAYMENT-RESPONSE (v2) and X-PAYMENT-RESPONSE (legacy).",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "parameters": {
+      "RangeParam": {
+        "name": "range",
+        "in": "query",
+        "description": "Unified date-range shortcut shared across analytics + explorer endpoints. Hard cap: 400-day window. When set, takes precedence over `from`/`to`. Legacy values (`3mtd`, `q1`-`q4`, `custom`) were retired on 2026-04-30; use the explicit shortcuts below.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "last_7d",
+            "last_30d",
+            "last_90d",
+            "last_365d",
+            "today",
+            "yesterday",
+            "mtd",
+            "qtd",
+            "ytd",
+            "all"
+          ]
+        }
+      },
+      "WindowFromParam": {
+        "name": "from",
+        "in": "query",
+        "description": "Window lower bound (inclusive). ISO-8601 (`2026-04-01T00:00:00Z`) or unix-seconds. Optional when `range` is supplied.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "WindowToParam": {
+        "name": "to",
+        "in": "query",
+        "description": "Window upper bound (exclusive). ISO-8601 or unix-seconds. Defaults to `now` when omitted but `from` is supplied.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "SortParam": {
+        "name": "sort",
+        "in": "query",
+        "description": "Sort direction by canonical timestamp. Default: `desc`.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "asc",
+            "desc"
+          ]
+        }
+      },
+      "GroupByParam": {
+        "name": "group_by",
+        "in": "query",
+        "description": "Multi-series grouping. When set, the response returns `series[]` (up to 25 keys ordered by total value) instead of a single `buckets` array.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "platform",
+            "currency",
+            "maker",
+            "verifier"
+          ]
+        }
+      },
+      "MakerFilterParam": {
+        "name": "maker",
+        "in": "query",
+        "description": "Repeatable or comma-separated maker (depositor) addresses.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CompareParam": {
+        "name": "compare",
+        "in": "query",
+        "description": "Adds a `comparison` block computed against the prior period (same length, immediately preceding) or the prior year (shifted back 365 days).",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "prior_period",
+            "prior_year"
+          ]
+        }
+      },
+      "CursorParam": {
+        "name": "cursor",
+        "in": "query",
+        "description": "Pass the previous page's `next_cursor` to walk forward without offset drift. This is the supported pagination path on every list endpoint.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "CurrencyParam": {
+        "name": "currency",
+        "in": "query",
+        "description": "Repeatable or comma-separated currency codes.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "PlatformParam": {
+        "name": "platform",
+        "in": "query",
+        "description": "Repeatable or comma-separated platform ids (analytics treats as verifier alias).",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "VerifierParam": {
+        "name": "verifier",
+        "in": "query",
+        "description": "Repeatable or comma-separated verifier addresses.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "SearchTypeParam": {
+        "name": "type",
+        "in": "query",
+        "description": "Optional override: tx_or_hash, address, deposit_id.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "tx_or_hash",
+            "address",
+            "deposit_id"
+          ]
+        }
+      },
+      "RoleParam": {
+        "name": "role",
+        "in": "query",
+        "description": "Optional role filter: taker, recipient, verifier.",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "taker",
+            "recipient",
+            "verifier"
+          ]
+        }
+      },
+      "StatusParam": {
+        "name": "status",
+        "in": "query",
+        "description": "Repeatable or comma-separated. Accepts fulfilled/completed/pruned/signaled.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "AcceptingParam": {
+        "name": "accepting",
+        "in": "query",
+        "description": "Filter by accepting intents.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "IncludeRatesParam": {
+        "name": "include_rates",
+        "in": "query",
+        "description": "Include individual rate entries.",
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      "SinceParam": {
+        "name": "since",
+        "in": "query",
+        "description": "Lower bound for event timestamps (unix seconds, ms, or ISO). Replaces the legacy `after` alias.",
+        "schema": {
+          "type": "string"
+        }
+      },
+      "IntervalMsParam": {
+        "name": "interval_ms",
+        "in": "query",
+        "description": "Polling interval in ms.",
+        "schema": {
+          "type": "integer",
+          "minimum": 2000,
+          "maximum": 30000
+        }
+      },
+      "LimitParam": {
+        "name": "limit",
+        "in": "query",
+        "description": "Max number of results to return.",
+        "schema": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "OffsetParam": {
+        "name": "offset",
+        "in": "query",
+        "description": "Deprecated. Use `cursor` instead — offset pagination is fragile under concurrent writes and slow at scale. Still accepted for backwards compatibility while integrators migrate.",
+        "deprecated": true,
+        "schema": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "responses": {
+      "PaidApiOk": {
+        "description": "OK",
+        "headers": {
+          "X-RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "X-RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "X-RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          },
+          "X-Credits-Remaining": {
+            "$ref": "#/components/headers/CreditsRemaining"
+          },
+          "X-Credits-Source": {
+            "$ref": "#/components/headers/CreditsSource"
+          },
+          "X-Payment-Method": {
+            "$ref": "#/components/headers/PaymentMethod"
+          },
+          "X-Payment-TxHash": {
+            "$ref": "#/components/headers/PaymentTxHash"
+          },
+          "PAYMENT-RESPONSE": {
+            "$ref": "#/components/headers/PaymentResponse"
+          },
+          "X-PAYMENT-RESPONSE": {
+            "$ref": "#/components/headers/PaymentResponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "data": {
+                  "description": "Response payload (varies by endpoint). Top-level resources carry a read-only `object` field."
+                },
+                "meta": {
+                  "$ref": "#/components/schemas/AnalyticsMeta"
+                }
+              }
+            }
+          }
+        }
+      },
+      "PaginatedOk": {
+        "description": "Cursor-paginated list response.",
+        "headers": {
+          "X-RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "X-RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "X-RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          },
+          "X-Credits-Remaining": {
+            "$ref": "#/components/headers/CreditsRemaining"
+          },
+          "X-Credits-Source": {
+            "$ref": "#/components/headers/CreditsSource"
+          },
+          "X-Payment-Method": {
+            "$ref": "#/components/headers/PaymentMethod"
+          },
+          "X-Payment-TxHash": {
+            "$ref": "#/components/headers/PaymentTxHash"
+          },
+          "PAYMENT-RESPONSE": {
+            "$ref": "#/components/headers/PaymentResponse"
+          },
+          "X-PAYMENT-RESPONSE": {
+            "$ref": "#/components/headers/PaymentResponse"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PaginatedList"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid API key",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PaidApiError"
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "Rate limit exceeded",
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          "X-RateLimit-Limit": {
+            "$ref": "#/components/headers/RateLimitLimit"
+          },
+          "X-RateLimit-Remaining": {
+            "$ref": "#/components/headers/RateLimitRemaining"
+          },
+          "X-RateLimit-Reset": {
+            "$ref": "#/components/headers/RateLimitReset"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PaidApiError"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Entity not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PaidApiError"
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Bad request (validation failed)",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/PaidApiError"
+            }
+          }
+        }
+      },
+      "PaymentRequired": {
+        "description": "Payment required. Either insufficient API credits, or x402 payment needed. When x402 is enabled and no API key is provided, the response body contains x402 payment requirements.",
+        "headers": {
+          "X-Credits-Remaining": {
+            "$ref": "#/components/headers/CreditsRemaining"
+          },
+          "PAYMENT-REQUIRED": {
+            "$ref": "#/components/headers/PaymentRequired"
+          },
+          "X-PAYMENT-REQUIRED": {
+            "$ref": "#/components/headers/PaymentRequired"
+          }
+        },
+        "content": {
+          "application/json": {
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PaidApiError"
+                },
+                {
+                  "type": "object",
+                  "description": "x402 payment requirements (when no API key is provided)",
+                  "properties": {
+                    "x402_version": {
+                      "type": "integer"
+                    },
+                    "error": {
+                      "type": "string"
+                    },
+                    "resource": {
+                      "type": "object",
+                      "properties": {
+                        "url": {
+                          "type": "string"
+                        },
+                        "description": {
+                          "type": "string"
+                        },
+                        "mime_type": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "accepts": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "scheme": {
+                            "type": "string"
+                          },
+                          "network": {
+                            "type": "string"
+                          },
+                          "asset": {
+                            "type": "string"
+                          },
+                          "amount": {
+                            "type": "string"
+                          },
+                          "pay_to": {
+                            "type": "string"
+                          },
+                          "max_timeout_seconds": {
+                            "type": "integer"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/analytics/summary": {
+      "get": {
+        "summary": "Investor summary metrics",
+        "description": "Without params: cumulative MTD/QTD/YTD/all-time summary buckets. With `from`/`to`/`range`: returns a windowed `{ window, summary, composition, comparison }` payload computed live from the indexer. Optional `compare=prior_period|prior_year` adds a delta block. Hard cap: 400-day window.",
+        "tags": [
+          "analytics"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/CompareParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/overview": {
+      "get": {
+        "summary": "Investor diligence overview",
+        "description": "Investor-focused protocol diligence payload. Pass a `range` shortcut for cached buckets (`mtd`/`ytd`/`all`) or a non-default shortcut (`last_7d`, `qtd`, ...) for a live windowed compute. Includes growth, throughput, liquidity quality, concentration, and protocol mix.",
+        "tags": [
+          "analytics"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/leaderboard": {
+      "get": {
+        "summary": "Maker/taker leaderboard",
+        "description": "Without params: cumulative leaderboard backed by MakerStats/TakerStats. With `from`/`to`/`range`: per-window indexer compute. Hard cap: 400-day window.",
+        "tags": [
+          "analytics"
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max results per list (default: 20, max: 100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/vaults": {
+      "get": {
+        "summary": "Vault and delegated liquidity overview",
+        "description": "Without params: cumulative rate-manager analytics including delegated AUM, delegation adoption, fee volume, daily AUM/fee series, and per-vault summaries. With `from`/`to`/`range`: per-vault rollup (`fees_earned_usd`, `volume_routed_usd`, `aum_change_usd`, `delegator_change`) computed from daily snapshots inside the window. Supports API key auth and x402.",
+        "tags": [
+          "analytics",
+          "vaults"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/search": {
+      "get": {
+        "summary": "Search intents, deposits, or addresses",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/SearchTypeParam"
+          },
+          {
+            "$ref": "#/components/parameters/RoleParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/deposit/{id}": {
+      "get": {
+        "summary": "Deposit detail",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max intents to return (default: 100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/intent/{hash}": {
+      "get": {
+        "summary": "Intent detail",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "hash",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/address/{address}": {
+      "get": {
+        "summary": "Unified address stats",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max results to return (default: 100).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/maker/{address}": {
+      "get": {
+        "summary": "Maker portfolio",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/verifier/{address}": {
+      "get": {
+        "summary": "Verifier stats",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max results to return (default: 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/vault/{id}": {
+      "get": {
+        "summary": "Vault detail, delegated deposits, and config",
+        "description": "Detailed rate-manager explorer view with delegated deposits, oracle configs, floor configs, and historical snapshots. Supports API key auth and x402.",
+        "tags": [
+          "explorer",
+          "vaults"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "description": "Number of snapshot days to return (default: 30, max: 365).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/taker/{address}": {
+      "get": {
+        "summary": "Taker portfolio",
+        "description": "Volume bought, fulfilled intents, currency and platform allocations, daily activity, and recent intents for a taker wallet.",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/integrator/{code}": {
+      "get": {
+        "summary": "Integrator view (ERC-8021 attribution)",
+        "description": "Aggregated activity for an ERC-8021 integrator code: deposits created, intents, volume, top makers, top markets, daily activity. Resolves attribution from calldata. Window is fixed at 90 days because that is the only window currently materialized — the legacy `windowDays` parameter (single-value enum) was retired.",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/platform/{platform}": {
+      "get": {
+        "summary": "Payment platform view",
+        "description": "Deposits, unique makers, unique takers, fulfilled intents, volume, and currency breakdown for a payment platform.",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "window_days",
+            "in": "query",
+            "description": "Lookback window in days (default 90, max 365).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 365
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/explorer/delegate/{address}": {
+      "get": {
+        "summary": "Delegate view",
+        "description": "Deposits delegated to this address, liquidity under management, rate managers, success rate, and a full deposit list.",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/analytics/timeseries": {
+      "get": {
+        "summary": "Historical time-series (Pro)",
+        "description": "Hour or day buckets of deposits created, intents signaled, or fulfilled volume. 20 credits per call. Pro tier only. Pass `group_by=platform|currency|maker|verifier` to receive a multi-series payload (`series[]`) instead of a single global `buckets` array.",
+        "tags": [
+          "analytics"
+        ],
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "required": true,
+            "description": "Which series to aggregate.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "deposits",
+                "intents",
+                "volume"
+              ]
+            }
+          },
+          {
+            "name": "granularity",
+            "in": "query",
+            "description": "Bucket size (default: day).",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "hour",
+                "day"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/GroupByParam"
+          },
+          {
+            "$ref": "#/components/parameters/PlatformParam"
+          },
+          {
+            "$ref": "#/components/parameters/CurrencyParam"
+          },
+          {
+            "$ref": "#/components/parameters/MakerFilterParam"
+          },
+          {
+            "$ref": "#/components/parameters/VerifierParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/account/webhooks": {
+      "get": {
+        "summary": "List outbound webhook endpoints",
+        "description": "Returns your registered webhook endpoints. Secrets are never echoed.",
+        "tags": [
+          "account"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Register a webhook endpoint",
+        "description": "Create an HMAC-signed outbound webhook. Returns the secret exactly once — persist it immediately. Event names follow `<resource>.<action>` and are aligned with the `LiveEvent.type` vocabulary.",
+        "tags": [
+          "account"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "url",
+                  "events"
+                ],
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "deposit.created",
+                        "intent.signaled",
+                        "intent.fulfilled",
+                        "deposit.rate_updated"
+                      ]
+                    }
+                  },
+                  "label": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/account/webhooks/{id}": {
+      "post": {
+        "summary": "Update a webhook endpoint",
+        "description": "Update a webhook endpoint. Currently only the `status` field is mutable. Idempotent — sending the same status repeatedly is a no-op and returns the current resource state. The Update verb is POST per public-API conventions; PATCH was retired on 2026-04-30.",
+        "tags": [
+          "account"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "status"
+                ],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "disabled"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "summary": "Delete a webhook endpoint",
+        "tags": [
+          "account"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/deposits": {
+      "get": {
+        "summary": "Filtered deposit list",
+        "description": "Filtered deposit search. At least one filter is required: provide one of `depositor`, `delegate`, `platform`, `currency`, OR a date window (`from`/`to`/`range`). When a window is supplied the server filters on deposit creation `timestamp` and the response echoes a `window` block. Market rows include DRM and oracle pricing fields (`manager_rate`, `manager_fee`, `rate_source`, `rate_manager_id`, `oracle_rate`, `effective_oracle_rate`, `adapter`, `kind`, `is_oracle_backed`, `oracle_source`, `spread_bps`, `is_delegated`).",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "depositor",
+            "in": "query",
+            "description": "Maker address.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "delegate",
+            "in": "query",
+            "description": "Delegate address.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "ACTIVE",
+                "CLOSED"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/AcceptingParam"
+          },
+          {
+            "$ref": "#/components/parameters/PlatformParam"
+          },
+          {
+            "$ref": "#/components/parameters/CurrencyParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/SortParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/intents": {
+      "get": {
+        "summary": "Filtered intent list",
+        "description": "Filtered intent search. At least one filter is required: provide one of `taker`, `recipient`, `verifier`, `deposit_id`, `status`, OR a date window (`from`/`to`/`range`). Default sort is `signal_timestamp desc`. The legacy aliases (`owner` for `taker`, `to_address` for `recipient`) were retired on 2026-04-30 — use the canonical names.",
+        "tags": [
+          "explorer"
+        ],
+        "parameters": [
+          {
+            "name": "taker",
+            "in": "query",
+            "description": "Taker address (replaces the legacy `owner` alias).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipient",
+            "in": "query",
+            "description": "Recipient address (replaces the legacy `to_address` alias).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "verifier",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deposit_id",
+            "in": "query",
+            "description": "Repeatable or comma-separated deposit IDs.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/StatusParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/SortParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/orderbook": {
+      "get": {
+        "summary": "Network orderbook",
+        "description": "Full orderbook with rate levels, 24h activity, global stats, FX mid-rates, and DRM-aware level metadata.",
+        "tags": [
+          "market"
+        ],
+        "parameters": [
+          {
+            "name": "currency",
+            "in": "query",
+            "description": "Filter by fiat currency code (e.g. USD, GBP, EUR). Without filter, returns top 6 currencies by liquidity.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "platform",
+            "in": "query",
+            "description": "Filter by payment platform.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "min_size",
+            "in": "query",
+            "description": "Minimum USD liquidity per orderbook level (default: 50).",
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/market/summary": {
+      "get": {
+        "summary": "Market intelligence snapshot",
+        "tags": [
+          "market",
+          "analytics"
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PlatformParam"
+          },
+          {
+            "$ref": "#/components/parameters/CurrencyParam"
+          },
+          {
+            "$ref": "#/components/parameters/IncludeRatesParam"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Max results to return (default: 200, max: 500).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 500
+            }
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/activity": {
+      "get": {
+        "summary": "Protocol activity feed",
+        "description": "Recent protocol events. Pass `since` (lower bound) and `to` (upper bound) for an explicit window, or `range` for a shortcut. The response includes `next_cursor` whenever `has_more=true`; pass it back as `cursor` to walk older events without offset drift.",
+        "tags": [
+          "activity"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Repeatable event types",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "intent_hash",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "deposit_id",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "address",
+            "in": "query",
+            "description": "Filter by any address involved",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taker",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "depositor",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipient",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/SinceParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaginatedOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/activity/stream": {
+      "get": {
+        "summary": "Activity stream (SSE)",
+        "tags": [
+          "activity"
+        ],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "query",
+            "description": "Repeatable event types",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/SinceParam"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IntervalMsParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "$ref": "#/components/headers/RateLimitLimit"
+              },
+              "X-RateLimit-Remaining": {
+                "$ref": "#/components/headers/RateLimitRemaining"
+              },
+              "X-RateLimit-Reset": {
+                "$ref": "#/components/headers/RateLimitReset"
+              },
+              "X-Credits-Remaining": {
+                "$ref": "#/components/headers/CreditsRemaining"
+              },
+              "X-Credits-Source": {
+                "$ref": "#/components/headers/CreditsSource"
+              }
+            },
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/meta/platforms": {
+      "get": {
+        "summary": "Payment platforms metadata",
+        "tags": [
+          "meta"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/meta/currencies": {
+      "get": {
+        "summary": "Supported currencies metadata",
+        "tags": [
+          "meta"
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/makers/{address}/history": {
+      "get": {
+        "summary": "Maker history metrics",
+        "description": "Without window params: lifetime aggregates and a `recent` window of 30 newest intents. With `from`/`to`/`range`: every metric recomputes for the period.",
+        "tags": [
+          "history"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/takers/{address}/history": {
+      "get": {
+        "summary": "Taker history metrics",
+        "description": "Same window/pagination semantics as `/api/v1/makers/{address}/history`. Within a window `intents.{total,fulfilled,pruned,volume_usd}` reflect the period only; cumulative responses fall back to lifetime TakerStats.",
+        "tags": [
+          "history"
+        ],
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/WindowFromParam"
+          },
+          {
+            "$ref": "#/components/parameters/WindowToParam"
+          },
+          {
+            "$ref": "#/components/parameters/RangeParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/CursorParam"
+          },
+          {
+            "$ref": "#/components/parameters/OffsetParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "402": {
+            "$ref": "#/components/responses/PaymentRequired"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/api/v1/account/keys": {
+      "get": {
+        "summary": "List API keys",
+        "tags": [
+          "account"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create an API key",
+        "description": "Create a new API key. The full key is returned exactly once — store it immediately. To rotate or delete, use `POST /api/v1/account/keys/{id}/rotate` and `DELETE /api/v1/account/keys/{id}` respectively. The legacy multiplexed `action` enum was retired on 2026-04-30.",
+        "tags": [
+          "account"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "description": "Optional human-readable label."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/account/keys/{id}": {
+      "delete": {
+        "summary": "Delete an API key",
+        "tags": [
+          "account"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/account/keys/{id}/rotate": {
+      "post": {
+        "summary": "Rotate an API key",
+        "description": "Rotate an API key. The previous key is disabled atomically and the new key is returned exactly once — store it immediately. Custom-method path follows the public-API conventions for verby actions.",
+        "tags": [
+          "account"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/api/v1/account/credits": {
+      "get": {
+        "summary": "Get credit balance",
+        "tags": [
+          "account"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/account/checkout": {
+      "post": {
+        "summary": "Create credit checkout order",
+        "tags": [
+          "account"
+        ],
+        "security": [
+          {
+            "ApiKeyAuth": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "package"
+                ],
+                "properties": {
+                  "package": {
+                    "type": "string",
+                    "enum": [
+                      "starter",
+                      "growth",
+                      "scale"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/PaidApiOk"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    }
+  }
+}

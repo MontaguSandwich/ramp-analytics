@@ -1,0 +1,41 @@
+name: history
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  history:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run history
+        env:
+          BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+          COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
+        run: npm run history
+      - name: Commit to data branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config user.name "hip3-bot"
+          git config user.email "hip3-bot@users.noreply.github.com"
+          git fetch origin data
+          git worktree add /tmp/data-branch origin/data
+          mkdir -p /tmp/data-branch/charts
+          cp -r data/charts/* /tmp/data-branch/charts/
+          cd /tmp/data-branch
+          git checkout -B data
+          git add charts
+          git diff --cached --quiet && exit 0
+          git commit -m "history: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin data

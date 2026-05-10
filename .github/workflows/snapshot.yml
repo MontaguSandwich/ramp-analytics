@@ -1,0 +1,41 @@
+name: snapshot
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run snapshot
+        env:
+          BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
+          COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
+        run: npm run snapshot
+      - name: Commit to data branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          git config user.name "hip3-bot"
+          git config user.email "hip3-bot@users.noreply.github.com"
+          git fetch origin data
+          git worktree add /tmp/data-branch origin/data
+          mkdir -p /tmp/data-branch/snapshots
+          cp -r data/snapshots/* /tmp/data-branch/snapshots/
+          cd /tmp/data-branch
+          git checkout -B data
+          git add snapshots
+          git diff --cached --quiet && exit 0
+          git commit -m "snapshot: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push origin data

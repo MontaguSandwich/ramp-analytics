@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://hip3/schema/product.schema.json",
+  "title": "Product",
+  "type": "object",
+  "required": ["id", "name", "category", "website", "direction", "fiats", "assets", "delivery_custody"],
+  "additionalProperties": true,
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+    "name": { "type": "string" },
+    "display_name": { "type": "string" },
+    "category": { "enum": ["cex_p2p", "ramp", "onchain", "otc"] },
+    "subcategory": { "type": "string" },
+    "website": { "type": "string", "format": "uri" },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "website": { "type": "string", "format": "uri" },
+        "twitter": { "type": "string", "format": "uri" },
+        "docs": { "type": "string", "format": "uri" },
+        "github": { "type": "string", "format": "uri" },
+        "telegram": { "type": "string", "format": "uri" },
+        "discord": { "type": "string", "format": "uri" }
+      }
+    },
+    "logo": { "type": "string", "format": "uri" },
+    "description": { "type": "string", "maxLength": 200 },
+    "launched": { "type": "string" },
+    "legal_entity": { "type": "string" },
+    "licenses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["jurisdiction", "type"],
+        "properties": {
+          "jurisdiction": { "type": "string" },
+          "type": { "type": "string" },
+          "url": { "type": "string", "format": "uri" }
+        }
+      }
+    },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["chain", "address"],
+        "properties": {
+          "chain": { "type": "string" },
+          "address": { "type": "string" }
+        }
+      }
+    },
+    "direction": { "enum": ["on", "off", "both"] },
+    "countries_supported": { "type": "array", "items": { "type": "string" } },
+    "fiats": { "type": "array", "items": { "type": "string" } },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["symbol", "chain"],
+        "properties": {
+          "symbol": { "type": "string" },
+          "chain": { "type": "string" }
+        }
+      }
+    },
+    "payment_methods": { "type": "array", "items": { "type": "string" } },
+    "payment_methods_by_country": {
+      "type": "object",
+      "additionalProperties": { "type": "array", "items": { "type": "string" } }
+    },
+    "delivery_chains": { "type": "array", "items": { "type": "string" } },
+    "kyc_tiers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "requirements"],
+        "properties": {
+          "name": { "type": "string" },
+          "requirements": { "type": "array", "items": { "type": "string" } },
+          "min": { "type": ["number", "null"] },
+          "max": { "type": ["number", "null"] },
+          "period": { "type": "string" }
+        }
+      }
+    },
+    "non_kyc_available": { "type": "boolean" },
+    "pii_floor": { "enum": ["none", "email", "id", "id+poa", "enhanced"] },
+    "data_retention_url": { "type": "string", "format": "uri" },
+    "pricing": {
+      "type": "object",
+      "properties": {
+        "spread_method": { "enum": ["none", "vs_mid", "vs_oracle", "marketmaker_quote"] },
+        "pricing_endpoint": { "type": "string", "format": "uri" },
+        "min_ticket_usd": { "type": "number" }
+      }
+    },
+    "settlement_time": { "type": "object" },
+    "chargeback_protection": { "type": "boolean" },
+    "delivery_custody": { "enum": ["self", "hosted", "either"] },
+    "requires_account": { "type": "boolean" },
+    "wallet_setup_required": { "type": "boolean" },
+    "audits": { "type": "array" },
+    "open_source": {
+      "type": "object",
+      "required": ["is_open"],
+      "properties": {
+        "is_open": { "type": "boolean" },
+        "repo_url": { "type": "string", "format": "uri" }
+      }
+    },
+    "proof_of_reserves": {
+      "type": "object",
+      "properties": {
+        "exists": { "type": "boolean" },
+        "url": { "type": "string", "format": "uri" },
+        "last_updated": { "type": "string" }
+      }
+    },
+    "team_transparency": { "enum": ["public", "partial", "pseudonymous", "anonymous"] },
+    "integration_types": {
+      "type": "array",
+      "items": { "enum": ["widget", "rest_api", "sdk", "hosted_checkout", "smart_contract", "none"] }
+    },
+    "sdks": { "type": "array" },
+    "kyc_inheritance": { "enum": ["none", "partial", "full"] },
+    "white_label": { "enum": ["yes", "no", "not_applicable"] },
+    "webhooks": { "type": "boolean" },
+    "sandbox": { "type": "boolean" },
+    "docs_url": { "type": "string", "format": "uri" },
+    "integrator_fee_model": { "type": ["string", "object"] },
+    "address_linkage": { "enum": ["none", "internal", "shared_with_partners", "onchain_attestation"] },
+    "third_party_sharing": {
+      "type": "object",
+      "properties": {
+        "shares": { "type": "boolean" },
+        "partners": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "onchain_privacy": { "enum": ["none", "zk_proof", "encrypted"] }
+  }
+}
