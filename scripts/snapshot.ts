@@ -20,11 +20,14 @@ function appendLiquidityLog(id: string, snap: Snapshot): void {
   const liq = snap.liquidity;
   if (liq.value.kind !== 'onchain_inventory' && liq.value.kind !== 'p2p_offerbook') return;
 
+  // For p2p_offerbook (binance_p2p), prefer the wider `total_observed_usd` sum across
+  // every probed market — that's what the KPI displays. Fall back to summing `top_pairs`
+  // for older snapshots that predate the unified probe (Step C of binance work).
   const usd =
     liq.value.kind === 'onchain_inventory'
       ? liq.value.tvl_usd
       : liq.value.kind === 'p2p_offerbook'
-        ? liq.value.top_pairs.reduce((s, p) => s + p.sum_offers_usd, 0)
+        ? liq.value.total_observed_usd ?? liq.value.top_pairs.reduce((s, p) => s + p.sum_offers_usd, 0)
         : null;
   if (usd == null) return;
 
@@ -45,6 +48,7 @@ function appendLiquidityLog(id: string, snap: Snapshot): void {
   writeFileSync(path, JSON.stringify(filtered, null, 2));
 }
 
+let succeeded = 0;
 let failed = 0;
 for (const adapter of adapters) {
   try {
@@ -52,10 +56,17 @@ for (const adapter of adapters) {
     writeFileSync(join(OUT_DIR, `${adapter.id}.json`), JSON.stringify(snap, null, 2));
     appendLiquidityLog(adapter.id, snap);
     console.log(`OK  ${adapter.id}`);
+    succeeded++;
   } catch (e) {
     failed++;
     console.error(`ERR ${adapter.id}: ${(e as Error).message}`);
   }
 }
 
-if (failed) process.exit(1);
+console.log(`done: ${succeeded} ok, ${failed} failed`);
+
+// Only exit non-zero if every adapter failed (total outage). Per-adapter transient
+// failures (rate-limit, Cloudflare challenge, JSON parse on empty body) are tolerated:
+// the successful adapters still wrote their snapshots + appended to their liquidity logs.
+// This keeps the GitHub Actions cron from emailing on every transient hiccup.
+if (succeeded === 0) process.exit(1);
