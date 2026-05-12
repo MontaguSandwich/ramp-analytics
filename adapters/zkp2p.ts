@@ -240,6 +240,7 @@ async function snapshot(): Promise<Snapshot> {
       notes: 'liquidity-weighted median of |oracle spread| across orderbook levels',
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'api' },
+    capabilities: { orderbook: true, quote: true },
     coverage: {
       value: coverage,
       provenance: 'api',

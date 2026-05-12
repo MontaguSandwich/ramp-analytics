@@ -117,7 +117,7 @@ async function snapshot(): Promise<Snapshot> {
     },
     volume_30d_usd: {
       value: null,
-      provenance: 'self_reported',
+      provenance: 'unavailable',
       last_verified: now,
       notes: 'Ramp Network does not publish public volume statistics',
     },
@@ -132,6 +132,9 @@ async function snapshot(): Promise<Snapshot> {
       notes: '/assets price is reference, not user-quoted price. Real user spread requires /quote with hostApiKey.',
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'manual' },
+    // Ramp Network is a hosted ramp, not a P2P offer book — no orderbook concept.
+    // Quote requires a hostApiKey we don't have, so no programmatic quote either.
+    capabilities: { orderbook: false, quote: false },
   };
 }
 

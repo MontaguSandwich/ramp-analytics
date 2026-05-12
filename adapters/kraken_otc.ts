@@ -20,13 +20,13 @@ async function snapshot(): Promise<Snapshot> {
     },
     volume_30d_usd: {
       value: null,
-      provenance: 'self_reported',
+      provenance: 'unavailable',
       last_verified: now,
       notes: 'Kraken does not separately disclose OTC desk volume',
     },
     observed_spread_bps: {
       value: null,
-      provenance: 'manual',
+      provenance: 'unavailable',
       spread_aggregation: 'sample',
       sample_size: 0,
       period: 'n/a',
@@ -34,6 +34,8 @@ async function snapshot(): Promise<Snapshot> {
       notes: 'OTC pricing is RFQ — no public quote feed',
     },
     fee_snapshot: { ts: now, sample_rows: [], provenance: 'manual' },
+    // OTC is RFQ-only via voice/chat — no public order book, no programmatic quote.
+    capabilities: { orderbook: false, quote: false },
   };
 }
 

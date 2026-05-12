@@ -1,6 +1,19 @@
 // Frontend-side types. Subset/echo of root lib/types.ts to keep web/ self-contained.
 
-export type Provenance = 'onchain' | 'api' | 'self_reported' | 'manual';
+/**
+ * Where a snapshot field's value came from — or, in the case of `'unavailable'`,
+ * an explicit signal that the underlying data is structurally not knowable for this product
+ * (e.g. Binance does not publish P2P volume, Kraken OTC has no public quote feed).
+ *
+ * UI color convention:
+ *   green = `onchain` | `api`
+ *   yellow = `self_reported`
+ *   gray = `manual` | `unavailable`
+ *
+ * When `provenance: 'unavailable'`, `value` should be `null` and `notes` should explain
+ * the reason. The UI renders these fields as "Not disclosed" rather than "—".
+ */
+export type Provenance = 'onchain' | 'api' | 'self_reported' | 'manual' | 'unavailable';
 export type Category = 'cex_p2p' | 'ramp' | 'onchain' | 'otc';
 export type Direction = 'on' | 'off' | 'both';
 export type SpreadAggregation = 'median' | 'mean' | 'min_top_n' | 'sample';
@@ -17,6 +30,15 @@ export type LiquidityValue =
   | {
       kind: 'p2p_offerbook';
       top_pairs: Array<{ pair: string; sum_offers_usd: number; n_makers: number }>;
+      /**
+       * Sum of observed escrowed-asset surplus across every probed market — for binance_p2p,
+       * this is "USDT depth in top 20 ads × N markets" (USDT ≈ $1, so units ≈ USD).
+       * This is the basis for the "Available USDT" KPI. Optional for backward compat with
+       * older snapshots that only stored `top_pairs`.
+       */
+      total_observed_usd?: number;
+      /** Number of fiat markets that contributed at least one ad to the sum. */
+      markets_observed?: number;
     }
   | {
       kind: 'ramp_capacity';
@@ -39,8 +61,22 @@ export interface FeeSampleRow {
 
 export interface Coverage {
   fiats: string[];
+  /**
+   * Fiats the product structurally supports but where it no longer has active liquidity
+   * (e.g. Binance P2P market exits: NGN, RUB, KRW, SGD, THB). Distinct from `fiats`,
+   * which lists currently-reachable currencies. Surfacing this as a transparency signal
+   * is mission-aligned: it tells the reader which markets the product has withdrawn from.
+   */
+  fiats_inactive?: string[];
   fiat_flags?: Record<string, string>;
   platforms: string[];
+  /**
+   * Map of fiat ISO → payment-method identifiers available for that fiat.
+   * Matches what the product's own UI shows when a user picks a currency
+   * (e.g. Binance TND → 13 methods, Binance USD → 175). UI consumers use this
+   * to filter the method-picker by selected fiat instead of showing the global set.
+   */
+  payment_methods_by_fiat?: Record<string, string[]>;
   currencies_by_platform?: Record<string, string[]>;
   active_markets?: number;
   active_makers_window?: number;
@@ -70,7 +106,31 @@ export interface Market {
   fx_mid_rate: number;
   spread_bps: number;
   total_liquidity_usd: number;
+  /**
+   * Generic "unit count" for this market — represents deposits for zkp2p (the count of
+   * onchain deposit orders at the best rate) and ads for binance_p2p (the total ad count
+   * Binance reports, not just the sampled top-N).
+   */
   deposit_count: number;
+  /**
+   * Distinct makers observed in the sampled slice for this market. Optional because zkp2p
+   * doesn't currently populate it; binance_p2p does.
+   */
+  n_makers?: number;
+}
+
+/**
+ * Declares which interactive subpages a product surfaces in the UI.
+ * Drives the tab nav: when any capability is `true`, the product page renders tabs
+ * (Overview / Orderbook / Get a Quote). When all are `false` (or `capabilities` is absent),
+ * the product gets a single Overview page with no tab strip.
+ *
+ * A capability should only be `true` when BOTH (a) the adapter can produce the data, and
+ * (b) the web app has a route to render it (e.g. `web/app/api/{id}/quote/route.ts`).
+ */
+export interface Capabilities {
+  orderbook: boolean;
+  quote: boolean;
 }
 
 export interface NetworkHealth {
@@ -101,6 +161,7 @@ export interface Snapshot {
   composition?: Wrapped<Composition>;
   markets?: Wrapped<Market[]>;
   network_health?: Wrapped<NetworkHealth>;
+  capabilities?: Capabilities;
 }
 
 export interface ProductYaml {

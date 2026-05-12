@@ -446,6 +446,15 @@ tbody tr:hover {
   margin-top: 4px;
 }
 
+/* Used when a KPI is structurally not disclosed by the product (provenance: 'unavailable').
+   Visually subdued so it reads as a label, not a value — distinguishes from "—" (loading/missing). */
+.kpi-value-na {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--fg-mute);
+  margin-top: 6px;
+}
+
 .kpi-sub {
   color: var(--fg-mute);
   font-size: 12px;
@@ -621,6 +630,164 @@ tbody tr:hover {
   font-size: 13px;
   font-family: inherit;
   min-width: 120px;
+}
+
+/* Multi-select dropdown — used in BinanceP2pOrderbookView for payment methods.
+   Trigger mirrors .orderbook-input so the control lines up with neighboring <select>s. */
+.msd-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.msd-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 13px;
+  font-family: inherit;
+  min-width: 200px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.msd-trigger:hover {
+  border-color: var(--fg-mute);
+}
+
+.msd-trigger-active {
+  border-color: var(--fg);
+}
+
+.msd-trigger-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msd-chevron {
+  font-size: 10px;
+  color: var(--fg-mute);
+  flex-shrink: 0;
+}
+
+.msd-panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  min-width: 260px;
+  max-width: 360px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+}
+
+.msd-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg);
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.msd-search:focus {
+  outline: none;
+  border-color: var(--fg-mute);
+}
+
+.msd-list {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.msd-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  border-radius: 4px;
+}
+
+.msd-option:hover {
+  background: var(--bg);
+}
+
+.msd-option-checked {
+  color: var(--fg);
+}
+
+.msd-check {
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--fg);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.msd-option-checked .msd-check {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+.msd-option-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.msd-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: 12px;
+}
+
+.msd-clear {
+  margin-top: 6px;
+  padding: 5px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--fg-mute);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.msd-clear:hover {
+  border-color: var(--fg-mute);
+  color: var(--fg);
 }
 
 .orderbook-stats {

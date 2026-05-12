@@ -13,12 +13,12 @@ Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
 
 ## Per-product status
 
-| product       | adapter | snapshot     | history          | detail page         | orderbook | quote |
-|---------------|---------|--------------|------------------|---------------------|-----------|-------|
-| zkp2p (Peer)  | real    | ✓ live       | ✓ (90d backfill) | rich `Zkp2pDetail`  | ✓         | ✓     |
-| ramp_network  | partial | ✓ basic      | ✗                | generic legacy      | ✗         | ✗     |
-| binance_p2p   | partial | ✓ basic      | ✗                | generic legacy      | ✗         | ✗     |
-| kraken_otc    | stub    | static only  | ✗                | generic legacy      | ✗         | ✗     |
+| product       | adapter | snapshot                                  | history          | detail page                              | orderbook | quote |
+|---------------|---------|-------------------------------------------|------------------|------------------------------------------|-----------|-------|
+| zkp2p (Peer)  | real    | ✓ live                                    | ✓ (90d backfill) | rich bespoke `Zkp2pDetail`               | ✓         | ✓     |
+| binance_p2p   | rich    | ✓ live (USDT × ~71 markets, ~14% depth)   | ✗ (pending self-accum) | generic + tabs + info-grid + live rates  | ✓         | ✗     |
+| ramp_network  | partial | ✓ basic                                   | ✗                | generic + info-grid (no tabs)            | ✗         | ✗     |
+| kraken_otc    | stub    | static only                               | ✗                | generic + info-grid (no tabs)            | ✗         | ✗     |
 
 ## Architecture in five lines
 
@@ -26,7 +26,7 @@ Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
 2. `scripts/snapshot.ts` runs every adapter's `snapshot()` and writes `data/snapshots/{id}.json` + appends to `data/charts/{id}_active_liquidity.json` (one row per UTC day, dedupe by day).
 3. `scripts/history.ts` writes `data/charts/{id}.json` (zkp2p only — others return `[]`).
 4. Next.js 15 frontend in `web/` (App Router). Server components do the filesystem reads via `web/lib/data.ts`. Client components only where interactivity is needed.
-5. Snapshot fields are wrapped: `{ value, provenance, last_verified, evidence_url?, notes? }`. Provenance enum: `'onchain' | 'api' | 'self_reported' | 'manual'`. Color dots in UI: green = onchain/api, yellow = self_reported, gray = manual.
+5. Snapshot fields are wrapped: `{ value, provenance, last_verified, evidence_url?, notes? }`. Provenance enum: `'onchain' | 'api' | 'self_reported' | 'manual' | 'unavailable'`. Color dots in UI: green = onchain/api, yellow = self_reported, gray = manual/unavailable. Use `'unavailable'` when a field's value is structurally not disclosed (e.g. Binance 30d volume) — UI renders "Not disclosed" + tooltip from `notes`.
 
 ## Data sources by product
 
@@ -37,14 +37,15 @@ Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
 
 ## Decisions locked — don't re-litigate
 
-- Category enum value `'onchain'` is rendered as **"Onchain P2P"** in UI labels.
-- Onchain category page (zkp2p) uses **`Zkp2pDetail` layout** dispatched by `id === 'zkp2p'` in `web/app/products/[id]/page.tsx`. Other products fall through to the legacy generic page.
-- Tab nav (`Overview · Orderbook · Get a Quote`) is **zkp2p-only**. Lives in `web/app/products/[id]/layout.tsx` behind `id === 'zkp2p'`.
+- Category enum value `'onchain'` is rendered as **"Onchain P2P"** in UI labels. The full mapping lives in `web/lib/format.ts` as `CATEGORY_LABEL`.
+- Onchain category page (zkp2p) uses **`Zkp2pDetail` layout** dispatched by `id === 'zkp2p'` in `web/app/products/[id]/page.tsx`. Every other product uses the upgraded **`GenericDetail`** (`web/components/generic-detail.tsx`) which contains the 2×2 info grid (Properties / Coverage / Classification / Network Health) + optional Live Rates table. The legacy single-column Pricing / Trust sections were folded into Properties + Classification — don't restore them.
+- Tab nav (`Overview · Orderbook · Get a Quote`) is **capability-driven**. Lives in `web/app/products/[id]/layout.tsx`, renders for any product with `snapshot.capabilities.orderbook === true` or `.quote === true`. Each tab is independently shown/hidden based on its own boolean. Backward-compat fallback in `TabNav` still grandfathers zkp2p when capabilities are absent on legacy snapshots.
+- **`ProductHeader`** (`web/components/product-header.tsx`, renamed from `Zkp2pHeader`) is the universal header for tab-enabled products. Reads `yaml.display_name`, `yaml.category`, and `yaml.links` (with fallbacks to `yaml.website` / `yaml.docs_url` / `yaml.open_source.repo_url`). When wrapped, `GenericDetail` suppresses its own inline hero and just renders the intro paragraph from `yaml.description`.
 - zkp2p `direction: 'on'` (on-ramp only from taker perspective).
 - zkp2p `display_name: 'Peer'`; internal `name` stays `'zkp2p'`.
 - `launched` field renders as **"Live since"** on the detail page.
 - **Median spread** lives in the Network Health card, not the KPI strip.
-- KPI strip is exactly: Available liquidity / 30d volume / Custody type / KYC requirement. No fifth card.
+- KPI strip is exactly four cards: liquidity / 30d volume / Custody type / KYC requirement. No fifth card. The liquidity label is **kind-aware**: "Available USDT" for `p2p_offerbook` (with "top 20 ads × N markets" sub-line), "Available liquidity" for `onchain_inventory`, "Daily capacity" for `ramp_capacity`, "Min ticket" for `otc_minimum`.
 - Coverage card = what's *reachable* (fiats, platforms). Active counts (markets / makers / takers / deposits) live in Network Health.
 - Classification badges = Self Custody, No KYC, Open Source, Onchain Settlement (4 total). "Permissionless" and "Audited" badges are explicitly dropped.
 - Live rates table is **grouped per currency**, sorted by best spread ascending.
@@ -56,6 +57,11 @@ Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
 - Platform display: simpleicons CDN with explicit white (`/ffffff`), inverted in light theme via CSS filter.
 - Depositor addresses link to `https://basescan.org/address/{addr}` (BaseScan, opens in new tab).
 - "Open in Peer" CTA on the Quote page links to `https://www.peer.xyz/swap?tab=buy` (no prefilled params — Peer handles its own state).
+- **Binance "Available USDT" KPI** is `sum(surplus_amount across top 20 SELL ads × ~134 candidate fiats)` — covers ~14% of the full ad-book by count. The number is an honest undercount and is explicitly labeled "top 20 ads × N markets" in the sub-line. **Do not** call this TVL; it's an observed-offer-depth snapshot, not capital locked in a contract. Increasing depth means more HTTP calls (pagination) — current choice is rows=20 × ~134 fiats = 13.6% coverage.
+- **Binance `tradeType: BUY`** in `adv/search` returns maker **SELL** ads (the side with escrowed USDT) — the only side worth summing for liquidity. BUY-side ads (makers wanting to buy USDT, paying fiat) lock no capital. Never sum across both sides.
+- **`MultiSelectDropdown`** (`web/components/multi-select-dropdown.tsx`) is the reusable long-list multi-select. Compact pill → click → listbox with checkboxable rows, conditional search box when `options.length > 20`. Built to match Binance's C2C page pattern. Used in `BinanceP2pOrderbookView` for the fiat-aware payment-method picker.
+- **Coverage type** (`lib/types.ts`) has `fiats_inactive?: string[]` (markets the product has withdrawn from — "transparency angle") and `payment_methods_by_fiat?: Record<string, string[]>` (per-fiat method lists; drives orderbook view's chip pool when fiat changes).
+- **Live rates table** (`LiveRatesTable` in `generic-detail.tsx`) renders top 10 markets by USDT depth, filtered to those with FX mids available, sorted by best spread ascending. Currently only binance_p2p populates `snapshot.markets[]`.
 
 ## Hard constraints — anti-hallucination
 
@@ -69,20 +75,32 @@ Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
 - **Don't put the 4-info-card layout on non-zkp2p detail pages** until those adapters can populate `coverage`, `composition`, `network_health`, and `markets`. Most can only populate `coverage`.
 - **Node 18 doesn't support `--env-file`.** `scripts/{snapshot,history,backfill-*}.ts` import `dotenv/config` explicitly and load `.env.local`.
 - **Don't `git add -A` casually.** Use specific paths or verify with `git status --short` after `git add .` to confirm nothing sensitive is staged.
+- **Binance `adv/search` returns duplicate `tradeMethods` entries** for the same `identifier` (one fully populated + N metadata-stripped clones). Always dedupe via `Array.from(new Set(...))` at the normalization layer. The orderbook API route does this; do the same in any new consumer of `tradeMethods`.
+- **CoinGecko free tier is ~5–15 req/min** — too brittle for snapshot bursts touching many fiats. The disk cache at `data/cache/fx.json` (24h TTL, gitignored) makes this a non-issue after the first cold-run of the day. `fxMidBatch('USDT', [...fiats], ts)` is the right entry point — one HTTP call batched via `vs_currencies` comma-list. Set `COINGECKO_KEY=CG-...` for the demo tier (~30 req/min) if cold-run reliability matters (e.g. CI cron).
+- **CoinGecko coverage is incomplete for exotic fiats** (VES, EGP, IRR, etc. return no rate). The adapter handles this by including such markets in the liquidity sum (USDT≈$1, no FX needed) but excluding them from the rates table and spread metric.
+- **CANDIDATE_FIATS in `adapters/binance_p2p.ts` is hand-curated** and once silently dropped USD entirely (reorganization bug). When editing: cross-check the resulting `coverage.fiats` output is plausible and includes USD.
+- **GitHub Actions snapshot cron fails when `ZKP2P_ANALYTICS_KEY` isn't set as a repo secret.** Workflow `.github/workflows/snapshot.yml` runs `*/30 * * * *`; zkp2p adapter errors when the key is missing and the snapshot script exits 1. Fix: `gh secret set ZKP2P_ANALYTICS_KEY --repo MontaguSandwich/ramp-analytics` (and ideally `COINGECKO_KEY` + `BASE_RPC_URL`). Alternative: change `scripts/snapshot.ts` to tolerate per-adapter failures.
 
 ## Files to read first
 
 | if you're touching... | read these |
 |---|---|
-| Anything | `lib/types.ts` (Snapshot/Coverage/etc. types) |
-| Adapter logic | `adapters/zkp2p.ts` (reference), `lib/peerlytics.ts` (typed client) |
+| Anything | `lib/types.ts` + `web/lib/types.ts` (mirror; keep in sync) |
+| Adapter logic — zkp2p | `adapters/zkp2p.ts`, `lib/peerlytics.ts` (typed client) |
+| Adapter logic — binance | `adapters/binance_p2p.ts` (CANDIDATE_FIATS, fxMidBatch priming, fetchAllMarkets) |
 | Schema | `schema/product.schema.json`, `data/products/zkp2p.yaml` |
-| Detail page | `web/components/zkp2p-detail.tsx` (rich), `web/app/products/[id]/page.tsx` (dispatch + legacy) |
-| Tab nav / layout | `web/app/products/[id]/layout.tsx`, `web/components/tab-nav.tsx`, `web/components/zkp2p-header.tsx` |
-| Charts | `web/components/protocol-charts.tsx` (hand-rolled SVG) |
+| Page dispatch | `web/app/products/[id]/page.tsx` (zkp2p → bespoke; everyone else → GenericDetail) |
+| Generic detail page | `web/components/generic-detail.tsx` (info grid + LiveRatesTable + kind-aware KPI label) |
+| Bespoke zkp2p page | `web/components/zkp2p-detail.tsx` |
+| Tab nav / layout / header | `web/app/products/[id]/layout.tsx`, `web/components/tab-nav.tsx`, `web/components/product-header.tsx` (universal) |
+| Charts | `web/components/protocol-charts.tsx` (hand-rolled SVG, zkp2p-only) |
 | Quote | `web/components/quote-view.tsx` + `web/app/api/zkp2p/quote/route.ts` |
-| Orderbook | `web/components/orderbook-view.tsx` + `web/app/api/zkp2p/orderbook/route.ts` |
+| Orderbook — zkp2p | `web/components/orderbook-view.tsx` + `web/app/api/zkp2p/orderbook/route.ts` |
+| Orderbook — binance | `web/components/binance-p2p-orderbook-view.tsx` + `web/app/api/binance_p2p/orderbook/route.ts` |
+| Long-list multi-select UX | `web/components/multi-select-dropdown.tsx` (reusable) |
+| FX rates / disk cache | `lib/fx.ts` (`fxMid`, `fxMidBatch`, disk cache at `data/cache/fx.json`) |
 | Cron entry | `scripts/snapshot.ts` (note: appends to liquidity log) |
+| CI cron | `.github/workflows/snapshot.yml` (every 30 min, needs `ZKP2P_ANALYTICS_KEY` secret) |
 
 ## Workflow commands
 
@@ -100,6 +118,8 @@ npm run web:build                    # production build
 ## Env vars (`.env.local`, gitignored)
 
 - `ZKP2P_ANALYTICS_KEY=pk_live_...` — Peerlytics paid API key. Required for zkp2p snapshot/history/quote/orderbook. Symlinked from `web/.env.local` so Next.js picks it up.
+- `COINGECKO_KEY=CG-...` (optional) — CoinGecko demo-tier key (~30 req/min). Local snapshot runs work fine without it thanks to the disk-cached FX (`data/cache/fx.json`, 24h TTL). Setting this matters more for the GitHub Actions cron, which has no disk cache between runs.
+- `BASE_RPC_URL=https://...` (optional) — used by zkp2p adapter for onchain reads. Falls back to a public RPC if absent.
 
 ## Public API reference files at repo root
 
