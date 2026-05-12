@@ -23,7 +23,15 @@ jobs:
           git fetch origin data --depth=1 || true
           mkdir -p data/charts
           for id in zkp2p binance_p2p ramp_network kraken_otc; do
-            git show origin/data:charts/${id}_active_liquidity.json > data/charts/${id}_active_liquidity.json 2>/dev/null || true
+            # Restore via mktemp + non-empty check — otherwise `> file 2>/dev/null || true`
+            # creates a zero-byte file when the source doesn't exist on the data branch,
+            # which then gets committed back as an empty log.
+            tmp=$(mktemp)
+            if git show "origin/data:charts/${id}_active_liquidity.json" > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+              mv "$tmp" "data/charts/${id}_active_liquidity.json"
+            else
+              rm -f "$tmp"
+            fi
           done
           ls -la data/charts/ || true
       - uses: actions/setup-node@v4
