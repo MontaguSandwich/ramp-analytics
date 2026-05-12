@@ -19,6 +19,7 @@ jobs:
       - run: npm ci
       - name: Run history
         env:
+          ZKP2P_ANALYTICS_KEY: ${{ secrets.ZKP2P_ANALYTICS_KEY }}
           BASE_RPC_URL: ${{ secrets.BASE_RPC_URL }}
           COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
         run: npm run history
