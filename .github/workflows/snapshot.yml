@@ -44,8 +44,16 @@ jobs:
           set -e
           git config user.name "hip3-bot"
           git config user.email "hip3-bot@users.noreply.github.com"
-          git fetch origin data
-          git worktree add /tmp/data-branch origin/data
+          # Self-bootstrap: if origin/data doesn't exist yet, create it as an empty orphan.
+          # Without this, the first run on a new repo fails because there's no data branch
+          # to fetch and worktree from.
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git fetch origin data --depth=1
+            git worktree add /tmp/data-branch origin/data
+          else
+            echo "data branch absent on remote — bootstrapping empty orphan"
+            git worktree add --orphan -b data /tmp/data-branch
+          fi
           mkdir -p /tmp/data-branch/snapshots /tmp/data-branch/charts
           cp -r data/snapshots/* /tmp/data-branch/snapshots/
           # Self-accumulating liquidity logs need to survive across cron runs.
