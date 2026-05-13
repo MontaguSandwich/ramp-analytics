@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import type { Product } from '@/lib/types';
 import type { DailyPoint } from '@/lib/data';
 import {
@@ -8,6 +9,7 @@ import {
   provenanceLabel,
 } from '@/lib/format';
 import ProtocolCharts from './protocol-charts';
+import { KycBadges } from './chips';
 
 interface Props {
   product: Product;
@@ -173,7 +175,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
         />
         <Kpi
           label="KYC requirement"
-          value={y.pii_floor === 'none' ? 'None' : (y.pii_floor ?? '—')}
+          value={<KycBadges pii={y.pii_floor} />}
           provenance="manual"
           sub={y.non_kyc_available ? 'Protocol-layer non-KYC' : undefined}
         />
@@ -295,7 +297,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
               ) : null}
             </div>
             <dl className="info-kv">
-              <dt>Median spread</dt>
+              <dt>Spread (~$1k)</dt>
               <dd
                 className="mono"
                 style={{
@@ -423,13 +425,17 @@ export default function Zkp2pDetail({ product, history }: Props) {
 
 interface KpiProps {
   label: string;
-  value: string;
+  // ReactNode so callers can pass badges / JSX (e.g. KycBadges) instead of plain text.
+  value: ReactNode;
   provenance?: string;
   ts?: number;
   sub?: string;
 }
 
 function Kpi({ label, value, provenance, ts, sub }: KpiProps) {
+  // String values → big-mono number style; rich content → compact wrapper that lets
+  // the inner content set its own sizing. Matches the GenericDetail Kpi behavior.
+  const isRichValue = typeof value !== 'string' && typeof value !== 'number';
   return (
     <div className="kpi">
       <div className="kpi-label">
@@ -442,7 +448,11 @@ function Kpi({ label, value, provenance, ts, sub }: KpiProps) {
         ) : null}
         {label}
       </div>
-      <div className="kpi-value mono">{value}</div>
+      {isRichValue ? (
+        <div className="kpi-value-rich">{value}</div>
+      ) : (
+        <div className="kpi-value mono">{value}</div>
+      )}
       {sub ? <div className="kpi-sub">{sub}</div> : null}
     </div>
   );

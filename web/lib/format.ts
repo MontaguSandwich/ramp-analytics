@@ -103,3 +103,146 @@ export function bestFeePctOrBps(snap: Snapshot | undefined): { label: string } {
   const min = Math.min(...snap.fee_snapshot.sample_rows.map((r) => r.effective_rate_bps));
   return { label: `${(min / 100).toFixed(2)}%` };
 }
+
+// --- Chip iconography helpers ---------------------------------------------
+
+const FIAT_FLAG_OVERRIDES: Record<string, string> = {
+  EUR: '🇪🇺',
+  XAF: '🌍', // Central African CFA franc
+  XOF: '🌍', // West African CFA franc
+  XCD: '🏝️', // Eastern Caribbean dollar
+  XPF: '🏝️', // CFP franc (Pacific)
+};
+
+/**
+ * Programmatically derive a flag emoji from an ISO 4217 currency code. For ~95% of codes
+ * the first two letters are the ISO 3166-1 alpha-2 country code; we convert those to a
+ * pair of Unicode regional indicators which most platforms render as a national flag.
+ * Multi-country currencies (EUR, XAF, XOF, etc.) have explicit overrides above.
+ * Falls back to a generic 💱 if the code can't be mapped.
+ */
+export function fiatFlagEmoji(code: string | undefined): string {
+  if (!code || code.length < 2) return '💱';
+  const upper = code.toUpperCase();
+  const override = FIAT_FLAG_OVERRIDES[upper];
+  if (override) return override;
+  const cc = upper.slice(0, 2);
+  if (!/^[A-Z]{2}$/.test(cc)) return '💱';
+  const base = 0x1f1e6; // 🇦
+  const A = 'A'.charCodeAt(0);
+  try {
+    return String.fromCodePoint(
+      base + (cc.charCodeAt(0) - A),
+      base + (cc.charCodeAt(1) - A),
+    );
+  } catch {
+    return '💱';
+  }
+}
+
+/**
+ * Crypto icon URL via the cryptocurrency-icons npm package served through jsDelivr.
+ *
+ * Gated on a known-good set so we don't render a broken-image element for assets the
+ * CDN doesn't have (FDUSD is a notable example — Binance-issued stable not in the icon
+ * package). Caller renders a text-only chip when this returns null. The gate is needed
+ * because `GenericDetail` is a Server Component — we can't attach an `onError` handler.
+ */
+const KNOWN_CRYPTO_ICONS = new Set([
+  'btc', 'eth', 'usdt', 'usdc', 'bnb', 'sol', 'matic', 'dai', 'wbtc',
+  'ada', 'avax', 'doge', 'dot', 'ltc', 'xrp', 'trx', 'arb', 'op',
+  'link', 'uni', 'aave', 'shib', 'atom', 'algo',
+]);
+
+export function cryptoIconUrl(symbol: string | undefined): string | null {
+  if (!symbol) return null;
+  const slug = symbol.toLowerCase();
+  if (!KNOWN_CRYPTO_ICONS.has(slug)) return null;
+  return `https://cdn.jsdelivr.net/npm/cryptocurrency-icons@0.18.1/svg/color/${slug}.svg`;
+}
+
+/**
+ * Map Binance / zkp2p payment method identifiers to simpleicons CDN slugs. Returns null
+ * for unmapped methods — caller should fall back to a first-letter chip. Binance has
+ * ~733 unique identifiers in total; most are regional banks without dedicated brand
+ * icons. This map covers the ~30 globally-recognized methods.
+ *
+ * To extend: pick the simpleicons slug from https://simpleicons.org/ and add an entry
+ * keyed by the lowercase-no-spaces normalized identifier.
+ */
+const PAYMENT_METHOD_LOGO_SLUG: Record<string, string> = {
+  // Globally-recognized brands
+  zelle: 'zelle',
+  wise: 'wise',
+  revolut: 'revolut',
+  monzo: 'monzo',
+  n26: 'n26',
+  cashapp: 'cashapp',
+  cash_app: 'cashapp',
+  paypal: 'paypal',
+  pay_pal: 'paypal',
+  venmo: 'venmo',
+  applepay: 'applepay',
+  apple_pay: 'applepay',
+  googlepay: 'googlepay',
+  google_pay: 'googlepay',
+  visa: 'visa',
+  visadirect: 'visa',
+  mastercard: 'mastercard',
+  pix: 'pix',
+  // Regional brands with simpleicons coverage
+  alipay: 'alipay',
+  wechatpay: 'wechat',
+  wechat: 'wechat',
+  bunq: 'bunq',
+  postepay: 'postepay',
+  gcash: 'gcash',
+  paymaya: 'paymaya',
+  skrillmoneybookers: 'skrill',
+  skrill: 'skrill',
+  vipps: 'vipps',
+  monobank: 'monobank',
+  privatbank: 'privatbank',
+};
+
+/**
+ * Resolve a payment-method identifier to a simpleicons slug. Returns null if no logo
+ * is known — the caller should render a first-letter fallback chip.
+ *
+ * Matching is case-insensitive and ignores whitespace/punctuation so `"Cash App"`,
+ * `"cashapp"`, and `"CASHAPP"` all resolve to the same slug.
+ */
+export function paymentMethodLogoSlug(name: string | undefined): string | null {
+  if (!name) return null;
+  const k = name.toLowerCase().replace(/[\s._-]+/g, '');
+  return PAYMENT_METHOD_LOGO_SLUG[k] ?? null;
+}
+
+/**
+ * Pretty-print a payment method identifier. Maps common slugs to their canonical
+ * spelling (Cash App, PayPal, etc.); falls back to title-casing the first letter.
+ */
+const PAYMENT_METHOD_DISPLAY: Record<string, string> = {
+  cashapp: 'Cash App',
+  cash_app: 'Cash App',
+  paypal: 'PayPal',
+  pay_pal: 'PayPal',
+  applepay: 'Apple Pay',
+  apple_pay: 'Apple Pay',
+  googlepay: 'Google Pay',
+  google_pay: 'Google Pay',
+  visadirect: 'Visa Direct',
+  wechatpay: 'WeChat Pay',
+  alipay: 'Alipay',
+  skrillmoneybookers: 'Skrill',
+  n26: 'N26',
+  sepainstant: 'SEPA Instant',
+  sepa_instant: 'SEPA Instant',
+  bank: 'Bank transfer',
+};
+
+export function paymentMethodLabel(name: string | undefined): string {
+  if (!name) return '—';
+  const k = name.toLowerCase().replace(/[\s._-]+/g, '');
+  return PAYMENT_METHOD_DISPLAY[k] ?? name;
+}

@@ -48,20 +48,9 @@ function avgSpreadBpsFromLevel(
   return 0;
 }
 
-function weightedMedianAbsSpread(
-  levels: Array<{ spread_bps: number; weight: number }>,
-): number | null {
-  if (!levels.length) return null;
-  const sorted = [...levels].sort((a, b) => a.spread_bps - b.spread_bps);
-  const totalWeight = sorted.reduce((s, l) => s + l.weight, 0);
-  if (totalWeight <= 0) return null;
-  let cum = 0;
-  for (const l of sorted) {
-    cum += l.weight;
-    if (cum >= totalWeight / 2) return Math.abs(l.spread_bps);
-  }
-  return Math.abs(sorted[sorted.length - 1].spread_bps);
-}
+// `weightedMedianAbsSpread` was removed when observed_spread_bps switched from a
+// liquidity-weighted-median-across-all-currencies to a $1k USD CLOB walk. If we ever
+// want the cross-currency median back as a sub-metric, restore from git history.
 
 async function snapshot(): Promise<Snapshot> {
   const now = Date.now();
@@ -85,20 +74,37 @@ async function snapshot(): Promise<Snapshot> {
   const active_takers_30d = summary30.summary?.unique_takers ?? 0;
   const volume_30d = summary30.summary?.settled_volume_usd ?? null;
 
-  // Spread: liquidity-weighted median of orderbook levels' average oracle spread.
-  const spreadLevels: Array<{ spread_bps: number; weight: number }> = [];
-  for (const ob of orderbook.orderbooks ?? []) {
-    for (const l of ob.levels ?? []) {
-      if (
-        typeof l.oracle_spread_bps_min === 'number' &&
-        typeof l.oracle_spread_bps_max === 'number'
-      ) {
-        const avg = (l.oracle_spread_bps_min + l.oracle_spread_bps_max) / 2;
-        spreadLevels.push({ spread_bps: avg, weight: l.total_liquidity_usd });
-      }
+  // Spread: effective spread for a $1k single-trade in the USD market. Walks the USD
+  // orderbook in price-ascending order, accumulating liquidity until the target notional
+  // is filled, then computes the liquidity-weighted average rate vs the oracle mid.
+  // Cross-venue comparable (every venue's headline now answers the same question:
+  // "what spread does a USD buyer pay for $1k of crypto?").
+  const usdBook = (orderbook.orderbooks ?? []).find(
+    (ob) => ob.currency.toUpperCase() === 'USD',
+  );
+  const target_usd = 1000;
+  let effective_spread_1k_bps: number | null = null;
+  let levels_walked = 0;
+  if (usdBook && usdBook.fx_mid_rate > 0 && usdBook.levels.length > 0) {
+    const sorted = [...usdBook.levels].sort((a, b) => a.rate - b.rate);
+    let remaining = target_usd;
+    let weighted_rate_sum = 0;
+    let filled = 0;
+    for (const lvl of sorted) {
+      if (remaining <= 0) break;
+      const take = Math.min(remaining, lvl.total_liquidity_usd);
+      if (take <= 0) continue;
+      weighted_rate_sum += lvl.rate * take;
+      filled += take;
+      remaining -= take;
+      levels_walked += 1;
+    }
+    if (filled >= target_usd) {
+      const avg_rate = weighted_rate_sum / filled;
+      // rate is fiat-per-USDC; mid is fiat-per-USDC oracle. Spread = (avg - mid) / mid.
+      effective_spread_1k_bps = ((avg_rate - usdBook.fx_mid_rate) / usdBook.fx_mid_rate) * 10_000;
     }
   }
-  const median_spread = weightedMedianAbsSpread(spreadLevels);
 
   // Fee sample (kept for backward compatibility — used by other products' detail rendering).
   const sample_rows = (orderbook.orderbooks ?? [])
@@ -230,14 +236,17 @@ async function snapshot(): Promise<Snapshot> {
       evidence_url: 'https://peerlytics.xyz/api/v1/analytics/summary?range=last_30d',
     },
     observed_spread_bps: {
-      value: median_spread,
+      value: effective_spread_1k_bps,
       provenance: 'api',
-      spread_aggregation: 'median',
-      sample_size: spreadLevels.length,
-      period: 'orderbook_levels',
+      spread_aggregation: 'effective_at_size',
+      sample_size: levels_walked,
+      period: 'usd_usdc_$1k_clob_walk',
       last_verified: now,
       evidence_url: 'https://peerlytics.xyz/api/v1/orderbook',
-      notes: 'liquidity-weighted median of |oracle spread| across orderbook levels',
+      notes:
+        effective_spread_1k_bps == null
+          ? 'USD orderbook too thin to fill $1k.'
+          : `Liquidity-weighted average rate across ${levels_walked} level(s) to fill $1k of USDC vs Chainlink oracle mid.`,
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'api' },
     capabilities: { orderbook: true, quote: true },

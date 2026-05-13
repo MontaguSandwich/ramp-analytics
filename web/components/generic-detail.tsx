@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import {
   CATEGORY_LABEL,
   fmtPct,
@@ -9,6 +10,9 @@ import {
   snapshotTvlUsd,
 } from '@/lib/format';
 import type { Market, Product, ProductYaml, Provenance, Snapshot } from '@/lib/types';
+import { AssetChip, FiatChip, KycBadges } from './chips';
+import FiatBrowser from './fiat-browser';
+import PaymentMethodBrowser from './payment-method-browser';
 
 /**
  * Generic product detail page — used for every product except zkp2p (which uses
@@ -99,16 +103,16 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
           notes={s?.volume_30d_usd.notes}
         />
         <Kpi
-          label="Median spread"
+          label="Spread (~$1k)"
           value={fmtPct(s?.observed_spread_bps.value ?? null)}
           provenance={s?.observed_spread_bps.provenance}
           ts={s?.observed_spread_bps.last_verified}
           notes={s?.observed_spread_bps.notes}
-          sub={s ? `n=${s.observed_spread_bps.sample_size} · ${s.observed_spread_bps.spread_aggregation}` : undefined}
+          sub={s ? spreadKpiSub(s.observed_spread_bps) : undefined}
         />
         <Kpi
           label="KYC requirement"
-          value={y.pii_floor ?? '—'}
+          value={<KycBadges pii={y.pii_floor} />}
           provenance="manual"
           sub={y.kyc_tiers?.length ? `${y.kyc_tiers.length} tier${y.kyc_tiers.length > 1 ? 's' : ''}` : undefined}
         />
@@ -237,7 +241,8 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
 
 interface KpiProps {
   label: string;
-  value: string;
+  // ReactNode so callers can embed badges / JSX (e.g. KycBadges) instead of plain text.
+  value: ReactNode;
   provenance?: string;
   ts?: number;
   notes?: string;
@@ -249,6 +254,10 @@ function Kpi({ label, value, provenance, ts, notes, sub }: KpiProps) {
   // (provenance: 'unavailable'), render a "Not disclosed" label instead of "—".
   // The reason lives in `notes` and is already surfaced via the dot tooltip.
   const isUnavailable = provenance === 'unavailable';
+  // When `value` is a string we use the big-mono style. When it's a richer node
+  // (badges, etc.) we use the compact rich style so the inner content can set its
+  // own sizing without fighting a 20px parent.
+  const isRichValue = typeof value !== 'string' && typeof value !== 'number';
   return (
     <div className="kpi">
       <div className="kpi-label">
@@ -263,6 +272,8 @@ function Kpi({ label, value, provenance, ts, notes, sub }: KpiProps) {
       </div>
       {isUnavailable ? (
         <div className="kpi-value-na" title={notes}>Not disclosed</div>
+      ) : isRichValue ? (
+        <div className="kpi-value-rich">{value}</div>
       ) : (
         <div className="kpi-value mono">{value}</div>
       )}
@@ -329,31 +340,25 @@ function fmtUsdShort(n: number): string {
 }
 
 // --- Label helpers ----------------------------------------------------------
+// `directionLabel`, `custodyLabel`, `settlementLabel` were dropped when their
+// corresponding fields moved out of PropertiesCard (direction now renders as colored
+// pills inline; custody and settlement now live in ClassificationCard with
+// per-category descriptive text).
 
-function directionLabel(d: ProductYaml['direction']): string {
-  if (d === 'on') return 'On-ramp only';
-  if (d === 'off') return 'Off-ramp only';
-  return 'On + off-ramp';
-}
-
-function custodyLabel(c: ProductYaml['delivery_custody']): string {
-  if (c === 'self') return 'Self-custodial';
-  if (c === 'hosted') return 'Hosted (venue escrow)';
-  return 'Hybrid';
-}
-
-function settlementLabel(y: ProductYaml): string {
-  if (y.category === 'onchain') {
-    if (y.contracts?.length) {
-      const chain = y.contracts[0].chain;
-      return `Onchain (${chain})`;
-    }
-    return 'Onchain';
+/**
+ * Sub-line text for the Spread KPI. Replaces the raw `n=X · aggregation` string with
+ * something a user can parse: "$1k USD/USDT match" for the new effective-at-size metric,
+ * generic samples-count otherwise.
+ */
+function spreadKpiSub(s: Snapshot['observed_spread_bps']): string {
+  if (s.spread_aggregation === 'effective_at_size') {
+    // period strings: "usd_usdt_$1k_single_match" (binance), "usd_usdc_$1k_clob_walk" (zkp2p),
+    // "usd_$1k_quote" (ramp/otc — both unavailable). Render a brief, user-readable form.
+    if (s.period.includes('usdt')) return '$1k USD/USDT · single match';
+    if (s.period.includes('usdc')) return `$1k USD/USDC · ${s.sample_size} level${s.sample_size === 1 ? '' : 's'}`;
+    return '$1k USD';
   }
-  if (y.category === 'cex_p2p') return 'Off-chain via venue escrow';
-  if (y.category === 'ramp') return 'Direct fiat ↔ crypto';
-  if (y.category === 'otc') return 'Bilateral OTC';
-  return '—';
+  return `n=${s.sample_size} · ${s.spread_aggregation}`;
 }
 
 function kycLabel(pii: ProductYaml['pii_floor']): string {
@@ -383,58 +388,32 @@ function fmtSpreadPct(bps: number | null | undefined): string {
 // --- Info cards -------------------------------------------------------------
 
 function PropertiesCard({ yaml: y }: { yaml: ProductYaml }) {
+  // Trimmed scope post-design-pass: Custody, Settlement, Proof of reserves moved into
+  // the Classification card. Team transparency, Legal entity, Licenses dropped as low
+  // signal for the cross-product comparison.
+  const showOnramp = y.direction === 'on' || y.direction === 'both';
+  const showOfframp = y.direction === 'off' || y.direction === 'both';
   return (
     <div className="info-card">
       <div className="info-title">Venue Properties</div>
       <dl className="info-kv">
         <dt>Category</dt>
-        <dd>{CATEGORY_LABEL[y.category] ?? y.category}</dd>
+        <dd>
+          <span className={`tag cat-${y.category}`}>
+            {CATEGORY_LABEL[y.category] ?? y.category}
+          </span>
+        </dd>
         <dt>Direction</dt>
-        <dd>{directionLabel(y.direction)}</dd>
-        <dt>Custody</dt>
-        <dd>{custodyLabel(y.delivery_custody)}</dd>
-        <dt>Settlement</dt>
-        <dd>{settlementLabel(y)}</dd>
+        <dd>
+          <div className="direction-pills">
+            {showOnramp ? <span className="tag tag-onramp">Onramp</span> : null}
+            {showOfframp ? <span className="tag tag-offramp">Offramp</span> : null}
+          </div>
+        </dd>
         <dt>Pricing</dt>
         <dd>{y.pricing?.spread_method?.replace(/_/g, ' ') ?? '—'}</dd>
         <dt>Live since</dt>
         <dd>{y.launched ?? '—'}</dd>
-        {y.legal_entity ? (
-          <>
-            <dt>Legal entity</dt>
-            <dd>{y.legal_entity}</dd>
-          </>
-        ) : null}
-        {y.licenses?.length ? (
-          <>
-            <dt>Licenses</dt>
-            <dd>
-              {y.licenses
-                .map((l) => `${l.jurisdiction} (${l.type})`)
-                .join(' · ')}
-            </dd>
-          </>
-        ) : null}
-        <dt>Proof of reserves</dt>
-        <dd>
-          {y.proof_of_reserves?.exists ? (
-            y.proof_of_reserves.url ? (
-              <a href={y.proof_of_reserves.url} target="_blank" rel="noreferrer">
-                Yes ↗
-              </a>
-            ) : (
-              'Yes'
-            )
-          ) : (
-            <span className="muted">No</span>
-          )}
-        </dd>
-        {y.team_transparency ? (
-          <>
-            <dt>Team transparency</dt>
-            <dd>{y.team_transparency}</dd>
-          </>
-        ) : null}
         {y.audits?.length ? (
           <>
             <dt>Audits</dt>
@@ -462,8 +441,6 @@ function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYaml; snapshot?: 
   const activeFiats = cov?.fiats?.length ? cov.fiats : y.fiats;
   const inactive = cov?.fiats_inactive ?? [];
   const allPlatforms = cov?.platforms?.length ? cov.platforms : y.payment_methods ?? [];
-  const platformsTop = allPlatforms.slice(0, 12);
-  const platformsRest = Math.max(0, allPlatforms.length - platformsTop.length);
 
   return (
     <div className="info-card">
@@ -480,24 +457,19 @@ function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYaml; snapshot?: 
       <dl className="info-kv">
         <dt>Fiats</dt>
         <dd>
-          {activeFiats.length}
-          {activeFiats.length ? (
-            <div className="fiat-grid">
-              {activeFiats.map((f) => (
-                <FiatChip key={f} code={f} flag={cov?.fiat_flags?.[f]} />
-              ))}
-            </div>
-          ) : null}
+          {activeFiats.length === 0 ? (
+            '—'
+          ) : (
+            <FiatBrowser codes={activeFiats} flags={cov?.fiat_flags} />
+          )}
         </dd>
         <dt>Settlement assets</dt>
         <dd>
+          {/* Kept as an inline grid — only 5-6 entries per product, doesn't need a browser. */}
           {y.assets.length ? (
-            <div className="fiat-grid">
+            <div className="asset-grid">
               {y.assets.map((a) => (
-                <span key={`${a.symbol}-${a.chain}`} className="fiat-chip" title={`${a.symbol} on ${a.chain}`}>
-                  <span className="fiat-code">{a.symbol}</span>
-                  <span className="muted" style={{ fontSize: 10 }}>{a.chain}</span>
-                </span>
+                <AssetChip key={`${a.symbol}-${a.chain}`} symbol={a.symbol} chain={a.chain} />
               ))}
             </div>
           ) : (
@@ -506,34 +478,20 @@ function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYaml; snapshot?: 
         </dd>
         <dt>Payment methods</dt>
         <dd>
-          {allPlatforms.length}
-          {allPlatforms.length ? (
-            <div className="fiat-grid">
-              {platformsTop.map((p) => (
-                <span key={p} className="fiat-chip">
-                  <span className="fiat-code">{p}</span>
-                </span>
-              ))}
-              {platformsRest > 0 ? (
-                <span className="fiat-chip muted">
-                  <span className="fiat-code">+{platformsRest} more</span>
-                </span>
-              ) : null}
-            </div>
-          ) : null}
+          {allPlatforms.length === 0 ? (
+            '—'
+          ) : (
+            <PaymentMethodBrowser methods={allPlatforms} />
+          )}
         </dd>
         {inactive.length ? (
           <>
             <dt>Withdrawn markets</dt>
             <dd>
               <div className="info-sub" style={{ marginBottom: 4 }}>
-                {inactive.length} fiats no longer served (Binance has exited these P2P markets)
+                Currencies the venue has withdrawn from.
               </div>
-              <div className="fiat-grid">
-                {inactive.map((f) => (
-                  <FiatChip key={f} code={f} />
-                ))}
-              </div>
+              <FiatBrowser codes={inactive} searchPlaceholder="search withdrawn currencies" />
             </dd>
           </>
         ) : null}
@@ -549,10 +507,83 @@ function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYaml; snapshot?: 
 }
 
 function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
+  // Card titles are fixed; descriptions are derived per-product so each venue gets a
+  // factual statement of what's true for it (not a yes/no judgment). State (ok/warn)
+  // still encodes user-friendliness so the visual signal carries.
   const isSelfCustody = y.delivery_custody === 'self';
   const isNoKyc = y.non_kyc_available === true;
-  const isOpenSource = y.open_source?.is_open === true;
-  const isOnchainSettlement = y.category === 'onchain';
+  const isOnchain = y.category === 'onchain';
+  const isCex = y.category === 'cex_p2p';
+  const isRamp = y.category === 'ramp';
+
+  // Custody type
+  const custodyDesc = isSelfCustody
+    ? "Self-custodial: assets are delivered directly to the user's wallet."
+    : isCex
+      ? "Custodial: purchased assets are delivered to the user's account on the exchange."
+      : isRamp
+        ? 'Custodial during transit: assets are forwarded to a wallet address you provide.'
+        : 'Custodial: the venue holds assets on behalf of the user.';
+
+  // KYC requirements
+  const kycDesc = isNoKyc
+    ? 'No identity verification required at the protocol layer.'
+    : isCex
+      ? 'Users are required to verify their ID to be able to trade on P2P markets.'
+      : isRamp
+        ? `Identity verification (${kycLabel(y.pii_floor)}) required for fiat onramps.`
+        : `Identity verification required (${kycLabel(y.pii_floor)}).`;
+
+  // Disputes settlement
+  const disputesDesc = isOnchain
+    ? 'Cryptographic proof of payment unlocks the escrow on-chain — no human arbitration.'
+    : isCex
+      ? 'In case of a dispute, the venue support steps in to settle it.'
+      : isRamp
+        ? 'No bilateral trade — refunds via venue support if a transaction fails.'
+        : 'Bilateral resolution between parties; venue may mediate.';
+
+  // Settlement
+  const settlementChain = y.contracts?.[0]?.chain;
+  const settlementDesc = isOnchain
+    ? `Trades settle onchain${settlementChain ? ` on ${settlementChain}` : ''} via smart contract escrow.`
+    : isCex
+      ? 'Trades settle off-chain, on the venue.'
+      : isRamp
+        ? 'Direct fiat-to-crypto delivery to the user wallet.'
+        : 'Bilateral OTC settlement.';
+
+  // Proof of Reserves (CEX-shaped concept, adapted for each category).
+  // - Onchain: funds are visible on-chain by design → ok by default.
+  // - CEX with PoR published → ok, link the source.
+  // - CEX without PoR → fail.
+  // - Ramp / OTC: PoR less applicable; warn unless the yaml says it exists.
+  const por = y.proof_of_reserves;
+  let porState: 'ok' | 'warn' | 'fail';
+  let porDesc: ReactNode;
+  if (isOnchain) {
+    porState = 'ok';
+    porDesc = 'Funds are verifiable directly on-chain — no separate proof of reserves needed.';
+  } else if (por?.exists) {
+    porState = 'ok';
+    const updated = por.last_updated ? ` (last updated ${por.last_updated})` : '';
+    porDesc = por.url ? (
+      <>
+        Reserves are cryptographically attested{updated}.{' '}
+        <a href={por.url} target="_blank" rel="noreferrer">
+          View ↗
+        </a>
+      </>
+    ) : (
+      `Self-attested reserves${updated}.`
+    );
+  } else if (isCex) {
+    porState = 'fail';
+    porDesc = 'No published proof of reserves.';
+  } else {
+    porState = 'warn';
+    porDesc = 'No proof of reserves published — less applicable for this venue type.';
+  }
 
   return (
     <div className="info-card">
@@ -560,40 +591,25 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
       <div className="badge-grid">
         <Badge
           state={isSelfCustody ? 'ok' : 'warn'}
-          title="Self Custody"
-          desc={
-            isSelfCustody
-              ? "Funds stay in the user's own wallet"
-              : 'Assets are held in the venue’s escrow during trades'
-          }
+          title="Custody type"
+          desc={custodyDesc}
         />
         <Badge
           state={isNoKyc ? 'ok' : 'warn'}
-          title="No KYC"
-          desc={
-            isNoKyc
-              ? 'Protocol layer requires no PII'
-              : `Identity verification required (${kycLabel(y.pii_floor)})`
-          }
+          title="KYC requirements"
+          desc={kycDesc}
         />
         <Badge
-          state={isOpenSource ? 'ok' : 'warn'}
-          title="Open Source"
-          desc={
-            isOpenSource
-              ? y.open_source?.repo_url ?? 'Public source code'
-              : 'Closed-source proprietary platform'
-          }
+          state={isOnchain ? 'ok' : 'warn'}
+          title="Disputes settlement"
+          desc={disputesDesc}
         />
         <Badge
-          state={isOnchainSettlement ? 'ok' : 'warn'}
-          title="Onchain Settlement"
-          desc={
-            isOnchainSettlement
-              ? 'Trades settle onchain via smart contract'
-              : 'Trades settle off-chain within the venue’s custody'
-          }
+          state={isOnchain ? 'ok' : 'warn'}
+          title="Settlement"
+          desc={settlementDesc}
         />
+        <Badge state={porState} title="Proof of Reserves" desc={porDesc} />
       </div>
     </div>
   );
@@ -627,7 +643,7 @@ function NetworkHealthCard({ snapshot: s }: { snapshot?: Snapshot }) {
         ) : null}
       </div>
       <dl className="info-kv">
-        <dt>Median spread</dt>
+        <dt>Spread (~$1k)</dt>
         <dd
           className="mono"
           style={{
@@ -671,7 +687,8 @@ function Badge({
 }: {
   state: 'ok' | 'warn' | 'fail';
   title: string;
-  desc: string;
+  // ReactNode so callers can embed a link (e.g. Proof of Reserves → view source).
+  desc: ReactNode;
 }) {
   const icon = state === 'ok' ? '✓' : state === 'warn' ? '⚠' : '✕';
   return (
@@ -685,14 +702,12 @@ function Badge({
   );
 }
 
-function FiatChip({ code, flag }: { code: string; flag?: string }) {
-  return (
-    <span className="fiat-chip" title={code}>
-      {flag ? <span className="fiat-flag">{flag}</span> : null}
-      <span className="fiat-code">{code}</span>
-    </span>
-  );
-}
+// KycBadges, KycKind, kycKindsFor were extracted to ./chips.tsx so zkp2p-detail
+// can also import them without duplicating the badge taxonomy.
+
+// FiatChip, AssetChip, PaymentChip were extracted to ./chips.tsx so both this
+// Server Component and the Client-Component browsers (fiat-browser, payment-method-browser)
+// can import them. Definitions live there now.
 
 // --- Live rates table ------------------------------------------------------
 

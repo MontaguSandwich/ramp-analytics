@@ -348,6 +348,26 @@ tbody tr:hover {
   color: #c084fc;
 }
 
+/* Direction pills — semantically distinct from category colors.
+   Onramp (fiat → crypto): green, "money flowing in".
+   Offramp (crypto → fiat): amber, "money flowing out". */
+.tag.tag-onramp {
+  border-color: rgba(52, 211, 153, 0.35);
+  color: #34d399;
+  background: rgba(52, 211, 153, 0.06);
+}
+.tag.tag-offramp {
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.direction-pills {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .dot {
   display: inline-block;
   width: 8px;
@@ -453,6 +473,47 @@ tbody tr:hover {
   font-weight: 400;
   color: var(--fg-mute);
   margin-top: 6px;
+}
+
+/* Used when the KPI value is rich content (badges, chips, etc.) instead of a plain
+   string. Skips the 20px mono-number styling so inner content controls its own size. */
+.kpi-value-rich {
+  margin-top: 6px;
+  line-height: 1.2;
+}
+
+/* KYC badges — one pill per PII category with an intrinsic-colour dot. */
+.kyc-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kyc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+.kyc-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kyc-label {
+  line-height: 1;
 }
 
 .kpi-sub {
@@ -1607,4 +1668,173 @@ tbody tr:hover {
 .platform-label {
   color: var(--fg-dim);
   font-weight: 500;
+}
+
+/* Asset chips — used for crypto settlement assets (USDT/BTC/ETH/USDC/...).
+   Visually similar to platform-chip but with a slightly larger logo because the
+   crypto color icons read better at 16px than the 14px brand logos. */
+.asset-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.asset-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px 2px 4px;
+  border: 1px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 11px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.asset-logo {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+.asset-symbol {
+  color: var(--fg);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.asset-chain {
+  color: var(--fg-mute);
+  font-size: 10px;
+  font-weight: 400;
+}
+
+/* Count + browse + search affordance — used in CoverageCard for fiats, payment methods,
+   withdrawn markets, and anywhere else a long list needs a compact summary with
+   click-to-browse + type-to-search instead of a wall of chips. */
+.count-browser {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.count-browser-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.count-browser-count {
+  font-weight: 600;
+  color: var(--fg);
+  font-size: 13px;
+}
+
+.count-browser-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: transparent;
+  color: var(--fg-mute);
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.count-browser-info:hover:not(:disabled) {
+  border-color: var(--fg-mute);
+  color: var(--fg);
+}
+
+.count-browser-info-active {
+  border-color: var(--fg);
+  color: var(--fg);
+  background: var(--bg-elev);
+}
+
+.count-browser-info:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.count-browser-search {
+  flex: 1;
+  min-width: 140px;
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font-size: 11px;
+  font-family: inherit;
+}
+
+.count-browser-search:focus {
+  outline: none;
+  border-color: var(--fg-mute);
+}
+
+.count-browser-search:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.count-browser-popover {
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elev);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.count-browser-glyphs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.count-browser-glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.count-browser-results {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.count-browser-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.count-browser-result-glyph {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.count-browser-empty {
+  font-size: 11px;
+  margin-top: 2px;
 }

@@ -282,6 +282,19 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
       {data?.stats ? (
         <div className="orderbook-stats">
           <div className="orderbook-stat">
+            <div className="orderbook-stat-label">Liquidity</div>
+            <div className="orderbook-stat-value mono">
+              {fmtFiat(data.stats.total_offer_value, data.stats.fiat)}
+              <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                {' '}slice
+              </span>
+            </div>
+          </div>
+          <div className="orderbook-stat">
+            <div className="orderbook-stat-label">Active makers</div>
+            <div className="orderbook-stat-value mono">{data.stats.n_makers}</div>
+          </div>
+          <div className="orderbook-stat">
             <div className="orderbook-stat-label">Showing</div>
             <div className="orderbook-stat-value mono">
               {data.stats.n_ads}
@@ -291,16 +304,19 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
                   of {data.stats.total_available}
                 </span>
               ) : null}
+              <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                {' '}ads
+              </span>
             </div>
           </div>
           <div className="orderbook-stat">
-            <div className="orderbook-stat-label">Unique makers</div>
-            <div className="orderbook-stat-value mono">{data.stats.n_makers}</div>
-          </div>
-          <div className="orderbook-stat">
-            <div className="orderbook-stat-label">Offer value (slice)</div>
-            <div className="orderbook-stat-value mono">
-              {fmtFiat(data.stats.total_offer_value, data.stats.fiat)}
+            <div className="orderbook-stat-label">24h volume</div>
+            <div
+              className="orderbook-stat-value"
+              style={{ color: 'var(--fg-mute)', fontSize: 14, fontWeight: 400 }}
+              title="Binance does not separately disclose P2P volume"
+            >
+              Not disclosed
             </div>
           </div>
         </div>

@@ -7,7 +7,7 @@ import type {
   Market,
 } from '../lib/types.ts';
 import { fxMid, fxMidBatch } from '../lib/fx.ts';
-import { median, sum, unique } from '../lib/stats.ts';
+import { sum, unique } from '../lib/stats.ts';
 
 const PRODUCT_ID = 'binance_p2p';
 const SEARCH_URL = 'https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search';
@@ -229,7 +229,16 @@ interface MarketProbe {
   spread_bps: number | null;
   fx_mid: number | null;
   n_makers: number;
+  /**
+   * Effective spread (bps) for a $1k single-match trade in this market — the spread of
+   * the cheapest ad whose min/max single-tx window accepts $1k-equivalent in local fiat
+   * AND has enough USDT escrowed to cover it. Null if no ad in the top-20 qualifies.
+   * CEX P2P is single-match (one trade = one maker), not CLOB-walk.
+   */
+  effective_spread_1k_bps: number | null;
 }
+
+const EFFECTIVE_SIZE_USD = 1000;
 
 /**
  * Probe every CANDIDATE_FIAT against USDT in parallel, compute per-market metrics, and
@@ -246,9 +255,19 @@ interface MarketProbe {
  *   - probes: per-market raw data
  *   - total_observed_usd: SUM of surplus_sum across every market with ads (the KPI value)
  *   - markets_observed: count of markets with at least one ad
- *   - all_spreads: per-ad spread samples for the median-spread metric (only from
- *     markets that had an FX mid available)
+ *
+ * Each MarketProbe also carries `effective_spread_1k_bps` — the spread of the cheapest
+ * ad in that market that can fill a $1k trade in a single match. This drives the
+ * headline `observed_spread_bps` KPI (USD-market value used as the cross-venue metric).
  */
+// Concurrency chunking — Binance's Cloudflare sheds requests when we fire all 134
+// adv/search calls in a single Promise.all burst (we observed coverage drops from
+// ~71 to ~13 markets between runs). Chunked into smaller parallel groups with a
+// small inter-chunk pause, we get steady ~70+ market coverage at a small wall-time
+// cost (~10s for the markets probe instead of ~3s, but the request actually completes).
+const PROBE_CHUNK_SIZE = 10;
+const PROBE_CHUNK_DELAY_MS = 300;
+
 async function fetchAllMarkets(
   now: number,
   fxMids: Record<string, number>,
@@ -256,20 +275,30 @@ async function fetchAllMarkets(
   probes: MarketProbe[];
   total_observed_usd: number;
   markets_observed: number;
-  all_spreads: number[];
 }> {
   void now; // reserved for future cache invalidation / timestamp threading
-  const settled = await Promise.allSettled(
-    CANDIDATE_FIATS.map(async (fiat) => {
-      const result = await search({ fiat, asset: 'USDT', tradeType: 'BUY', rows: 20 });
-      return { fiat, ...result };
-    }),
-  );
+
+  // Fire requests in chunks instead of one big Promise.all to stay under Binance's
+  // burst-rate cliff. Each chunk runs in parallel; chunks are sequential with a brief
+  // pause between them.
+  const settled: PromiseSettledResult<{ fiat: string; ads: BinanceAd[]; total: number }>[] = [];
+  for (let i = 0; i < CANDIDATE_FIATS.length; i += PROBE_CHUNK_SIZE) {
+    const chunk = CANDIDATE_FIATS.slice(i, i + PROBE_CHUNK_SIZE);
+    const chunkResults = await Promise.allSettled(
+      chunk.map(async (fiat) => {
+        const result = await search({ fiat, asset: 'USDT', tradeType: 'BUY', rows: 20 });
+        return { fiat, ...result };
+      }),
+    );
+    settled.push(...chunkResults);
+    if (i + PROBE_CHUNK_SIZE < CANDIDATE_FIATS.length) {
+      await new Promise((resolve) => setTimeout(resolve, PROBE_CHUNK_DELAY_MS));
+    }
+  }
 
   const probes: MarketProbe[] = [];
   let total_observed_usd = 0;
   let markets_observed = 0;
-  const all_spreads: number[] = [];
 
   for (const r of settled) {
     if (r.status !== 'fulfilled') continue;
@@ -289,13 +318,31 @@ async function fetchAllMarkets(
 
     let best_rate: number | null = null;
     let spread_bps: number | null = null;
+    let effective_spread_1k_bps: number | null = null;
     if (prices.length > 0) {
       best_rate = Math.min(...prices);
       if (fx_mid !== null && Number.isFinite(fx_mid) && fx_mid > 0) {
         spread_bps = ((best_rate - fx_mid) / fx_mid) * 10_000;
-        // Contribute per-ad spreads to the cross-market median metric.
-        for (const p of prices) {
-          all_spreads.push(((p - fx_mid) / fx_mid) * 10_000);
+
+        // Effective spread for a $1k single-match trade.
+        // Target in local fiat: $1000 worth of USDT ≈ 1000 USDT × fx_mid local-per-USDT.
+        // Find the cheapest ad where:
+        //   (a) min_single_tx ≤ target_local ≤ max_single_tx (the maker accepts this size)
+        //   (b) surplus_amount ≥ 1000 (the maker has ≥1000 USDT escrowed to cover the buy)
+        const targetLocal = EFFECTIVE_SIZE_USD * fx_mid;
+        const sorted = [...ads].sort(
+          (a, b) => Number(a.adv.price) - Number(b.adv.price),
+        );
+        for (const ad of sorted) {
+          const price = Number(ad.adv.price);
+          if (!Number.isFinite(price) || price <= 0) continue;
+          const minTx = Number(ad.adv.minSingleTransAmount);
+          const maxTx = Number(ad.adv.maxSingleTransAmount);
+          const surplus = Number(ad.adv.surplusAmount);
+          if (targetLocal < minTx || targetLocal > maxTx) continue;
+          if (!Number.isFinite(surplus) || surplus < EFFECTIVE_SIZE_USD) continue;
+          effective_spread_1k_bps = ((price - fx_mid) / fx_mid) * 10_000;
+          break;
         }
       }
     }
@@ -309,10 +356,11 @@ async function fetchAllMarkets(
       spread_bps,
       fx_mid,
       n_makers,
+      effective_spread_1k_bps,
     });
   }
 
-  return { probes, total_observed_usd, markets_observed, all_spreads };
+  return { probes, total_observed_usd, markets_observed };
 }
 
 async function snapshot(): Promise<Snapshot> {
@@ -331,8 +379,14 @@ async function snapshot(): Promise<Snapshot> {
   // STAGE 2: unified market probe — one adv/search call per CANDIDATE_FIAT against
   // USDT (BUY side, so we're observing maker SELL ads = the only side with escrowed
   // capital). Drives liquidity / spread / rates / sample_rows in one pass.
-  const { probes, total_observed_usd, markets_observed, all_spreads } =
+  const { probes, total_observed_usd, markets_observed } =
     await fetchAllMarkets(now, fxMids);
+
+  // Headline observed_spread_bps: effective spread for a $1k single-match trade in the
+  // USD market. Picked over a cross-market median because it gives an apples-to-apples
+  // comparison with other venues that all settle in USD.
+  const usdProbe = probes.find((p) => p.fiat === 'USD');
+  const effectiveUsd1kBps = usdProbe?.effective_spread_1k_bps ?? null;
 
   // Derive: top_pairs (top 10 by USDT depth, for KPI breakdown / drill-in).
   const sortedByDepth = [...probes].sort((a, b) => b.surplus_sum - a.surplus_sum);
@@ -392,13 +446,18 @@ async function snapshot(): Promise<Snapshot> {
       notes: 'Binance does not separately disclose P2P volume',
     },
     observed_spread_bps: {
-      value: all_spreads.length ? median(all_spreads) : null,
+      value: effectiveUsd1kBps,
       provenance: 'api',
-      spread_aggregation: 'median',
-      sample_size: all_spreads.length,
-      period: 'top_offers',
+      spread_aggregation: 'effective_at_size',
+      // 1 = the single ad we matched against. Cross-venue comparable.
+      sample_size: effectiveUsd1kBps != null ? 1 : 0,
+      period: 'usd_usdt_$1k_single_match',
       last_verified: now,
       evidence_url: SEARCH_URL,
+      notes:
+        effectiveUsd1kBps == null
+          ? 'No USD market ad in the top-20 accepts a $1k single-match trade with enough escrowed USDT.'
+          : undefined,
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'api' },
     // Both subpages backed by routes under web/app/api/binance_p2p/{orderbook,quote}/route.ts.

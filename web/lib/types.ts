@@ -16,7 +16,7 @@
 export type Provenance = 'onchain' | 'api' | 'self_reported' | 'manual' | 'unavailable';
 export type Category = 'cex_p2p' | 'ramp' | 'onchain' | 'otc';
 export type Direction = 'on' | 'off' | 'both';
-export type SpreadAggregation = 'median' | 'mean' | 'min_top_n' | 'sample';
+export type SpreadAggregation = 'median' | 'mean' | 'min_top_n' | 'sample' | 'effective_at_size';
 
 export interface Wrapped<T> {
   value: T;

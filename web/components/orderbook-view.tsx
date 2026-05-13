@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import MultiSelectDropdown from './multi-select-dropdown';
 
 interface OrderbookLevel {
   rate: number;
@@ -119,7 +120,7 @@ export default function OrderbookView() {
   const [lastFetched, setLastFetched] = useState<number | null>(null);
   const lastReqId = useRef(0);
 
-  // Fetch meta (unfiltered) on mount and every 5 min for dropdown counts + best-rates card.
+  // Fetch meta (unfiltered) on mount and every 5 min for dropdown counts + filter pools.
   useEffect(() => {
     const fetchMeta = async () => {
       try {
@@ -188,26 +189,9 @@ export default function OrderbookView() {
     return all.map((c) => ({ code: c, count: counts.get(c) ?? null }));
   }, [meta]);
 
-  // Derived: best rate per top 3 currencies (always from meta, not filtered view).
-  const bestRatesByCurrency = useMemo(() => {
-    if (!meta?.orderbooks) return [];
-    return meta.orderbooks.slice(0, 3).map((ob) => {
-      let bestSpread = Infinity;
-      let bestRate = 0;
-      for (const l of ob.levels ?? []) {
-        const sp = avgSpreadBps(l, ob.fx_mid_rate);
-        if (sp < bestSpread) {
-          bestSpread = sp;
-          bestRate = l.rate;
-        }
-      }
-      return {
-        currency: ob.currency,
-        bestSpread: Number.isFinite(bestSpread) ? bestSpread : null,
-        bestRate,
-      };
-    });
-  }, [meta]);
+  // The standalone "Best rates" panel was dropped — its info is already surfaced in
+  // each row's Spread column (sorted ascending by default). If it ever needs to come
+  // back as a sidebar or callout, restore from git history.
 
   const availablePlatforms = meta?.filters?.available?.platforms ?? [];
 
@@ -232,9 +216,39 @@ export default function OrderbookView() {
     return flat.slice(0, 200);
   }, [data, sort]);
 
-  const togglePlatform = (p: string) => {
-    setPlatforms((cur) => (cur.includes(p) ? cur.filter((x) => x !== p) : [...cur, p]));
-  };
+  // Per-currency platform pool — invert meta.filters.available.currencies_by_platform
+  // (platform → currencies[]) into a (currency → platforms[]) map. When a currency is
+  // selected, the platforms dropdown narrows to those that serve it. Matches the
+  // fiat-aware picker pattern from binance-p2p-orderbook-view.
+  const platformsByCurrency = useMemo(() => {
+    const cbp = meta?.filters?.available?.currencies_by_platform ?? {};
+    const out: Record<string, string[]> = {};
+    for (const [platform, currs] of Object.entries(cbp)) {
+      for (const c of currs) {
+        (out[c] ||= []).push(platform);
+      }
+    }
+    return out;
+  }, [meta]);
+
+  const activePlatformPool = useMemo(() => {
+    if (currency && platformsByCurrency[currency]?.length) {
+      return platformsByCurrency[currency];
+    }
+    return availablePlatforms;
+  }, [currency, platformsByCurrency, availablePlatforms]);
+
+  // When currency changes, drop selected platforms that don't apply anymore.
+  useEffect(() => {
+    setPlatforms((cur) => cur.filter((p) => activePlatformPool.includes(p)));
+  }, [activePlatformPool]);
+
+  // For the "Showing N of M" stat — count of levels in the current filtered view
+  // (already in sortedLevels) vs total available across all currencies in meta.
+  const totalLevelsInMeta = useMemo(() => {
+    if (!meta) return 0;
+    return (meta.orderbooks ?? []).reduce((s, ob) => s + (ob.levels?.length ?? 0), 0);
+  }, [meta]);
 
   return (
     <>
@@ -255,24 +269,20 @@ export default function OrderbookView() {
             ))}
           </select>
         </div>
-        <div className="orderbook-control" style={{ flex: 1, minWidth: 320 }}>
-          <label className="filter-label">Payment platforms</label>
-          <div className="chip-group-inner" style={{ flexWrap: 'wrap' }}>
-            {availablePlatforms.length === 0 ? (
-              <span className="muted" style={{ fontSize: 12 }}>loading…</span>
-            ) : (
-              availablePlatforms.map((p) => (
-                <button
-                  key={p}
-                  type="button"
-                  className={`chip${platforms.includes(p) ? ' chip-active' : ''}`}
-                  onClick={() => togglePlatform(p)}
-                >
-                  {p}
-                </button>
-              ))
-            )}
-          </div>
+        <div className="orderbook-control">
+          <label className="filter-label">
+            Payment platforms{' '}
+            <span className="muted">
+              ({activePlatformPool.length}
+              {currency ? ` for ${currency}` : ''})
+            </span>
+          </label>
+          <MultiSelectDropdown
+            options={activePlatformPool}
+            selected={platforms}
+            onChange={setPlatforms}
+            placeholder="All platforms"
+          />
         </div>
         <div className="orderbook-control">
           <label className="filter-label">Min size (USD)</label>
@@ -324,7 +334,7 @@ export default function OrderbookView() {
       {data?.stats ? (
         <div className="orderbook-stats">
           <div className="orderbook-stat">
-            <div className="orderbook-stat-label">Total liquidity</div>
+            <div className="orderbook-stat-label">Liquidity</div>
             <div className="orderbook-stat-value mono">{fmtUsd(data.stats.total_liquidity_usd)}</div>
           </div>
           <div className="orderbook-stat">
@@ -332,36 +342,23 @@ export default function OrderbookView() {
             <div className="orderbook-stat-value mono">{data.stats.active_makers}</div>
           </div>
           <div className="orderbook-stat">
+            <div className="orderbook-stat-label">Showing</div>
+            <div className="orderbook-stat-value mono">
+              {sortedLevels.length}
+              {totalLevelsInMeta > sortedLevels.length ? (
+                <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>
+                  {' '}
+                  of {totalLevelsInMeta}
+                </span>
+              ) : null}
+              <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                {' '}levels
+              </span>
+            </div>
+          </div>
+          <div className="orderbook-stat">
             <div className="orderbook-stat-label">24h volume</div>
             <div className="orderbook-stat-value mono">{fmtUsd(data.stats.volume24h_usd)}</div>
-          </div>
-          <div className="orderbook-stat orderbook-stat-best">
-            <div className="orderbook-stat-label">Best rates</div>
-            <div className="best-rates-list">
-              {bestRatesByCurrency.length === 0 ? (
-                <span className="muted" style={{ fontSize: 12 }}>—</span>
-              ) : (
-                bestRatesByCurrency.map((br) => (
-                  <button
-                    key={br.currency}
-                    type="button"
-                    className={`best-rate-row${currency === br.currency ? ' best-rate-row-active' : ''}`}
-                    onClick={() => setCurrency(currency === br.currency ? '' : br.currency)}
-                    title={`Filter to ${br.currency}`}
-                  >
-                    <span className="best-rate-ccy">{br.currency}</span>
-                    <span
-                      className="best-rate-pct mono"
-                      style={{
-                        color: br.bestSpread != null ? spreadColor(br.bestSpread) : 'var(--fg-mute)',
-                      }}
-                    >
-                      {fmtSpreadPct(br.bestSpread)}
-                    </span>
-                  </button>
-                ))
-              )}
-            </div>
           </div>
         </div>
       ) : null}

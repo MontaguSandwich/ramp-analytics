@@ -1,6 +1,9 @@
 import type { Adapter, Snapshot, QuoteRequest, QuoteResponse, DailyPoint } from '../lib/types.ts';
-import { fxMid } from '../lib/fx.ts';
-import { median } from '../lib/stats.ts';
+// Note: fxMid + median were previously used to aggregate Ramp's /assets reference-price
+// spread across sampled pairs, but that metric was misleading (it doesn't include the
+// payment-method fee, which is the dominant component of real user-paid spread). The
+// headline observed_spread_bps now reports 'unavailable' until we have a partner
+// hostApiKey to call /onramp/quote/all.
 
 const PRODUCT_ID = 'ramp_network';
 const BASE_URL = 'https://api.rampnetwork.com/api';
@@ -43,7 +46,8 @@ type RampQuoteResult = {
 } & Record<string, RampQuoteEntry | RampAssetInfo | undefined>;
 
 const SAMPLE_FIATS = ['USD', 'EUR', 'GBP'];
-const SAMPLE_ASSETS = ['USDC', 'ETH', 'BTC'];
+// SAMPLE_ASSETS was used by the old reference-price spread compute; removed alongside
+// that metric. If a future quote-endpoint integration needs an asset shortlist, restore.
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(url, { headers: { accept: 'application/json' }, ...init });
@@ -70,23 +74,9 @@ async function snapshot(): Promise<Snapshot> {
     fetchPaymentMethods().catch(() => [] as RampPaymentMethod[]),
   ]);
 
-  // observed_spread_bps: for each (asset, fiat) sample, compare Ramp's price
-  // (the asset's price[fiat] field) to CoinGecko mid. Take median over the set.
-  const spreads: number[] = [];
-  for (const [fiat, assets] of assetsByFiat) {
-    for (const sym of SAMPLE_ASSETS) {
-      const a = assets.find((x) => x.symbol.toUpperCase() === sym && x.enabled);
-      const rampPrice = a?.price?.[fiat];
-      if (typeof rampPrice !== 'number') continue;
-      try {
-        const mid = await fxMid(sym, fiat, now);
-        if (!mid) continue;
-        spreads.push(((rampPrice - mid) / mid) * 10_000);
-      } catch {
-        // skip pairs we can't price
-      }
-    }
-  }
+  // observed_spread_bps is now provenance='unavailable' (see below — needs hostApiKey
+  // for real user-quoted spreads). The /assets reference-price probe was misleading
+  // because it omits payment-method fees.
 
   // ramp_capacity: per-fiat single-tx max from a representative asset's limits.
   const capacityByFiat: Record<string, { single_tx_max: number; daily_max: number }> = {};
@@ -122,14 +112,14 @@ async function snapshot(): Promise<Snapshot> {
       notes: 'Ramp Network does not publish public volume statistics',
     },
     observed_spread_bps: {
-      value: spreads.length ? median(spreads) : null,
-      provenance: 'api',
-      spread_aggregation: 'median',
-      sample_size: spreads.length,
-      period: 'sample_pairs',
+      value: null,
+      provenance: 'unavailable',
+      spread_aggregation: 'effective_at_size',
+      sample_size: 0,
+      period: 'usd_$1k_quote',
       last_verified: now,
-      evidence_url: `${BASE_URL}/host-api/v3/assets`,
-      notes: '/assets price is reference, not user-quoted price. Real user spread requires /quote with hostApiKey.',
+      notes:
+        'Requires partner hostApiKey to compute user-facing spreads via /onramp/quote/all. The public /assets price is a reference, not a user-quoted price — using it would understate the actual spread by the payment-method fee (49 bps for bank methods, 299 bps for cards).',
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'manual' },
     // Ramp Network is a hosted ramp, not a P2P offer book — no orderbook concept.
