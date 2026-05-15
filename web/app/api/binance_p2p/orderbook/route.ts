@@ -6,6 +6,12 @@
 // Caches for 20s on the edge; adv/search is a live endpoint so polling faster
 // than that adds load without value. The page polls every 30s in normal use.
 
+// Relative path: web/app/api/binance_p2p/orderbook/ → 5 levels up → project root.
+// `lib/fx.ts` is the shared CoinGecko-backed FX cache the binance adapter snapshot
+// also uses. fxMidBatch is best-effort: returns empty/partial Record on failure rather
+// than throwing, so "no FX mid available" gracefully degrades to `—` in the UI.
+import { fxMidBatch } from '../../../../../lib/fx';
+
 const BINANCE_SEARCH_URL = 'https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search';
 
 const UA =
@@ -172,6 +178,15 @@ export async function GET(req: Request) {
     const total_offer_value = ads.reduce((acc, a) => acc + a.surplus_amount * a.price, 0);
     const unique_makers = new Set(ads.map((a) => a.maker.userNo)).size;
 
+    // FX mid for the selected (asset, fiat) pair — feeds the orderbook view's "FX mid"
+    // and "Spread" columns. Single CoinGecko call, disk-cached for 24h. Returns null for
+    // exotic fiats CoinGecko doesn't cover (VES, KZT, etc.) and for assets we haven't
+    // mapped (BNB, FDUSD). The view shows "—" in both cases.
+    const fxMids = await fxMidBatch(asset, [fiat], Date.now()).catch(
+      (): Record<string, number> => ({}),
+    );
+    const fx_mid_rate = fxMids[fiat] ?? null;
+
     return Response.json(
       {
         data: {
@@ -183,6 +198,7 @@ export async function GET(req: Request) {
             n_makers: unique_makers,
             total_offer_value, // in fiat units; UI can fx-convert if it wants
             total_available: totalAvailable, // ads Binance has in the full book for these filters
+            fx_mid_rate, // null when no mid available
           },
           ads,
           filters: { applied: { fiat, asset, tradeType, payTypes, limit } },

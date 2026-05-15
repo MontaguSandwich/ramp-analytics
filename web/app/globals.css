@@ -362,10 +362,31 @@ tbody tr:hover {
   background: rgba(245, 158, 11, 0.06);
 }
 
-.direction-pills {
+.direction-pills,
+.pricing-pills {
   display: inline-flex;
   gap: 6px;
   flex-wrap: wrap;
+}
+
+/* Pricing-layer pills — answer "where does the price come from / who profits?"
+   Maker quote (peer sets it): blue.
+   Venue quote (venue sets it, spread intrinsic): purple.
+   Venue fee (venue takes a separate commission on top): amber — cost signal. */
+.tag.tag-maker-quote {
+  border-color: rgba(96, 165, 250, 0.35);
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.06);
+}
+.tag.tag-venue-quote {
+  border-color: rgba(167, 139, 250, 0.35);
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.06);
+}
+.tag.tag-venue-fee {
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.06);
 }
 
 .dot {
@@ -531,6 +552,38 @@ tbody tr:hover {
   font-weight: 600;
   margin: 0 0 12px;
   letter-spacing: -0.01em;
+}
+
+/* Collapsible sections — native <details>/<summary> with the disclosure marker
+   restyled to match the rest of the page. Used for "Integration" / "Raw data"
+   on the generic detail layout. */
+.section-collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 12px;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+.section-collapsible > summary::before {
+  content: '▸';
+  display: inline-block;
+  font-size: 11px;
+  color: var(--fg-mute);
+  transition: transform 120ms ease;
+}
+.section-collapsible[open] > summary {
+  margin-bottom: 12px;
+}
+.section-collapsible[open] > summary::before {
+  transform: rotate(90deg);
 }
 
 .kv {

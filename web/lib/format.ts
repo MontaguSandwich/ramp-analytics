@@ -27,9 +27,40 @@ export function fmtBps(n: number | null | undefined): string {
   return `${n.toFixed(0)} bps`;
 }
 
+/**
+ * Format a value as a currency in the given ISO 4217 code (no decimals).
+ * Falls back to "N CODE" for codes Intl.NumberFormat doesn't recognise.
+ */
+export function fmtFiat(value: number, fiat: string): string {
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: fiat,
+      maximumFractionDigits: 0,
+    }).format(value);
+  } catch {
+    return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${fiat}`;
+  }
+}
+
 export function fmtPct(bps: number | null | undefined): string {
   if (bps == null) return '—';
   return `${(bps / 100).toFixed(2)}%`;
+}
+
+/**
+ * Sub-line text for the Spread KPI. Translates the wire-format `period` into
+ * something a user can parse — "$1k USD/USDT · single match" for binance,
+ * "$1k USD/USDC · N levels" for zkp2p — instead of the raw aggregation string.
+ * Shared by GenericDetail and Zkp2pDetail so the two layouts stay in sync.
+ */
+export function spreadKpiSub(s: Snapshot['observed_spread_bps']): string {
+  if (s.spread_aggregation === 'effective_at_size') {
+    if (s.period.includes('usdt')) return '$1k USD/USDT · single match';
+    if (s.period.includes('usdc')) return `$1k USD/USDC · ${s.sample_size} level${s.sample_size === 1 ? '' : 's'}`;
+    return '$1k USD';
+  }
+  return `n=${s.sample_size} · ${s.spread_aggregation}`;
 }
 
 export function fmtRelTime(ts: number | undefined): string {

@@ -8,11 +8,12 @@ import {
   provenanceColor,
   provenanceLabel,
   snapshotTvlUsd,
+  spreadKpiSub,
 } from '@/lib/format';
 import type { Market, Product, ProductYaml, Provenance, Snapshot } from '@/lib/types';
-import { AssetChip, FiatChip, KycBadges } from './chips';
-import FiatBrowser from './fiat-browser';
-import PaymentMethodBrowser from './payment-method-browser';
+import { FiatChip, KycBadges } from './chips';
+import CoverageCard from './coverage-card';
+import PropertiesCard from './properties-card';
 
 /**
  * Generic product detail page — used for every product except zkp2p (which uses
@@ -123,7 +124,7 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
           a mix of YAML (curated venue facts) and live snapshot (coverage, spread). */}
       <section className="section">
         <div className="info-grid">
-          <PropertiesCard yaml={y} />
+          <PropertiesCard yaml={y} snapshot={s} />
           <CoverageCard yaml={y} snapshot={s} />
           <ClassificationCard yaml={y} />
           <NetworkHealthCard snapshot={s} />
@@ -161,9 +162,9 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
         </section>
       ) : null}
 
-      {/* Integration */}
-      <section className="section">
-        <h2>Integration</h2>
+      {/* Integration — folded by default; native <details> for zero-JS toggle. */}
+      <details className="section section-collapsible">
+        <summary>Integration</summary>
         <dl className="kv">
           <dt>Integration types</dt>
           <dd>{y.integration_types?.join(', ') ?? '—'}</dd>
@@ -198,11 +199,11 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
               : y.integrator_fee_model?.type ?? '—'}
           </dd>
         </dl>
-      </section>
+      </details>
 
-      {/* Raw data */}
-      <section className="section">
-        <h2>Raw data</h2>
+      {/* Raw data — folded by default. */}
+      <details className="section section-collapsible">
+        <summary>Raw data</summary>
         <dl className="kv">
           <dt>Product YAML</dt>
           <dd className="mono">data/products/{y.id}.yaml</dd>
@@ -224,7 +225,7 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
             </>
           ) : null}
         </dl>
-      </section>
+      </details>
     </>
   );
 
@@ -345,22 +346,6 @@ function fmtUsdShort(n: number): string {
 // pills inline; custody and settlement now live in ClassificationCard with
 // per-category descriptive text).
 
-/**
- * Sub-line text for the Spread KPI. Replaces the raw `n=X · aggregation` string with
- * something a user can parse: "$1k USD/USDT match" for the new effective-at-size metric,
- * generic samples-count otherwise.
- */
-function spreadKpiSub(s: Snapshot['observed_spread_bps']): string {
-  if (s.spread_aggregation === 'effective_at_size') {
-    // period strings: "usd_usdt_$1k_single_match" (binance), "usd_usdc_$1k_clob_walk" (zkp2p),
-    // "usd_$1k_quote" (ramp/otc — both unavailable). Render a brief, user-readable form.
-    if (s.period.includes('usdt')) return '$1k USD/USDT · single match';
-    if (s.period.includes('usdc')) return `$1k USD/USDC · ${s.sample_size} level${s.sample_size === 1 ? '' : 's'}`;
-    return '$1k USD';
-  }
-  return `n=${s.sample_size} · ${s.spread_aggregation}`;
-}
-
 function kycLabel(pii: ProductYaml['pii_floor']): string {
   if (!pii || pii === 'none') return 'None';
   if (pii === 'email') return 'Email only';
@@ -386,125 +371,6 @@ function fmtSpreadPct(bps: number | null | undefined): string {
 }
 
 // --- Info cards -------------------------------------------------------------
-
-function PropertiesCard({ yaml: y }: { yaml: ProductYaml }) {
-  // Trimmed scope post-design-pass: Custody, Settlement, Proof of reserves moved into
-  // the Classification card. Team transparency, Legal entity, Licenses dropped as low
-  // signal for the cross-product comparison.
-  const showOnramp = y.direction === 'on' || y.direction === 'both';
-  const showOfframp = y.direction === 'off' || y.direction === 'both';
-  return (
-    <div className="info-card">
-      <div className="info-title">Venue Properties</div>
-      <dl className="info-kv">
-        <dt>Category</dt>
-        <dd>
-          <span className={`tag cat-${y.category}`}>
-            {CATEGORY_LABEL[y.category] ?? y.category}
-          </span>
-        </dd>
-        <dt>Direction</dt>
-        <dd>
-          <div className="direction-pills">
-            {showOnramp ? <span className="tag tag-onramp">Onramp</span> : null}
-            {showOfframp ? <span className="tag tag-offramp">Offramp</span> : null}
-          </div>
-        </dd>
-        <dt>Pricing</dt>
-        <dd>{y.pricing?.spread_method?.replace(/_/g, ' ') ?? '—'}</dd>
-        <dt>Live since</dt>
-        <dd>{y.launched ?? '—'}</dd>
-        {y.audits?.length ? (
-          <>
-            <dt>Audits</dt>
-            <dd>{y.audits.map((a) => `${a.firm} (${a.date})`).join('; ')}</dd>
-          </>
-        ) : null}
-        {y.contracts?.length ? (
-          <>
-            <dt>Contract</dt>
-            <dd className="mono" style={{ wordBreak: 'break-all', fontSize: 12 }}>
-              {y.contracts[0].address}
-              {y.contracts.length > 1 ? (
-                <span className="muted"> +{y.contracts.length - 1}</span>
-              ) : null}
-            </dd>
-          </>
-        ) : null}
-      </dl>
-    </div>
-  );
-}
-
-function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYaml; snapshot?: Snapshot }) {
-  const cov = s?.coverage?.value;
-  const activeFiats = cov?.fiats?.length ? cov.fiats : y.fiats;
-  const inactive = cov?.fiats_inactive ?? [];
-  const allPlatforms = cov?.platforms?.length ? cov.platforms : y.payment_methods ?? [];
-
-  return (
-    <div className="info-card">
-      <div className="info-title">
-        Coverage
-        {s?.coverage ? (
-          <span
-            className="dot"
-            title={`${provenanceLabel(s.coverage.provenance)} · ${fmtRelTime(s.coverage.last_verified)}`}
-            style={{ background: provenanceColor(s.coverage.provenance), marginLeft: 6 }}
-          />
-        ) : null}
-      </div>
-      <dl className="info-kv">
-        <dt>Fiats</dt>
-        <dd>
-          {activeFiats.length === 0 ? (
-            '—'
-          ) : (
-            <FiatBrowser codes={activeFiats} flags={cov?.fiat_flags} />
-          )}
-        </dd>
-        <dt>Settlement assets</dt>
-        <dd>
-          {/* Kept as an inline grid — only 5-6 entries per product, doesn't need a browser. */}
-          {y.assets.length ? (
-            <div className="asset-grid">
-              {y.assets.map((a) => (
-                <AssetChip key={`${a.symbol}-${a.chain}`} symbol={a.symbol} chain={a.chain} />
-              ))}
-            </div>
-          ) : (
-            '—'
-          )}
-        </dd>
-        <dt>Payment methods</dt>
-        <dd>
-          {allPlatforms.length === 0 ? (
-            '—'
-          ) : (
-            <PaymentMethodBrowser methods={allPlatforms} />
-          )}
-        </dd>
-        {inactive.length ? (
-          <>
-            <dt>Withdrawn markets</dt>
-            <dd>
-              <div className="info-sub" style={{ marginBottom: 4 }}>
-                Currencies the venue has withdrawn from.
-              </div>
-              <FiatBrowser codes={inactive} searchPlaceholder="search withdrawn currencies" />
-            </dd>
-          </>
-        ) : null}
-        {y.countries_supported?.length ? (
-          <>
-            <dt>Countries</dt>
-            <dd>{y.countries_supported.join(', ')}</dd>
-          </>
-        ) : null}
-      </dl>
-    </div>
-  );
-}
 
 function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
   // Card titles are fixed; descriptions are derived per-product so each venue gets a
@@ -616,65 +482,118 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
 }
 
 function NetworkHealthCard({ snapshot: s }: { snapshot?: Snapshot }) {
-  // Pull the richest pair from liquidity.top_pairs if available (binance/p2p shape).
+  const nh = s?.network_health?.value;
+  // CEX-P2P-flavored content: the adapter aggregated maker reputation across the live
+  // ad probe. Detected by the presence of `active_makers` (binance populates it; ramp /
+  // kraken don't). Keeps the existing rows as a fallback for products without it.
+  const isMakerAggregateShape = nh?.active_makers != null;
+
+  // Title-dot provenance source switches with the rendered content.
+  const dotProv = isMakerAggregateShape
+    ? s?.network_health?.provenance
+    : s?.observed_spread_bps?.provenance;
+  const dotTs = isMakerAggregateShape
+    ? s?.network_health?.last_verified
+    : s?.observed_spread_bps?.last_verified;
+
+  return (
+    <div className="info-card">
+      <div className="info-title">
+        Marketplace dynamics
+        {dotTs ? (
+          <span
+            className="dot"
+            title={`${provenanceLabel(dotProv ?? 'manual')} · ${fmtRelTime(dotTs)}`}
+            style={{ background: provenanceColor(dotProv ?? 'manual'), marginLeft: 6 }}
+          />
+        ) : null}
+      </div>
+      {isMakerAggregateShape ? (
+        <MakerAggregateRows nh={nh!} />
+      ) : (
+        <LegacyNetworkHealthRows snapshot={s} />
+      )}
+    </div>
+  );
+}
+
+function MakerAggregateRows({ nh }: { nh: NonNullable<Snapshot['network_health']>['value'] }) {
+  return (
+    <dl className="info-kv">
+      <dt>Active makers</dt>
+      <dd className="mono">
+        {nh.active_makers!.toLocaleString()}{' '}
+        <span className="muted">distinct in sample</span>
+      </dd>
+      <dt>Active ads</dt>
+      <dd className="mono">
+        {nh.active_ads != null ? nh.active_ads.toLocaleString() : '—'}{' '}
+        <span className="muted">across observed markets</span>
+      </dd>
+      <dt>Avg maker finish-rate</dt>
+      <dd className="mono">
+        {nh.avg_maker_month_finish_rate_pct != null
+          ? `${nh.avg_maker_month_finish_rate_pct.toFixed(1)}%`
+          : '—'}{' '}
+        <span className="muted">last 30d</span>
+      </dd>
+      <dt>Avg maker monthly orders</dt>
+      <dd className="mono">
+        {nh.avg_maker_month_order_count != null
+          ? Math.round(nh.avg_maker_month_order_count).toLocaleString()
+          : '—'}
+      </dd>
+      <dt>Merchant share</dt>
+      <dd className="mono">
+        {nh.merchant_share_pct != null ? `${nh.merchant_share_pct.toFixed(1)}%` : '—'}{' '}
+        <span className="muted">verified merchant accounts</span>
+      </dd>
+    </dl>
+  );
+}
+
+function LegacyNetworkHealthRows({ snapshot: s }: { snapshot?: Snapshot }) {
   const topPair = (() => {
     if (s?.liquidity.value.kind !== 'p2p_offerbook') return null;
     const pairs = s.liquidity.value.top_pairs;
     if (!pairs.length) return null;
     return [...pairs].sort((a, b) => b.sum_offers_usd - a.sum_offers_usd)[0];
   })();
-
   const spread = s?.observed_spread_bps;
   const cov = s?.coverage?.value;
-
   return (
-    <div className="info-card">
-      <div className="info-title">
-        Network Health
-        {s?.observed_spread_bps.last_verified ? (
-          <span
-            className="dot"
-            title={`${provenanceLabel(s.observed_spread_bps.provenance)} · ${fmtRelTime(s.observed_spread_bps.last_verified)}`}
-            style={{
-              background: provenanceColor(s.observed_spread_bps.provenance),
-              marginLeft: 6,
-            }}
-          />
+    <dl className="info-kv">
+      <dt>Spread (~$1k)</dt>
+      <dd
+        className="mono"
+        style={{
+          color: spread?.value != null ? spreadColor(spread.value) : 'var(--fg)',
+          fontWeight: 500,
+        }}
+      >
+        {spread?.value != null ? fmtSpreadPct(spread.value) : '—'}
+      </dd>
+      <dt>Sample size</dt>
+      <dd className="mono">
+        {spread?.sample_size ? spread.sample_size.toLocaleString() : '—'}
+        {spread?.sample_size ? (
+          <span className="muted"> {spread.spread_aggregation} · {spread.period}</span>
         ) : null}
-      </div>
-      <dl className="info-kv">
-        <dt>Spread (~$1k)</dt>
-        <dd
-          className="mono"
-          style={{
-            color: spread?.value != null ? spreadColor(spread.value) : 'var(--fg)',
-            fontWeight: 500,
-          }}
-        >
-          {spread?.value != null ? fmtSpreadPct(spread.value) : '—'}
-        </dd>
-        <dt>Sample size</dt>
-        <dd className="mono">
-          {spread?.sample_size ? spread.sample_size.toLocaleString() : '—'}
-          {spread?.sample_size ? (
-            <span className="muted"> {spread.spread_aggregation} · {spread.period}</span>
-          ) : null}
-        </dd>
-        <dt>Reachable fiat markets</dt>
-        <dd className="mono">{cov?.fiats?.length ?? '—'}</dd>
-        {topPair ? (
-          <>
-            <dt>Deepest pair</dt>
-            <dd className="mono">
-              {topPair.pair}{' '}
-              <span className="muted">
-                · {fmtUsdShort(topPair.sum_offers_usd)} · {topPair.n_makers} makers
-              </span>
-            </dd>
-          </>
-        ) : null}
-      </dl>
-    </div>
+      </dd>
+      <dt>Reachable fiat markets</dt>
+      <dd className="mono">{cov?.fiats?.length ?? '—'}</dd>
+      {topPair ? (
+        <>
+          <dt>Deepest pair</dt>
+          <dd className="mono">
+            {topPair.pair}{' '}
+            <span className="muted">
+              · {fmtUsdShort(topPair.sum_offers_usd)} · {topPair.n_makers} makers
+            </span>
+          </dd>
+        </>
+      ) : null}
+    </dl>
   );
 }
 

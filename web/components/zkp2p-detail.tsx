@@ -3,13 +3,17 @@ import type { ReactNode } from 'react';
 import type { Product } from '@/lib/types';
 import type { DailyPoint } from '@/lib/data';
 import {
+  fmtPct,
   fmtRelTime,
   fmtUsd,
   provenanceColor,
   provenanceLabel,
+  spreadKpiSub,
 } from '@/lib/format';
 import ProtocolCharts from './protocol-charts';
 import { KycBadges } from './chips';
+import CoverageCard from './coverage-card';
+import PropertiesCard from './properties-card';
 
 interface Props {
   product: Product;
@@ -48,11 +52,6 @@ function platformLogoSlug(p: string): string | null {
   return PLATFORM_LOGO_SLUG[p.toLowerCase()] ?? PLATFORM_LOGO_SLUG[p.toLowerCase().replace(/\s+/g, '')] ?? null;
 }
 
-function shortAddr(a: string): string {
-  if (!a || a.length < 10) return a;
-  return `${a.slice(0, 6)}…${a.slice(-4)}`;
-}
-
 function spreadColor(bps: number): string {
   if (bps < -25) return 'var(--prov-good)';
   if (bps > 25) return 'var(--warn)';
@@ -70,11 +69,6 @@ function fmtSeconds(s: number | undefined): string {
   if (s < 60) return `${s.toFixed(0)}s`;
   if (s < 3600) return `${(s / 60).toFixed(1)}m`;
   return `${(s / 3600).toFixed(1)}h`;
-}
-
-function fmtPctNum(n: number | undefined, digits = 1): string {
-  if (n == null) return '—';
-  return `${n.toFixed(digits)}%`;
 }
 
 export default function Zkp2pDetail({ product, history }: Props) {
@@ -138,11 +132,6 @@ export default function Zkp2pDetail({ product, history }: Props) {
   const displayName = y.display_name ?? y.name;
   const altName = y.display_name && y.display_name !== y.name ? y.name : null;
 
-  const contract = y.contracts?.[0];
-  const contractHref = contract
-    ? `https://basescan.org/address/${contract.address}`
-    : null;
-
   return (
     <>
       {/* Newcomer intro */}
@@ -169,9 +158,11 @@ export default function Zkp2pDetail({ product, history }: Props) {
           ts={s?.volume_30d_usd.last_verified}
         />
         <Kpi
-          label="Custody type"
-          value={y.delivery_custody === 'self' ? 'Self-custodial' : y.delivery_custody}
-          provenance="manual"
+          label="Spread (~$1k)"
+          value={fmtPct(s?.observed_spread_bps.value ?? null)}
+          provenance={s?.observed_spread_bps.provenance}
+          ts={s?.observed_spread_bps.last_verified}
+          sub={s ? spreadKpiSub(s.observed_spread_bps) : undefined}
         />
         <Kpi
           label="KYC requirement"
@@ -191,72 +182,15 @@ export default function Zkp2pDetail({ product, history }: Props) {
       {/* Info cards 2x2 */}
       <section className="section">
         <div className="info-grid">
-          {/* Protocol Properties */}
-          <div className="info-card">
-            <div className="info-title">Protocol Properties</div>
-            <dl className="info-kv">
-              <dt>Category</dt>
-              <dd>Onchain P2P</dd>
-              <dt>Direction</dt>
-              <dd>On-ramp only</dd>
-              <dt>Custody</dt>
-              <dd>Self-custodial</dd>
-              <dt>Pricing</dt>
-              <dd>Marketmaker quote · Chainlink oracle</dd>
-              <dt>Settlement</dt>
-              <dd>USDC on Base</dd>
-              <dt>Live since</dt>
-              <dd>{y.launched ?? '—'}</dd>
-              <dt>Contract</dt>
-              <dd>
-                {contract ? (
-                  <a className="mono" href={contractHref!} target="_blank" rel="noreferrer">
-                    {shortAddr(contract.address)} ↗
-                  </a>
-                ) : (
-                  '—'
-                )}
-              </dd>
-            </dl>
-          </div>
+          {/* Venue Properties — shared with GenericDetail. Custody / Settlement
+              live in the Classification card; the bespoke "Marketmaker quote ·
+              Chainlink oracle" pricing label is now driven from yaml.pricing. */}
+          <PropertiesCard yaml={y} snapshot={s} />
 
-          {/* Coverage — supported things (fiats / platforms) */}
-          <div className="info-card">
-            <div className="info-title">
-              Coverage
-              {s?.coverage ? (
-                <span
-                  className="dot"
-                  title={`${provenanceLabel(s.coverage.provenance)} · ${fmtRelTime(s.coverage.last_verified)}`}
-                  style={{ background: provenanceColor(s.coverage.provenance), marginLeft: 6 }}
-                />
-              ) : null}
-            </div>
-            <dl className="info-kv">
-              <dt>Fiats</dt>
-              <dd>
-                {cov?.fiats?.length ?? '—'}
-                {cov?.fiats?.length ? (
-                  <div className="fiat-grid">
-                    {cov.fiats.map((f) => (
-                      <FiatChip key={f} code={f} flag={cov.fiat_flags?.[f]} />
-                    ))}
-                  </div>
-                ) : null}
-              </dd>
-              <dt>Payment platforms</dt>
-              <dd>
-                {cov?.platforms?.length ?? '—'}
-                {cov?.platforms?.length ? (
-                  <div className="platform-grid">
-                    {cov.platforms.map((p) => (
-                      <PlatformChip key={p} name={p} />
-                    ))}
-                  </div>
-                ) : null}
-              </dd>
-            </dl>
-          </div>
+          {/* Coverage — fiats, settlement assets, payment methods.
+              Shared with GenericDetail (binance / ramp / kraken) so both layouts
+              get the same long-list browser UX (CountBrowser + ⓘ toggle + search). */}
+          <CoverageCard yaml={y} snapshot={s} />
 
           {/* Classification */}
           <div className="info-card">
@@ -284,7 +218,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
           {/* Network Health — execution quality + activity counts */}
           <div className="info-card">
             <div className="info-title">
-              Network Health
+              Marketplace dynamics
               {s?.network_health ? (
                 <span
                   className="dot"
@@ -297,44 +231,10 @@ export default function Zkp2pDetail({ product, history }: Props) {
               ) : null}
             </div>
             <dl className="info-kv">
-              <dt>Spread (~$1k)</dt>
-              <dd
-                className="mono"
-                style={{
-                  color:
-                    s?.observed_spread_bps.value != null
-                      ? spreadColor(s.observed_spread_bps.value)
-                      : 'var(--fg)',
-                }}
-              >
-                {s?.observed_spread_bps.value != null
-                  ? fmtSpreadPct(s.observed_spread_bps.value)
-                  : '—'}
-              </dd>
               <dt>Median fill time</dt>
               <dd className="mono">{fmtSeconds(health?.median_fill_seconds)}</dd>
               <dt>Avg fill time</dt>
               <dd className="mono">{fmtSeconds(health?.avg_fill_seconds)}</dd>
-              <dt>Top platform</dt>
-              <dd className="mono">
-                {health?.top_platform_label ? platformLabel(health.top_platform_label) : '—'}{' '}
-                <span className="muted">
-                  {health?.top_platform_share_pct != null
-                    ? `(${fmtPctNum(health.top_platform_share_pct)})`
-                    : ''}
-                </span>
-              </dd>
-              <dt>Top currency</dt>
-              <dd className="mono">
-                {health?.top_currency_label ?? '—'}{' '}
-                <span className="muted">
-                  {health?.top_currency_share_pct != null
-                    ? `(${fmtPctNum(health.top_currency_share_pct)})`
-                    : ''}
-                </span>
-              </dd>
-              <dt>Active markets</dt>
-              <dd className="mono">{cov?.active_markets?.toLocaleString() ?? '—'}</dd>
               <dt>Active makers (30d)</dt>
               <dd className="mono">{cov?.active_makers_window?.toLocaleString() ?? '—'}</dd>
               <dt>Active takers (30d)</dt>

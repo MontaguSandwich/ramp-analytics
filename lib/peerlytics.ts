@@ -360,24 +360,29 @@ export interface DepositMarketEntry {
   isDelegated?: boolean;
 }
 
+// Peerlytics v2 returns snake_case despite the docs showing camelCase — confirmed by
+// live probe. Verified raw shape: deposit_id (just the number, not the compound id),
+// intent_amount_min/intent_amount_max as raw USDC-6-decimal integers, etc.
 export interface DepositRow {
   id: string;
-  chainId: number;
-  escrowAddress: string;
-  depositId: string;
+  chain_id: number;
+  escrow_address: string;
+  deposit_id: string;
   depositor: string;
-  remainingDeposits: string;
-  intentAmountMin: string;
-  intentAmountMax: string;
-  acceptingIntents: boolean;
+  remaining_deposits: string;
+  /** Raw USDC token units (6 decimals). Divide by 1e6 to get USD-equivalent. */
+  intent_amount_min: string;
+  /** Raw USDC token units (6 decimals). Divide by 1e6 to get USD-equivalent. */
+  intent_amount_max: string;
+  accepting_intents: boolean;
   status: 'ACTIVE' | 'CLOSED';
-  totalAmountTaken?: string;
-  totalIntents?: number;
-  fulfilledIntents?: number;
-  successRateBps?: number;
-  availableUsd?: number;
-  totalUsd?: number;
-  takenUsd?: number;
+  total_amount_taken?: string;
+  total_intents?: number;
+  fulfilled_intents?: number;
+  success_rate_bps?: number;
+  available_usd?: number;
+  total_usd?: number;
+  taken_usd?: number;
   markets?: DepositMarketEntry[];
 }
 

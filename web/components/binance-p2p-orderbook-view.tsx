@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MultiSelectDropdown from './multi-select-dropdown';
+import { fmtFiat, fmtUsd } from '@/lib/format';
 
 interface MakerInfo {
   userNo: string;
@@ -32,6 +33,8 @@ interface OrderbookData {
     n_makers: number;
     total_offer_value: number;
     total_available: number;
+    /** CoinGecko mid for (asset, fiat). Null when no rate available. */
+    fx_mid_rate: number | null;
   };
   ads: NormalizedAd[];
 }
@@ -64,20 +67,36 @@ function fmtTime(ts: number): string {
   return new Date(ts).toLocaleTimeString();
 }
 
-function fmtFiat(value: number, fiat: string): string {
-  try {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: fiat,
-      maximumFractionDigits: 0,
-    }).format(value);
-  } catch {
-    return `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} ${fiat}`;
-  }
-}
-
 function fmtAmount(n: number, frac = 2): string {
   return n.toLocaleString(undefined, { maximumFractionDigits: frac });
+}
+
+// ±10 bps neutral band — chosen so stablecoin-pegged pairs (USDT/USD, USDT/EUR) where
+// most spreads sit between -20 and +5 actually trigger color. ±25 was inherited from
+// zkp2p's earlier design and washed out everything to muted gray.
+const SPREAD_NEUTRAL_BPS = 10;
+
+function spreadBps(price: number, fxMid: number | null, tradeType: 'BUY' | 'SELL'): number | null {
+  if (fxMid == null || !Number.isFinite(fxMid) || fxMid <= 0) return null;
+  // BUY = taker buying crypto → maker SELL ad → price > mid means premium → positive (worse).
+  // SELL = taker selling crypto → maker BUY ad → price < mid means discount → negative (worse).
+  // Same sign convention as zkp2p: negative = favorable for taker.
+  const raw = ((price - fxMid) / fxMid) * 10_000;
+  return tradeType === 'BUY' ? raw : -raw;
+}
+
+function fmtSpreadPct(bps: number | null): string {
+  if (bps == null || !Number.isFinite(bps)) return '—';
+  const pct = bps / 100;
+  const sign = pct > 0 ? '+' : '';
+  return `${sign}${pct.toFixed(2)}%`;
+}
+
+function spreadColor(bps: number | null): string {
+  if (bps == null) return 'var(--fg-mute)';
+  if (bps < -SPREAD_NEUTRAL_BPS) return 'var(--prov-good)';
+  if (bps > SPREAD_NEUTRAL_BPS) return 'var(--warn)';
+  return 'var(--fg-mute)';
 }
 
 export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methodsByFiat }: Props) {
@@ -149,6 +168,17 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
       clearInterval(t);
     };
   }, [fetchData]);
+
+  // USD equivalent of the local-fiat liquidity. For USDT pairs the surplus_amount is
+  // in USDT (≈$1), so summing it directly gives USD. For other assets (BTC/ETH/etc)
+  // we don't have an FX mid in the response — skip the USD sub-line in that case to
+  // stay honest. (A future enhancement could fetch a spot mid client-side.)
+  const usdLiquidity = useMemo(() => {
+    if (!data?.ads?.length) return null;
+    if (asset !== 'USDT') return null;
+    const total = data.ads.reduce((acc, a) => acc + a.surplus_amount, 0);
+    return total > 0 ? total : null;
+  }, [data, asset]);
 
   const sortedAds = useMemo(() => {
     if (!data?.ads) return [];
@@ -288,6 +318,11 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
               <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
                 {' '}slice
               </span>
+              {usdLiquidity != null ? (
+                <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                  ≈ {fmtUsd(usdLiquidity)}
+                </div>
+              ) : null}
             </div>
           </div>
           <div className="orderbook-stat">
@@ -336,6 +371,8 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
                 <th>
                   Price ({fiat}/{asset})
                 </th>
+                <th>FX mid</th>
+                <th>Spread</th>
                 <th>Available ({asset})</th>
                 <th>Limits ({fiat})</th>
                 <th>Payment</th>
@@ -354,6 +391,18 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
                     </div>
                   </td>
                   <td className="mono">{ad.price.toFixed(4)}</td>
+                  <td className="mono muted">
+                    {data?.stats.fx_mid_rate != null ? data.stats.fx_mid_rate.toFixed(4) : '—'}
+                  </td>
+                  <td
+                    className="mono"
+                    style={{
+                      color: spreadColor(spreadBps(ad.price, data?.stats.fx_mid_rate ?? null, tradeType)),
+                      fontWeight: 500,
+                    }}
+                  >
+                    {fmtSpreadPct(spreadBps(ad.price, data?.stats.fx_mid_rate ?? null, tradeType))}
+                  </td>
                   <td className="mono">{fmtAmount(ad.surplus_amount, 2)}</td>
                   <td className="mono muted" style={{ fontSize: 12 }}>
                     {fmtAmount(ad.min_single_tx, 0)} – {fmtAmount(ad.max_single_tx, 0)}

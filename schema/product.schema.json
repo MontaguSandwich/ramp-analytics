@@ -93,7 +93,12 @@
       "properties": {
         "spread_method": { "enum": ["none", "vs_mid", "vs_oracle", "marketmaker_quote"] },
         "pricing_endpoint": { "type": "string", "format": "uri" },
-        "min_ticket_usd": { "type": "number" }
+        "min_ticket_usd": { "type": "number" },
+        "layers": {
+          "type": "array",
+          "items": { "enum": ["maker_quote", "venue_quote", "venue_fee"] },
+          "uniqueItems": true
+        }
       }
     },
     "settlement_time": { "type": "object" },

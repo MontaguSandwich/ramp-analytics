@@ -26,6 +26,8 @@ export interface Wrapped<T> {
   notes?: string;
 }
 
+// Mirror of root lib/types.ts LiquidityValue. Keep in sync.
+
 export type LiquidityValue =
   | {
       kind: 'p2p_offerbook';
@@ -39,6 +41,8 @@ export type LiquidityValue =
       total_observed_usd?: number;
       /** Number of fiat markets that contributed at least one ad to the sum. */
       markets_observed?: number;
+      /** Largest single-trade ceiling across all observed ads (USD). Drives "Max single trade" in PropertiesCard. */
+      max_single_trade_usd?: number;
     }
   | {
       kind: 'ramp_capacity';
@@ -49,6 +53,10 @@ export type LiquidityValue =
       tvl_usd: number;
       active_makers_30d: number;
       contract_addrs: string[];
+      /** Largest single-trade ceiling — biggest single deposit's available USDC (USD). */
+      max_single_trade_usd?: number;
+      /** Most-liquid (currency, platform) combination, like binance's top_pairs[0]. */
+      deepest_pair?: { pair: string; sum_offers_usd: number };
     }
   | { kind: 'otc_minimum'; usd: number };
 
@@ -134,6 +142,7 @@ export interface Capabilities {
 }
 
 export interface NetworkHealth {
+  // zkp2p-flavored (observed from on-chain trade events over a 30d window)
   median_fill_seconds?: number;
   avg_fill_seconds?: number;
   success_rate_pct?: number;
@@ -142,6 +151,16 @@ export interface NetworkHealth {
   top_platform_label?: string;
   top_currency_share_pct?: number;
   top_currency_label?: string;
+  // Binance-flavored (aggregated from per-advertiser fields in the live ad probe).
+  // Snapshot, not windowed: "active" here means "posting an ad right now in our sample".
+  active_makers?: number;
+  active_ads?: number;
+  /** Mean of advertiser.monthFinishRate across distinct makers in sample, 0–100 scale. */
+  avg_maker_month_finish_rate_pct?: number;
+  /** Mean of advertiser.monthOrderCount across distinct makers in sample. */
+  avg_maker_month_order_count?: number;
+  /** % of distinct makers whose userType is 'merchant'. */
+  merchant_share_pct?: number;
 }
 
 export interface Snapshot {
@@ -205,6 +224,14 @@ export interface ProductYaml {
     spread_method?: 'none' | 'vs_mid' | 'vs_oracle' | 'marketmaker_quote';
     pricing_endpoint?: string;
     min_ticket_usd?: number;
+    /**
+     * Profit/cost layers in the venue's pricing model. Rendered as pills in PropertiesCard.
+     * - 'maker_quote': a counterparty (not the venue) sets the rate
+     * - 'venue_quote': the venue itself sets the rate (spread intrinsic)
+     * - 'venue_fee':   venue takes a separate, itemized commission on top of a maker price
+     * 'maker_quote' and 'venue_quote' are mutually exclusive in practice; 'venue_fee' is additive.
+     */
+    layers?: Array<'maker_quote' | 'venue_quote' | 'venue_fee'>;
   };
   settlement_time?: { value?: Record<string, string>; provenance?: Provenance; last_verified?: string };
   chargeback_protection?: boolean;

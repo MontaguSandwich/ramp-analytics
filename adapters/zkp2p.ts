@@ -168,6 +168,34 @@ async function snapshot(): Promise<Snapshot> {
     (a, b) => b.total_liquidity_usd - a.total_liquidity_usd,
   );
 
+  // Deepest (currency, platform) pair — drives the "Deepest pair" row in PropertiesCard.
+  // Markets are already sorted by total_liquidity_usd desc.
+  const deepest_pair = markets[0]
+    ? {
+        pair: `USDC/${markets[0].currency}`,
+        sum_offers_usd: markets[0].total_liquidity_usd,
+      }
+    : undefined;
+
+  // Max single trade ceiling — derived from orderbook levels. A taker fills against one
+  // deposit at a time, so the per-trade ceiling is the largest single deposit's balance.
+  // Per-level: total_liquidity_usd / deposit_count = average deposit at that rate;
+  // for the common case deposit_count === 1 this is exact. Max across all levels
+  // approximates the biggest fillable deposit. (Peerlytics /deposits requires a filter
+  // param, so we'd need a per-currency fan-out — not worth ~20 extra HTTP calls when
+  // the orderbook-derived bound is plenty for the headline figure.)
+  const max_single_trade_usd = (() => {
+    let max = 0;
+    for (const ob of orderbook.orderbooks ?? []) {
+      for (const l of ob.levels ?? []) {
+        if (!l.deposit_count || l.deposit_count <= 0) continue;
+        const v = l.total_liquidity_usd / l.deposit_count;
+        if (Number.isFinite(v) && v > max) max = v;
+      }
+    }
+    return max > 0 ? max : undefined;
+  })();
+
   // Coverage from orderbook filters + summary metrics + meta/currencies flags.
   const coverage = {
     fiats: orderbook.filters?.available?.currencies ?? [],
@@ -224,6 +252,8 @@ async function snapshot(): Promise<Snapshot> {
         tvl_usd,
         active_makers_30d,
         contract_addrs: CONTRACT_ADDRS,
+        max_single_trade_usd,
+        deepest_pair,
       },
       provenance: 'api',
       last_verified: now,

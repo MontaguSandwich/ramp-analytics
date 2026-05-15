@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MultiSelectDropdown from './multi-select-dropdown';
+import { fmtFiat } from '@/lib/format';
 
 interface OrderbookLevel {
   rate: number;
@@ -14,6 +15,10 @@ interface OrderbookLevel {
   oracle_spread_bps_max?: number;
   oracle_sources?: string[];
   delegated_entry_count?: number;
+  // Injected by /api/zkp2p/orderbook when a currency filter is set: level-wide intent
+  // range across all deposits at this rate, in USD. Absent for the unfiltered view.
+  intent_min_usd?: number;
+  intent_max_usd?: number;
 }
 
 interface OrderbookCurrency {
@@ -49,7 +54,9 @@ interface OrderbookEnvelope {
 
 const POLL_MS = 30_000;
 const META_REFRESH_MS = 5 * 60_000;
-const SPREAD_NEUTRAL_BPS = 25;
+// ±10 bps neutral band — see binance-p2p-orderbook-view.tsx for rationale. Kept in
+// lockstep so the two orderbook pages render color identically.
+const SPREAD_NEUTRAL_BPS = 10;
 
 type SortKey = 'spread' | 'liquidity' | 'deposits' | 'platforms';
 
@@ -76,9 +83,14 @@ function fmtTime(ts: number): string {
   return new Date(ts).toLocaleTimeString();
 }
 
-function fmtAddr(a?: string): string {
-  if (!a) return '—';
-  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+// Peerlytics' pricing_mode tells you whether the level's rate is static or moves with an
+// oracle. Surfaced as binary (Fixed / Float) per product decision; 'mixed' is rare enough
+// to keep an honest third label.
+function pricingModeLabel(m: 'fixed' | 'oracle' | 'mixed' | undefined): string {
+  if (m === 'fixed') return 'Fixed';
+  if (m === 'oracle') return 'Float';
+  if (m === 'mixed') return 'Mixed';
+  return '—';
 }
 
 function avgSpreadBps(level: OrderbookLevel, fxMid: number): number {
@@ -193,7 +205,13 @@ export default function OrderbookView() {
   // each row's Spread column (sorted ascending by default). If it ever needs to come
   // back as a sidebar or callout, restore from git history.
 
-  const availablePlatforms = meta?.filters?.available?.platforms ?? [];
+  // Memoized so the `?? []` fallback doesn't return a fresh array every render before
+  // meta loads — otherwise it cascades into `activePlatformPool` and the platform-filter
+  // effect, looping until "Maximum update depth exceeded."
+  const availablePlatforms = useMemo(
+    () => meta?.filters?.available?.platforms ?? [],
+    [meta],
+  );
 
   // Flat levels with currency context, sorted per user choice.
   const sortedLevels = useMemo(() => {
@@ -238,9 +256,14 @@ export default function OrderbookView() {
     return availablePlatforms;
   }, [currency, platformsByCurrency, availablePlatforms]);
 
-  // When currency changes, drop selected platforms that don't apply anymore.
+  // When currency changes, drop selected platforms that don't apply anymore. Return the
+  // same `cur` reference when nothing actually filters out — otherwise React treats every
+  // empty-filter call as a state change and re-runs the effect (loops with activePlatformPool).
   useEffect(() => {
-    setPlatforms((cur) => cur.filter((p) => activePlatformPool.includes(p)));
+    setPlatforms((cur) => {
+      const next = cur.filter((p) => activePlatformPool.includes(p));
+      return next.length === cur.length ? cur : next;
+    });
   }, [activePlatformPool]);
 
   // For the "Showing N of M" stat — count of levels in the current filtered view
@@ -249,6 +272,20 @@ export default function OrderbookView() {
     if (!meta) return 0;
     return (meta.orderbooks ?? []).reduce((s, ob) => s + (ob.levels?.length ?? 0), 0);
   }, [meta]);
+
+  // Local-fiat equivalent of the filtered liquidity. Only meaningful when a single
+  // currency is selected (otherwise we'd be mixing fiats). Per level:
+  //   total_liquidity_usd × rate  ≈  USDC × (fiat/USDC)  ≈  fiat amount
+  const localFiatLiquidity = useMemo(() => {
+    if (!currency || !data) return null;
+    const ob = (data.orderbooks ?? []).find((o) => o.currency === currency);
+    if (!ob) return null;
+    let total = 0;
+    for (const l of ob.levels ?? []) {
+      if (l.rate > 0 && Number.isFinite(l.rate)) total += l.total_liquidity_usd * l.rate;
+    }
+    return total > 0 ? total : null;
+  }, [currency, data]);
 
   return (
     <>
@@ -335,7 +372,14 @@ export default function OrderbookView() {
         <div className="orderbook-stats">
           <div className="orderbook-stat">
             <div className="orderbook-stat-label">Liquidity</div>
-            <div className="orderbook-stat-value mono">{fmtUsd(data.stats.total_liquidity_usd)}</div>
+            <div className="orderbook-stat-value mono">
+              {fmtUsd(data.stats.total_liquidity_usd)}
+              {localFiatLiquidity != null ? (
+                <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                  ≈ {fmtFiat(localFiatLiquidity, currency)}
+                </div>
+              ) : null}
+            </div>
           </div>
           <div className="orderbook-stat">
             <div className="orderbook-stat-label">Active makers</div>
@@ -375,10 +419,10 @@ export default function OrderbookView() {
                 <th>FX mid</th>
                 <th>Spread</th>
                 <th>Liquidity</th>
+                <th>Limits</th>
                 <th>Deposits</th>
                 <th>Platforms</th>
                 <th>Pricing</th>
-                <th>Top depositor</th>
               </tr>
             </thead>
             <tbody>
@@ -393,6 +437,11 @@ export default function OrderbookView() {
                     {fmtSpreadPct(l.spread_bps)}
                   </td>
                   <td className="mono">{fmtUsd(l.total_liquidity_usd)}</td>
+                  <td className="mono muted" style={{ fontSize: 12 }}>
+                    {l.intent_min_usd != null && l.intent_max_usd != null
+                      ? `${fmtUsd(l.intent_min_usd)} – ${fmtUsd(l.intent_max_usd)}`
+                      : '—'}
+                  </td>
                   <td className="mono">{l.deposit_count}</td>
                   <td>
                     <div className="fiats-list">
@@ -407,23 +456,7 @@ export default function OrderbookView() {
                     </div>
                   </td>
                   <td className="mono muted" style={{ fontSize: 11 }}>
-                    {l.pricing_mode ?? '—'}
-                    {l.oracle_sources?.length ? ` · ${l.oracle_sources.join(',')}` : ''}
-                  </td>
-                  <td className="mono muted" style={{ fontSize: 11 }}>
-                    {l.top_deposit?.depositor ? (
-                      <a
-                        href={`https://basescan.org/address/${l.top_deposit.depositor}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        title="View on BaseScan"
-                      >
-                        {fmtAddr(l.top_deposit.depositor)}
-                        {l.top_deposit.deposit_id ? ` #${l.top_deposit.deposit_id}` : ''}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
+                    {pricingModeLabel(l.pricing_mode)}
                   </td>
                 </tr>
               ))}

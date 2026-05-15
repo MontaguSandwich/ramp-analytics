@@ -65,7 +65,10 @@ interface BinanceAdvertiser {
   userNo: string;
   nickName?: string;
   monthOrderCount?: number;
+  /** Fraction 0–1 (NOT 0–100). Aggregated to 0–100 percent in `network_health`. */
   monthFinishRate?: number;
+  /** 'user' for regular accounts; 'merchant' for verified merchants. */
+  userType?: string;
 }
 
 interface BinanceAd {
@@ -388,6 +391,54 @@ async function snapshot(): Promise<Snapshot> {
   const usdProbe = probes.find((p) => p.fiat === 'USD');
   const effectiveUsd1kBps = usdProbe?.effective_spread_1k_bps ?? null;
 
+  // Derive: max single-trade ceiling across every observed ad. For each ad it's
+  // min(maxSingleTransAmount_in_USD, surplus_USDT) — the bigger of (maker cap, escrow
+  // balance) bounds what a taker can fill in one go. Then take max across all probed ads.
+  // Only ads in markets with FX mids contribute (we can't convert local-fiat caps without FX).
+  let max_single_trade_usd = 0;
+  for (const p of probes) {
+    if (p.fx_mid == null || !Number.isFinite(p.fx_mid) || p.fx_mid <= 0) continue;
+    for (const ad of p.ads) {
+      const maxLocal = Number(ad.adv.maxSingleTransAmount);
+      const surplus = Number(ad.adv.surplusAmount);
+      if (!Number.isFinite(maxLocal) || maxLocal <= 0) continue;
+      const maxUsd = maxLocal / p.fx_mid;
+      const surplusUsd = Number.isFinite(surplus) ? surplus : 0; // USDT ≈ $1
+      const cap = Math.min(maxUsd, surplusUsd);
+      if (cap > max_single_trade_usd) max_single_trade_usd = cap;
+    }
+  }
+
+  // Derive: maker-reputation aggregates for the Network Health card. Distinct
+  // advertisers across every probed market (a maker posting in 3 fiats counts once),
+  // then mean/share over that deduped set. Binance only surfaces the top-20 ads per
+  // market, so this is "makers visible in our sample," not a 30d window.
+  const advertisersById = new Map<string, BinanceAdvertiser>();
+  let total_ad_count = 0;
+  for (const p of probes) {
+    total_ad_count += p.total;
+    for (const ad of p.ads) {
+      const a = ad.advertiser;
+      if (a?.userNo && !advertisersById.has(a.userNo)) {
+        advertisersById.set(a.userNo, a);
+      }
+    }
+  }
+  const advertisers = [...advertisersById.values()];
+  const finishRates = advertisers
+    .map((a) => a.monthFinishRate)
+    .filter((r): r is number => typeof r === 'number' && Number.isFinite(r));
+  const orderCounts = advertisers
+    .map((a) => a.monthOrderCount)
+    .filter((c): c is number => typeof c === 'number' && Number.isFinite(c));
+  const merchantCount = advertisers.filter((a) => a.userType?.toLowerCase() === 'merchant').length;
+  const avg_maker_month_finish_rate_pct =
+    finishRates.length > 0 ? (sum(finishRates) / finishRates.length) * 100 : undefined;
+  const avg_maker_month_order_count =
+    orderCounts.length > 0 ? sum(orderCounts) / orderCounts.length : undefined;
+  const merchant_share_pct =
+    advertisers.length > 0 ? (merchantCount / advertisers.length) * 100 : undefined;
+
   // Derive: top_pairs (top 10 by USDT depth, for KPI breakdown / drill-in).
   const sortedByDepth = [...probes].sort((a, b) => b.surplus_sum - a.surplus_sum);
   const top_pairs = sortedByDepth.slice(0, 10).map((p) => ({
@@ -433,6 +484,7 @@ async function snapshot(): Promise<Snapshot> {
         top_pairs,
         total_observed_usd,
         markets_observed,
+        max_single_trade_usd: max_single_trade_usd > 0 ? max_single_trade_usd : undefined,
       },
       provenance: 'api',
       last_verified: now,
@@ -486,6 +538,20 @@ async function snapshot(): Promise<Snapshot> {
       evidence_url: SEARCH_URL,
       notes:
         'Top 10 deepest markets (by USDT depth in top-20 ad slice), filtered to those with FX mids available.',
+    },
+    network_health: {
+      value: {
+        active_makers: advertisers.length,
+        active_ads: total_ad_count,
+        avg_maker_month_finish_rate_pct,
+        avg_maker_month_order_count,
+        merchant_share_pct,
+      },
+      provenance: 'api',
+      last_verified: now,
+      evidence_url: SEARCH_URL,
+      notes:
+        'Maker-reputation aggregates across distinct advertisers seen in the top-20 slice of every probed market. Snapshot of currently-posting makers, not a 30d window.',
     },
   };
 }
