@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import {
-  CATEGORY_LABEL,
   fmtPct,
   fmtRelTime,
   fmtUsd,
@@ -23,11 +22,11 @@ import PropertiesCard from './properties-card';
  * Subsequent steps make this empty-state-aware, capability-gated, and home to a
  * data-driven KPI strip + info cards (see CLAUDE.md architecture decision C).
  *
- * When `wrapped` is true, the parent layout has already rendered the container and
- * back-link (because this product has capability-gated subpages and a tab nav).
- * In that case we omit both and let our sections render directly under the tabs.
+ * Layout always provides the container, back-link, ProductHeader, and (when
+ * capabilities exist) the tab nav — see web/app/products/[id]/layout.tsx. This
+ * component just renders the body: intro paragraph, KPI strip, info grid, etc.
  */
-export default function GenericDetail({ product, wrapped }: { product: Product; wrapped?: boolean }) {
+export default function GenericDetail({ product }: { product: Product }) {
   const { yaml: y, snapshot: s } = product;
   const tvl = snapshotTvlUsd(s);
   // KPI label adapts to the liquidity-value kind so each product gets honest wording.
@@ -39,7 +38,7 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
     liqKind === 'p2p_offerbook'
       ? 'Available USDT'
       : liqKind === 'ramp_capacity'
-        ? 'Daily capacity'
+        ? 'Max single trade'
         : liqKind === 'otc_minimum'
           ? 'Min ticket'
           : 'Available liquidity';
@@ -48,44 +47,21 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
       ? `top 20 ads × ${s.liquidity.value.markets_observed} markets`
       : undefined;
 
-  // When the layout wraps us (capability-enabled products like binance_p2p), ProductHeader
-  // already rendered the title and link pills. Only render the intro paragraph here.
-  // When unwrapped (ramp_network, kraken_otc), keep the legacy inline hero block.
-  const hero = wrapped ? (
-    y.description ? (
-      <section className="protocol-intro">
-        <p>{y.description}</p>
-      </section>
-    ) : null
-  ) : (
+  // Marketplace dynamics card has nothing useful for products where neither maker-
+  // aggregate data (binance) nor a real spread (zkp2p / future onchain) is populated.
+  // For ramp_network and kraken_otc we hide the card entirely rather than render an
+  // empty 4-row table of "—".
+  const hasMakerAggregates = s?.network_health?.value?.active_makers != null;
+  const hasRealSpread = s?.observed_spread_bps?.value != null;
+  const showMarketplaceDynamics = hasMakerAggregates || hasRealSpread;
+
+  return (
     <>
-      <div className="detail-hero">
-        <div>
-          <h1>{y.name}</h1>
-          <div className="muted">{y.subcategory ?? ''}</div>
-        </div>
-        <div className="detail-hero-tags">
-          <span className={`tag cat-${y.category}`}>{CATEGORY_LABEL[y.category]}</span>
-          <span className="tag">{y.direction === 'both' ? 'on + off' : y.direction}-ramp</span>
-          <span className="tag">{`custody: ${y.delivery_custody}`}</span>
-          {y.non_kyc_available ? <span className="tag">no-KYC available</span> : null}
-          {y.open_source?.is_open ? <span className="tag">open source</span> : null}
-          <a className="tag" href={y.website} target="_blank" rel="noreferrer">
-            {y.website.replace(/^https?:\/\//, '')} ↗
-          </a>
-        </div>
-      </div>
       {y.description ? (
         <section className="protocol-intro">
           <p>{y.description}</p>
         </section>
       ) : null}
-    </>
-  );
-
-  const body = (
-    <>
-      {hero}
 
       <div className="kpi-grid">
         <Kpi
@@ -119,15 +95,15 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
         />
       </div>
 
-      {/* Info cards 2x2 — Properties / Coverage / Classification / Network Health.
-          Folded from the legacy Coverage / Pricing / Trust sections; data sources are
-          a mix of YAML (curated venue facts) and live snapshot (coverage, spread). */}
+      {/* Info cards — Properties / Coverage / Classification / Marketplace dynamics.
+          The 4th card is gated: hidden for products that don't fit (single-vendor ramps,
+          OTC desks) rather than rendered as a wall of "—" rows. */}
       <section className="section">
         <div className="info-grid">
           <PropertiesCard yaml={y} snapshot={s} />
           <CoverageCard yaml={y} snapshot={s} />
           <ClassificationCard yaml={y} />
-          <NetworkHealthCard snapshot={s} />
+          {showMarketplaceDynamics ? <NetworkHealthCard snapshot={s} /> : null}
         </div>
       </section>
 
@@ -227,16 +203,6 @@ export default function GenericDetail({ product, wrapped }: { product: Product; 
         </dl>
       </details>
     </>
-  );
-
-  if (wrapped) return body;
-  return (
-    <div className="container">
-      <Link href="/" className="back-link">
-        ← All products
-      </Link>
-      {body}
-    </div>
   );
 }
 

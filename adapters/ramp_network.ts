@@ -1,12 +1,77 @@
-import type { Adapter, Snapshot, QuoteRequest, QuoteResponse, DailyPoint } from '../lib/types.ts';
-// Note: fxMid + median were previously used to aggregate Ramp's /assets reference-price
-// spread across sampled pairs, but that metric was misleading (it doesn't include the
-// payment-method fee, which is the dominant component of real user-paid spread). The
-// headline observed_spread_bps now reports 'unavailable' until we have a partner
-// hostApiKey to call /onramp/quote/all.
+import type { Adapter, Snapshot, QuoteRequest, QuoteResponse, DailyPoint, Market } from '../lib/types.ts';
 
 const PRODUCT_ID = 'ramp_network';
 const BASE_URL = 'https://api.rampnetwork.com/api';
+
+/**
+ * Approach B (per user decision 2026-05-17): hand-maintained payment-method fee table.
+ * Combined with Ramp's public /assets reference price, this lets us compute approximate
+ * all-in rates without a partner hostApiKey. Values are in basis points (1 bp = 0.01%).
+ *
+ * EDIT THIS TABLE when Ramp publishes new fees: https://ramp.network/pricing-policy
+ *
+ * Calibration sources (last verified 2026-05-17):
+ *   - Ramp Pricing Policy (https://rampnetwork.com/pricing-policy): "up to" ceilings per method
+ *   - User-observed quote: $1000 USD → 975.2 USDC.base = +245 bps all-in (likely card)
+ *
+ * Numbers are markups ON TOP of Ramp's /assets reference price. Real quotes vary by
+ * jurisdiction/tx-size/currency (refreshed every 30s in the widget).
+ *
+ * Currency-tier handling: per docs, card payments charge ~3.9% for USD/EUR/GBP but jump
+ * to ~5.45% for every other fiat. Apple Pay / Google Pay inherit this tiering since they
+ * settle to the underlying card. See `feeBpsFor()` below for the lookup logic.
+ *
+ * Keys MUST match Ramp's /payment-methods `name` field exactly (uppercase, snake_case).
+ * Buy-side only — ACH/SEPA/SPEI/RTP from the sell-side fee schedule are excluded since
+ * they're not available for buying.
+ */
+const RAMP_FEE_BPS_BY_METHOD: Record<string, number> = {
+  CARD_PAYMENT: 245,         // for USD/EUR/GBP only — exotic fiats use CARD_EXOTIC_BPS
+  APPLE_PAY: 245,            // "same as underlying card" per docs — tiering applies
+  GOOGLE_PAY: 245,           // ditto
+  MANUAL_BANK_TRANSFER: 140, // SEPA/manual (Europe, EUR/GBP); docs cap
+  AUTO_BANK_TRANSFER: 240,   // "Easy bank transfer" fast rail (Europe); docs cap
+  PIX: 290,                  // BRL only; docs cap
+};
+
+/** Card-like methods that follow the major/exotic currency-tier split. */
+const CARD_LIKE_METHODS = new Set(['CARD_PAYMENT', 'APPLE_PAY', 'GOOGLE_PAY']);
+/** Fiats that get Ramp's "major currency" card pricing (~3.9% cap; 245 observed). */
+const MAJOR_CARD_FIATS = new Set(['USD', 'EUR', 'GBP']);
+/** Card fee for non-USD/EUR/GBP fiats per docs ("up to 5.45%"). */
+const CARD_EXOTIC_BPS = 545;
+
+const FEE_DEFAULT_BPS = 390; // Conservative fallback = card USD/EUR/GBP ceiling. Used when
+                              // a method appears in /payment-methods but isn't in our table.
+
+/**
+ * Lookup the fee in bps for (method, fiat). Card-like methods get currency-tier treatment;
+ * everything else returns the flat per-method value.
+ */
+function feeBpsFor(method: string, fiat: string): number {
+  if (CARD_LIKE_METHODS.has(method) && !MAJOR_CARD_FIATS.has(fiat)) {
+    return CARD_EXOTIC_BPS;
+  }
+  return RAMP_FEE_BPS_BY_METHOD[method] ?? FEE_DEFAULT_BPS;
+}
+
+/** USDC is the most-common onramp target and is supported across every fiat Ramp covers. */
+const DEFAULT_ASSET = 'USDC';
+
+/** Friendly labels for the few method names whose canonical form reads poorly. */
+const METHOD_LABEL: Record<string, string> = {
+  CARD_PAYMENT: 'Card',
+  APPLE_PAY: 'Apple Pay',
+  GOOGLE_PAY: 'Google Pay',
+  MANUAL_BANK_TRANSFER: 'Bank transfer',
+  AUTO_BANK_TRANSFER: 'Bank transfer (auto)',
+  PIX: 'PIX',
+  ACH: 'ACH',
+  SEPA: 'SEPA',
+};
+function methodLabel(name: string): string {
+  return METHOD_LABEL[name] ?? name;
+}
 
 interface RampAssetInfo {
   symbol: string;
@@ -46,8 +111,12 @@ type RampQuoteResult = {
 } & Record<string, RampQuoteEntry | RampAssetInfo | undefined>;
 
 const SAMPLE_FIATS = ['USD', 'EUR', 'GBP'];
-// SAMPLE_ASSETS was used by the old reference-price spread compute; removed alongside
-// that metric. If a future quote-endpoint integration needs an asset shortlist, restore.
+
+interface RampCurrency {
+  fiatCurrency: string;
+  onrampAvailable?: boolean;
+  offrampAvailable?: boolean;
+}
 
 async function getJson<T>(url: string, init?: RequestInit): Promise<T> {
   const resp = await fetch(url, { headers: { accept: 'application/json' }, ...init });
@@ -66,41 +135,131 @@ async function fetchPaymentMethods(): Promise<RampPaymentMethod[]> {
   return getJson<RampPaymentMethod[]>(url);
 }
 
+async function fetchOnrampFiats(): Promise<string[]> {
+  // /currencies returns a flat array [{ fiatCurrency, onrampAvailable, offrampAvailable }]
+  // (NOT wrapped in { data: ... } despite some Ramp endpoints using that envelope).
+  const url = `${BASE_URL}/host-api/v3/currencies`;
+  try {
+    const data = await getJson<RampCurrency[]>(url);
+    return (data ?? [])
+      .filter((c) => c.onrampAvailable && c.fiatCurrency)
+      .map((c) => c.fiatCurrency.toUpperCase());
+  } catch {
+    return SAMPLE_FIATS.slice(); // graceful fallback
+  }
+}
+
 async function snapshot(): Promise<Snapshot> {
   const now = Date.now();
 
-  const [assetsByFiat, methods] = await Promise.all([
-    Promise.all(SAMPLE_FIATS.map(async (f) => [f, await fetchAssets(f)] as const)),
+  // STAGE 1: discover active fiats + payment methods in parallel.
+  const [onrampFiats, methods] = await Promise.all([
+    fetchOnrampFiats(),
     fetchPaymentMethods().catch(() => [] as RampPaymentMethod[]),
   ]);
 
-  // observed_spread_bps is now provenance='unavailable' (see below — needs hostApiKey
-  // for real user-quoted spreads). The /assets reference-price probe was misleading
-  // because it omits payment-method fees.
+  // STAGE 2: per-fiat USDC probe — one /assets call per fiat. Each returns ~30-50 assets;
+  // we only need the USDC entry to get the fiat-per-USDC reference price. ~28 calls in
+  // parallel, all under the public auth-free endpoint.
+  const usdcRefByFiat: Record<string, number> = {};
+  const maxPurchaseByFiat: Record<string, number> = {};
+  await Promise.all(
+    onrampFiats.map(async (fiat) => {
+      const assets = await fetchAssets(fiat).catch(() => [] as RampAssetInfo[]);
+      const usdc = assets.find(
+        (a) => a.symbol === DEFAULT_ASSET && a.enabled && !a.hidden && typeof a.price?.[fiat] === 'number',
+      );
+      if (!usdc) return;
+      usdcRefByFiat[fiat] = usdc.price![fiat]!;
+      if (typeof usdc.maxPurchaseAmount === 'number') {
+        maxPurchaseByFiat[fiat] = usdc.maxPurchaseAmount;
+      }
+    }),
+  );
 
-  // ramp_capacity: per-fiat single-tx max from a representative asset's limits.
-  const capacityByFiat: Record<string, { single_tx_max: number; daily_max: number }> = {};
-  for (const [fiat, assets] of assetsByFiat) {
-    const sample = assets.find((x) => x.enabled && typeof x.maxPurchaseAmount === 'number');
-    if (sample?.maxPurchaseAmount) {
-      capacityByFiat[fiat] = {
-        single_tx_max: sample.maxPurchaseAmount,
-        daily_max: sample.maxPurchaseAmount,
-      };
+  // STAGE 3: build Live Rates rows. For each fiat with a USDC reference, find the cheapest
+  // applicable payment method (per Ramp's /payment-methods method.currencies set), apply the
+  // hand-maintained markup, and emit one Market row. Sorted by spread ascending downstream.
+  const usdRef = usdcRefByFiat['USD']; // for USD-equivalent liquidity column
+  const markets: Market[] = [];
+  for (const [fiat, reference] of Object.entries(usdcRefByFiat)) {
+    const applicableMethods = methods.filter((m) => m.currencies?.includes(fiat));
+    if (applicableMethods.length === 0) continue;
+    let bestMethod = applicableMethods[0];
+    let bestFeeBps = Infinity;
+    for (const m of applicableMethods) {
+      const fee = feeBpsFor(m.name, fiat);
+      if (fee < bestFeeBps) {
+        bestFeeBps = fee;
+        bestMethod = m;
+      }
     }
+    const effectiveRate = reference * (1 + bestFeeBps / 10_000);
+    // total_liquidity_usd ≈ USD-equivalent of the fiat single-tx ceiling. Uses the USDC
+    // reference ratio (USDC.price[USD] / USDC.price[fiat]) as fx mid — accurate enough
+    // for an order-of-magnitude column.
+    const maxFiat = maxPurchaseByFiat[fiat] ?? 0;
+    const totalLiquidityUsd =
+      usdRef && reference > 0 ? maxFiat * (usdRef / reference) : 0;
+    markets.push({
+      currency: fiat,
+      platform: methodLabel(bestMethod.name),
+      best_rate: effectiveRate,
+      fx_mid_rate: reference,
+      spread_bps: bestFeeBps,
+      total_liquidity_usd: totalLiquidityUsd,
+      deposit_count: applicableMethods.length,
+    });
   }
+  markets.sort((a, b) => a.spread_bps - b.spread_bps);
+
+  // STAGE 4: ramp_capacity for the liquidity KPI — per-fiat single-tx max + the
+  // USD-equivalent for the headline KPI. Per-fiat caps normalize to roughly the same
+  // USD amount (~$17k) since Ramp sizes them to a USD ceiling. We surface that single
+  // USD number rather than the per-fiat dict (which can't be meaningfully summed).
+  const capacityByFiat: Record<string, { single_tx_max: number; daily_max: number }> = {};
+  for (const fiat of Object.keys(maxPurchaseByFiat)) {
+    const m = maxPurchaseByFiat[fiat];
+    capacityByFiat[fiat] = { single_tx_max: m, daily_max: m };
+  }
+  const max_single_trade_usd = (() => {
+    // Prefer USD entry directly (no FX needed). Else convert any fiat to USD using the
+    // USDC reference ratio: maxFiat × (USDC.price[USD] / USDC.price[fiat]).
+    if (usdcRefByFiat['USD'] && maxPurchaseByFiat['USD']) return maxPurchaseByFiat['USD'];
+    const usdRefLocal = usdcRefByFiat['USD'];
+    if (!usdRefLocal) return undefined;
+    let best = 0;
+    for (const fiat of Object.keys(maxPurchaseByFiat)) {
+      const m = maxPurchaseByFiat[fiat];
+      const fiatRef = usdcRefByFiat[fiat];
+      if (!fiatRef || fiatRef <= 0) continue;
+      const usd = m * (usdRefLocal / fiatRef);
+      if (usd > best) best = usd;
+    }
+    return best > 0 ? best : undefined;
+  })();
+
+  // STAGE 5: headline observed_spread_bps — the best USD method's bps (cross-venue
+  // comparable: all venues now compare a $1k USD trade). Self_reported because it's the
+  // approximation, not a user-quoted spread.
+  const usdMarket = markets.find((m) => m.currency === 'USD');
+  const spreadValue = usdMarket?.spread_bps ?? null;
 
   // fee_snapshot: published per-method fee, paired with a representative asset for context.
-  const sample_rows = methods.slice(0, 5).map((m) => ({
-    fiat: (m.currencies?.[0] ?? '').toUpperCase(),
-    asset: 'USDC',
-    payment_method: m.name,
-    effective_rate_bps: feeBpsForMethod(m.name),
-  }));
+  // Uses the first applicable fiat per method to fetch the right currency-tier card fee.
+  const sample_rows = methods.slice(0, 5).map((m) => {
+    const fiat = (m.currencies?.[0] ?? '').toUpperCase();
+    return {
+      fiat,
+      asset: DEFAULT_ASSET,
+      payment_method: m.name,
+      effective_rate_bps: feeBpsFor(m.name, fiat),
+    };
+  });
 
   return {
     liquidity: {
-      value: { kind: 'ramp_capacity', fiat: capacityByFiat },
+      value: { kind: 'ramp_capacity', fiat: capacityByFiat, max_single_trade_usd },
       provenance: 'api',
       last_verified: now,
       evidence_url: `${BASE_URL}/host-api/v3/assets`,
@@ -112,28 +271,30 @@ async function snapshot(): Promise<Snapshot> {
       notes: 'Ramp Network does not publish public volume statistics',
     },
     observed_spread_bps: {
-      value: null,
-      provenance: 'unavailable',
+      value: spreadValue,
+      provenance: 'self_reported',
       spread_aggregation: 'effective_at_size',
-      sample_size: 0,
-      period: 'usd_$1k_quote',
+      sample_size: usdMarket ? 1 : 0,
+      period: 'usd_$1k_quote_approximated',
       last_verified: now,
       notes:
-        'Requires partner hostApiKey to compute user-facing spreads via /onramp/quote/all. The public /assets price is a reference, not a user-quoted price — using it would understate the actual spread by the payment-method fee (49 bps for bank methods, 299 bps for cards).',
+        'Approximated: Ramp public reference price + hand-maintained payment-method fee table (adapters/ramp_network.ts RAMP_FEE_BPS_BY_METHOD). NOT a user-quoted spread — real all-in price requires partner hostApiKey and /onramp/quote/all.',
     },
-    fee_snapshot: { ts: now, sample_rows, provenance: 'manual' },
+    fee_snapshot: { ts: now, sample_rows, provenance: 'self_reported' },
+    markets: markets.length
+      ? {
+          value: markets,
+          provenance: 'self_reported',
+          last_verified: now,
+          evidence_url: `${BASE_URL}/host-api/v3/assets`,
+          notes:
+            'Approximated rates: Ramp reference price × (1 + hand-maintained payment-method fee in bps). NOT user-quoted; real prices require /onramp/quote/all with a partner hostApiKey.',
+        }
+      : undefined,
     // Ramp Network is a hosted ramp, not a P2P offer book — no orderbook concept.
     // Quote requires a hostApiKey we don't have, so no programmatic quote either.
     capabilities: { orderbook: false, quote: false },
   };
-}
-
-function feeBpsForMethod(name: string): number {
-  // From https://rampnetwork.com/pricing — representative; live quote required for exact.
-  const upper = name.toUpperCase();
-  if (upper.includes('CARD') || upper === 'APPLE_PAY' || upper === 'GOOGLE_PAY') return 299;
-  if (upper.includes('BANK') || upper === 'SEPA' || upper === 'ACH' || upper === 'PIX') return 49;
-  return 199;
 }
 
 async function quote(req: QuoteRequest): Promise<QuoteResponse | null> {

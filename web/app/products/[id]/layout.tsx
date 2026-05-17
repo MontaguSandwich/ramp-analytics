@@ -19,27 +19,18 @@ export default async function ProductLayout({
 
   const product = await loadProduct(id);
   const caps = product.snapshot?.capabilities;
-  // A product gets the tab-nav wrapper when it has at least one interactive subpage.
-  // zkp2p is grandfathered in until older snapshots without `capabilities` are refreshed.
+  // Every product gets the ProductHeader hero. Tab nav is still capability-gated:
+  // it only renders when at least one subpage exists (orderbook / quote). zkp2p is
+  // grandfathered in until older snapshots without `capabilities` are refreshed.
   const hasTabs = id === 'zkp2p' || caps?.orderbook === true || caps?.quote === true;
 
-  if (!hasTabs) {
-    // Pass-through: GenericDetail provides its own container + back-link.
-    return <>{children}</>;
-  }
-
-  // Tab-nav wrapper: container + back-link + ProductHeader + tabs.
-  // ProductHeader (formerly Zkp2pHeader) is now product-agnostic — it reads the YAML's
-  // display_name, category, and links to render the same shape for any product with
-  // capability-gated subpages. GenericDetail suppresses its own inline hero in this case
-  // (see the `wrapped` prop in generic-detail.tsx).
   return (
     <div className="container">
       <Link href="/" className="back-link">
         ← All products
       </Link>
       <ProductHeader yaml={product.yaml} />
-      <TabNav id={id} capabilities={caps} />
+      {hasTabs ? <TabNav id={id} capabilities={caps} /> : null}
       {children}
     </div>
   );

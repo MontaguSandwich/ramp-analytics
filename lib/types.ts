@@ -44,6 +44,12 @@ export type LiquidityValue =
   | {
       kind: 'ramp_capacity';
       fiat: Record<string, { single_tx_max: number; daily_max: number }>;
+      /**
+       * USD-equivalent of the per-fiat single-transaction ceiling. Drives the KPI strip
+       * for hosted ramps (where summing across fiats without FX is meaningless — DKK +
+       * RON + GBP + … is not a real number).
+       */
+      max_single_trade_usd?: number;
     }
   | {
       kind: 'onchain_inventory';

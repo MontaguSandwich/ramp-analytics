@@ -5,6 +5,12 @@ subcategory: integrator-friendly on/off-ramp
 website: https://ramp.network
 launched: '2017'
 
+description: >-
+  Ramp Network is a hosted fiat ↔ crypto onramp embedded across 600+ wallets and
+  dApps. Ramp itself prices each route: the displayed rate is a single all-in
+  quote bundling Ramp's spread, the payment-method fee, and any applicable tax —
+  there's no maker price to compare against.
+
 legal_entity: Ramp Swaps Ltd (UK), with EU subsidiaries
 licenses:
   - { jurisdiction: GB, type: FCA registered cryptoasset firm }
@@ -20,14 +26,21 @@ assets:
   - { symbol: USDC, chain: polygon }
   - { symbol: ETH, chain: ethereum }
   - { symbol: BTC, chain: bitcoin }
-payment_methods: [card, sepa, ach, fps, apple_pay, google_pay, pix, spei]
+# Buy-side payment methods only. Sell-side adds ACH / RTP / SEPA / SPEI / card-out
+# (Visa & Mastercard) but those don't enable purchases. Per Ramp docs 2026-05-17.
+payment_methods: [card, apple_pay, google_pay, manual_bank_transfer, auto_bank_transfer, pix]
 delivery_chains: [ethereum, polygon, arbitrum, optimism, base, solana, avalanche]
 
+# Per Ramp Pricing Policy (https://rampnetwork.com/pricing-policy), every purchase
+# requires KYC. Tiers below are the US/EU ladder; "Global (rest of world)" has slightly
+# higher thresholds (PoA at €5k, SoW at €15k, SoF at €30k).
 kyc_tiers:
-  - { name: Basic, requirements: [email, phone], min: 0, max: null, period: lifetime }
-  - { name: Enhanced, requirements: [id, selfie], min: 0, max: null, period: monthly }
+  - { name: ID, requirements: [id, selfie], min: 0, max: 5000, period: lifetime }
+  - { name: ID + PoA, requirements: [id, selfie, poa], min: 5000, max: 10000, period: lifetime }
+  - { name: ID + PoA + SoW, requirements: [id, selfie, poa, sow], min: 10000, max: 20000, period: lifetime }
+  - { name: Full (ID + PoA + SoW + SoF), requirements: [id, selfie, poa, sow, sof], min: 20000, max: null, period: lifetime }
 non_kyc_available: false
-pii_floor: email
+pii_floor: id
 
 pricing:
   spread_method: vs_mid

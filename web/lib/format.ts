@@ -122,8 +122,10 @@ export function snapshotTvlUsd(snap: Snapshot | undefined): number | null {
     );
   }
   if (v.kind === 'ramp_capacity') {
-    // sum max-single-tx across fiats; rough proxy
-    return Object.values(v.fiat).reduce((a, b) => a + b.single_tx_max, 0);
+    // Use the USD-equivalent single-tx ceiling computed by the adapter. The old
+    // implementation summed `single_tx_max` across all fiats without FX conversion —
+    // produced nonsense (e.g. DKK 112k + RON 77k + GBP 13k + … all treated as USD).
+    return v.max_single_trade_usd ?? null;
   }
   if (v.kind === 'otc_minimum') return v.usd;
   return null;

@@ -25,10 +25,8 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
   }
 
   // Every other product (binance_p2p, ramp_network, kraken_otc) renders through the
-  // generic detail page. When the product has capability-gated subpages, the layout
-  // wraps with container + back-link + tab nav — GenericDetail suppresses its own
-  // wrapper in that case via the `wrapped` prop.
-  const caps = product.snapshot?.capabilities;
-  const wrapped = caps?.orderbook === true || caps?.quote === true;
-  return <GenericDetail product={product} wrapped={wrapped} />;
+  // generic detail page. The layout always provides the container + back-link +
+  // ProductHeader hero (and tab nav when capabilities are set); GenericDetail just
+  // renders the body content.
+  return <GenericDetail product={product} />;
 }
