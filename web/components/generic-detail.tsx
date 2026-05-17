@@ -1,4 +1,3 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import {
   fmtPct,
@@ -9,10 +8,11 @@ import {
   snapshotTvlUsd,
   spreadKpiSub,
 } from '@/lib/format';
-import type { Market, Product, ProductYaml, Provenance, Snapshot } from '@/lib/types';
-import { FiatChip, KycBadges } from './chips';
+import type { Product, ProductYaml, Snapshot } from '@/lib/types';
+import { KycBadges } from './chips';
 import CoverageCard from './coverage-card';
 import PropertiesCard from './properties-card';
+import LiveRatesTable from './live-rates-table';
 
 /**
  * Generic product detail page — used for every product except zkp2p (which uses
@@ -107,14 +107,12 @@ export default function GenericDetail({ product }: { product: Product }) {
         </div>
       </section>
 
-      {/* Live rates table — top 10 deepest markets, sorted by best spread ascending.
-          Conditional on adapter populating snapshot.markets (binance_p2p does in Step C;
-          ramp_network / kraken_otc don't). */}
+      {/* Live rates table — kind-aware: column set + labels + footer copy adapt to
+          the venue type (p2p_offerbook for binance, ramp_capacity for ramp). */}
       {s?.markets?.value?.length ? (
         <LiveRatesTable
           markets={s.markets.value}
-          provenance={s.markets.provenance}
-          lastVerified={s.markets.last_verified}
+          snapshot={s}
           productId={y.id}
         />
       ) : null}
@@ -596,77 +594,5 @@ function Badge({
 
 // --- Live rates table ------------------------------------------------------
 
-function LiveRatesTable({
-  markets,
-  provenance,
-  lastVerified,
-  productId,
-}: {
-  markets: Market[];
-  provenance: Provenance;
-  lastVerified: number;
-  productId: string;
-}) {
-  // Top 10 by liquidity (adapter pre-filtered); display order is best spread ascending,
-  // matching zkp2p's convention — "most favorable rate first" reads naturally to users.
-  const displayed = [...markets].sort((a, b) => a.spread_bps - b.spread_bps);
-
-  return (
-    <section className="section">
-      <h2>
-        Live rates{' '}
-        <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
-          · top {displayed.length} deepest USDT markets
-        </span>{' '}
-        <span
-          className="dot"
-          style={{ background: provenanceColor(provenance) }}
-          title={`${provenanceLabel(provenance)} · ${fmtRelTime(lastVerified)}`}
-        />
-      </h2>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Currency</th>
-              <th>Best rate</th>
-              <th>Spread</th>
-              <th>Liquidity (top 20)</th>
-              <th>Ads</th>
-              <th>Makers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {displayed.map((m) => (
-              <tr key={m.currency}>
-                <td>
-                  <FiatChip code={m.currency} />
-                </td>
-                <td className="mono">{m.best_rate.toFixed(4)}</td>
-                <td
-                  className="mono"
-                  style={{ color: spreadColor(m.spread_bps), fontWeight: 500 }}
-                >
-                  {fmtSpreadPct(m.spread_bps)}
-                </td>
-                <td className="mono">{fmtUsdShort(m.total_liquidity_usd)}</td>
-                <td className="mono">{m.deposit_count.toLocaleString()}</td>
-                <td className="mono">{m.n_makers ?? '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="muted" style={{ fontSize: 11, margin: '8px 4px' }}>
-        One row per currency · ranked top-10 by USD offer value · sorted by best spread.{' '}
-        <Link
-          href={`/products/${productId}/orderbook`}
-          className="cta-link"
-          style={{ marginLeft: 8, padding: '2px 8px', fontSize: 11 }}
-        >
-          Open orderbook →
-        </Link>
-      </div>
-    </section>
-  );
-}
+// LiveRatesTable extracted to ./live-rates-table.tsx (client component for the
+// onramp/offramp toggle state). Generic-detail just imports + renders.

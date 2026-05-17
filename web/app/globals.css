@@ -369,6 +369,38 @@ tbody tr:hover {
   flex-wrap: wrap;
 }
 
+/* Onramp/Offramp toggle in the Live rates section header — segmented control,
+   compact enough to inline with the h2. */
+.direction-toggle {
+  display: inline-flex;
+  margin-left: 12px;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  vertical-align: middle;
+}
+.direction-toggle-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-mute);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.direction-toggle-btn:hover {
+  color: var(--fg);
+}
+.direction-toggle-btn.is-active {
+  background: var(--bg);
+  color: var(--fg);
+}
+
 /* Pricing-layer pills — answer "where does the price come from / who profits?"
    Maker quote (peer sets it): blue.
    Venue quote (venue sets it, spread intrinsic): purple.

@@ -128,6 +128,13 @@ export interface Market {
    * doesn't currently populate it; binance_p2p does.
    */
   n_makers?: number;
+  /**
+   * Direction this row represents from the taker's perspective. 'buy' = taker pays fiat,
+   * receives crypto (onramp). 'sell' = taker sends crypto, receives fiat (offramp).
+   * Optional for backward compat — when absent the row is treated as the venue's default
+   * (buy for binance until the offramp probe ships in Phase 2).
+   */
+  direction?: 'buy' | 'sell';
 }
 
 /**

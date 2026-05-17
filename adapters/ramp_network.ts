@@ -25,8 +25,9 @@ const BASE_URL = 'https://api.rampnetwork.com/api';
  * Buy-side only — ACH/SEPA/SPEI/RTP from the sell-side fee schedule are excluded since
  * they're not available for buying.
  */
-const RAMP_FEE_BPS_BY_METHOD: Record<string, number> = {
-  CARD_PAYMENT: 245,         // for USD/EUR/GBP only — exotic fiats use CARD_EXOTIC_BPS
+// Buy-side fees (onramp) — see header comment for sources + calibration notes.
+const RAMP_FEE_BPS_BY_METHOD_BUY: Record<string, number> = {
+  CARD_PAYMENT: 245,         // for USD/EUR/GBP only — exotic fiats use CARD_EXOTIC_BPS_BUY
   APPLE_PAY: 245,            // "same as underlying card" per docs — tiering applies
   GOOGLE_PAY: 245,           // ditto
   MANUAL_BANK_TRANSFER: 140, // SEPA/manual (Europe, EUR/GBP); docs cap
@@ -34,25 +35,46 @@ const RAMP_FEE_BPS_BY_METHOD: Record<string, number> = {
   PIX: 290,                  // BRL only; docs cap
 };
 
-/** Card-like methods that follow the major/exotic currency-tier split. */
+// Sell-side fees (offramp) — sourced directly from
+// https://support.ramp.network/en/articles/8957-what-are-the-fees-for-selling-crypto
+// Docs don't split sell-side cards into major/exotic tiers — single 4.49% rate.
+const RAMP_FEE_BPS_BY_METHOD_SELL: Record<string, number> = {
+  CARD_PAYMENT: 449,         // Payout-to-card (Mastercard / Visa) per docs
+  APPLE_PAY: 449,            // inherits underlying card
+  GOOGLE_PAY: 449,           // inherits underlying card
+  MANUAL_BANK_TRANSFER: 99,  // SEPA / SEPA Instant per docs
+  AUTO_BANK_TRANSFER: 99,    // SEPA Instant per docs
+  ACH: 99,                   // sell-only per docs (no buy equivalent — buying via ACH n/a)
+  // PIX is NOT in sell docs — Brazil sell-out routes aren't published; skip.
+  // SPEI (Mexico) at 290 bps per docs is sell-only too but not currently in API responses.
+};
+
+/** Card-like methods that follow the major/exotic currency-tier split (buy-side only). */
 const CARD_LIKE_METHODS = new Set(['CARD_PAYMENT', 'APPLE_PAY', 'GOOGLE_PAY']);
 /** Fiats that get Ramp's "major currency" card pricing (~3.9% cap; 245 observed). */
 const MAJOR_CARD_FIATS = new Set(['USD', 'EUR', 'GBP']);
-/** Card fee for non-USD/EUR/GBP fiats per docs ("up to 5.45%"). */
-const CARD_EXOTIC_BPS = 545;
+/** Buy-side card fee for non-USD/EUR/GBP fiats per docs ("up to 5.45%"). */
+const CARD_EXOTIC_BPS_BUY = 545;
 
 const FEE_DEFAULT_BPS = 390; // Conservative fallback = card USD/EUR/GBP ceiling. Used when
                               // a method appears in /payment-methods but isn't in our table.
 
 /**
- * Lookup the fee in bps for (method, fiat). Card-like methods get currency-tier treatment;
- * everything else returns the flat per-method value.
+ * Lookup the fee in bps for (method, fiat, direction). Returns null when the method is
+ * NOT available for the requested direction (e.g. PIX on sell, ACH on buy) — caller
+ * should skip that method for the given direction.
+ *
+ * Card-like methods get currency-tier treatment on buy-side only; sell-side card payout
+ * is a single 4.49% rate per docs.
  */
-function feeBpsFor(method: string, fiat: string): number {
-  if (CARD_LIKE_METHODS.has(method) && !MAJOR_CARD_FIATS.has(fiat)) {
-    return CARD_EXOTIC_BPS;
+function feeBpsFor(method: string, fiat: string, direction: 'buy' | 'sell'): number | null {
+  const table = direction === 'buy' ? RAMP_FEE_BPS_BY_METHOD_BUY : RAMP_FEE_BPS_BY_METHOD_SELL;
+  const baseFee = table[method];
+  if (baseFee == null) return null; // method not available for this direction
+  if (direction === 'buy' && CARD_LIKE_METHODS.has(method) && !MAJOR_CARD_FIATS.has(fiat)) {
+    return CARD_EXOTIC_BPS_BUY;
   }
-  return RAMP_FEE_BPS_BY_METHOD[method] ?? FEE_DEFAULT_BPS;
+  return baseFee;
 }
 
 /** USDC is the most-common onramp target and is supported across every fiat Ramp covers. */
@@ -177,39 +199,47 @@ async function snapshot(): Promise<Snapshot> {
     }),
   );
 
-  // STAGE 3: build Live Rates rows. For each fiat with a USDC reference, find the cheapest
-  // applicable payment method (per Ramp's /payment-methods method.currencies set), apply the
-  // hand-maintained markup, and emit one Market row. Sorted by spread ascending downstream.
+  // STAGE 3: build Live Rates rows for BOTH directions. For each (fiat, direction), find
+  // the cheapest method that's available for that direction (per /payment-methods coverage
+  // AND our hand-maintained fee tables), and emit one Market row tagged with direction.
+  //
+  // On buy: effective_rate = reference × (1 + fee_bps).  taker pays more fiat per asset.
+  // On sell: effective_rate = reference × (1 − fee_bps). taker receives less fiat per asset.
+  // Same maxPurchaseAmount used for both — Ramp doesn't publish a separate sell ceiling.
   const usdRef = usdcRefByFiat['USD']; // for USD-equivalent liquidity column
   const markets: Market[] = [];
-  for (const [fiat, reference] of Object.entries(usdcRefByFiat)) {
-    const applicableMethods = methods.filter((m) => m.currencies?.includes(fiat));
-    if (applicableMethods.length === 0) continue;
-    let bestMethod = applicableMethods[0];
-    let bestFeeBps = Infinity;
-    for (const m of applicableMethods) {
-      const fee = feeBpsFor(m.name, fiat);
-      if (fee < bestFeeBps) {
-        bestFeeBps = fee;
-        bestMethod = m;
-      }
+  const directions: Array<'buy' | 'sell'> = ['buy', 'sell'];
+  for (const direction of directions) {
+    for (const [fiat, reference] of Object.entries(usdcRefByFiat)) {
+      // Filter methods to those (a) Ramp's API says serve this fiat and (b) we have a
+      // fee for in this direction (null skips PIX on sell, ACH on buy, etc.).
+      const applicable = methods
+        .filter((m) => m.currencies?.includes(fiat))
+        .map((m) => ({ m, fee: feeBpsFor(m.name, fiat, direction) }))
+        .filter((x): x is { m: RampPaymentMethod; fee: number } => x.fee !== null);
+      if (applicable.length === 0) continue;
+
+      let best = applicable[0];
+      for (const x of applicable) if (x.fee < best.fee) best = x;
+      const bestFeeBps = best.fee;
+      const effectiveRate =
+        direction === 'buy'
+          ? reference * (1 + bestFeeBps / 10_000)
+          : reference * (1 - bestFeeBps / 10_000);
+      const maxFiat = maxPurchaseByFiat[fiat] ?? 0;
+      const totalLiquidityUsd =
+        usdRef && reference > 0 ? maxFiat * (usdRef / reference) : 0;
+      markets.push({
+        currency: fiat,
+        platform: methodLabel(best.m.name),
+        direction,
+        best_rate: effectiveRate,
+        fx_mid_rate: reference,
+        spread_bps: bestFeeBps,
+        total_liquidity_usd: totalLiquidityUsd,
+        deposit_count: applicable.length,
+      });
     }
-    const effectiveRate = reference * (1 + bestFeeBps / 10_000);
-    // total_liquidity_usd ≈ USD-equivalent of the fiat single-tx ceiling. Uses the USDC
-    // reference ratio (USDC.price[USD] / USDC.price[fiat]) as fx mid — accurate enough
-    // for an order-of-magnitude column.
-    const maxFiat = maxPurchaseByFiat[fiat] ?? 0;
-    const totalLiquidityUsd =
-      usdRef && reference > 0 ? maxFiat * (usdRef / reference) : 0;
-    markets.push({
-      currency: fiat,
-      platform: methodLabel(bestMethod.name),
-      best_rate: effectiveRate,
-      fx_mid_rate: reference,
-      spread_bps: bestFeeBps,
-      total_liquidity_usd: totalLiquidityUsd,
-      deposit_count: applicableMethods.length,
-    });
   }
   markets.sort((a, b) => a.spread_bps - b.spread_bps);
 
@@ -239,21 +269,22 @@ async function snapshot(): Promise<Snapshot> {
     return best > 0 ? best : undefined;
   })();
 
-  // STAGE 5: headline observed_spread_bps — the best USD method's bps (cross-venue
-  // comparable: all venues now compare a $1k USD trade). Self_reported because it's the
-  // approximation, not a user-quoted spread.
-  const usdMarket = markets.find((m) => m.currency === 'USD');
-  const spreadValue = usdMarket?.spread_bps ?? null;
+  // STAGE 5: headline observed_spread_bps — the best USD BUY method's bps (cross-venue
+  // comparable: all venues compare a $1k USD onramp trade). The KPI stays onramp-anchored
+  // regardless of the user's toggle on the Live Rates table (per UX decision: KPIs are
+  // stable cross-venue benchmarks, the toggle is a drilldown affordance).
+  const usdBuyMarket = markets.find((m) => m.currency === 'USD' && m.direction === 'buy');
+  const spreadValue = usdBuyMarket?.spread_bps ?? null;
 
   // fee_snapshot: published per-method fee, paired with a representative asset for context.
-  // Uses the first applicable fiat per method to fetch the right currency-tier card fee.
+  // Uses the first applicable fiat per method + buy-side fee table.
   const sample_rows = methods.slice(0, 5).map((m) => {
     const fiat = (m.currencies?.[0] ?? '').toUpperCase();
     return {
       fiat,
       asset: DEFAULT_ASSET,
       payment_method: m.name,
-      effective_rate_bps: feeBpsFor(m.name, fiat),
+      effective_rate_bps: feeBpsFor(m.name, fiat, 'buy') ?? FEE_DEFAULT_BPS,
     };
   });
 
@@ -274,11 +305,11 @@ async function snapshot(): Promise<Snapshot> {
       value: spreadValue,
       provenance: 'self_reported',
       spread_aggregation: 'effective_at_size',
-      sample_size: usdMarket ? 1 : 0,
+      sample_size: usdBuyMarket ? 1 : 0,
       period: 'usd_$1k_quote_approximated',
       last_verified: now,
       notes:
-        'Approximated: Ramp public reference price + hand-maintained payment-method fee table (adapters/ramp_network.ts RAMP_FEE_BPS_BY_METHOD). NOT a user-quoted spread — real all-in price requires partner hostApiKey and /onramp/quote/all.',
+        'Approximated: Ramp public reference price + hand-maintained payment-method fee table (adapters/ramp_network.ts RAMP_FEE_BPS_BY_METHOD_BUY/SELL). NOT a user-quoted spread — real all-in price requires partner hostApiKey and /onramp/quote/all.',
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'self_reported' },
     markets: markets.length
