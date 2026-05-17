@@ -747,6 +747,74 @@ tbody tr:hover {
   font-size: 11px;
 }
 
+/* Dual-bar chart — used for binance's Onramp vs Offramp depth view. Each row is a
+   two-track stack: green onramp bar on top, amber offramp bar on bottom. Widths share
+   a max across all visible rows so cross-direction asymmetry is visually obvious. */
+.dual-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.dual-row-label {
+  color: var(--fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dual-row-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.dual-bar-track {
+  position: relative;
+  height: 14px;
+  display: flex;
+  align-items: center;
+}
+.dual-bar-fill {
+  height: 8px;
+  border-radius: 4px;
+  transition: width 0.2s;
+}
+.dual-bar-fill-buy {
+  background: rgba(52, 211, 153, 0.7);  /* onramp green, matches tag-onramp */
+}
+.dual-bar-fill-sell {
+  background: rgba(245, 158, 11, 0.7);  /* offramp amber, matches tag-offramp */
+}
+.dual-bar-amount {
+  margin-left: 6px;
+  font-size: 10px;
+  color: var(--fg-mute);
+}
+.dual-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 12px;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--fg-mute);
+}
+.dual-legend-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-left: 4px;
+}
+.dual-legend-swatch-buy {
+  background: rgba(52, 211, 153, 0.7);
+}
+.dual-legend-swatch-sell {
+  background: rgba(245, 158, 11, 0.7);
+}
+
 /* orderbook subpage */
 .orderbook-controls {
   display: flex;
@@ -1758,11 +1826,20 @@ tbody tr:hover {
 /* Asset chips — used for crypto settlement assets (USDT/BTC/ETH/USDC/...).
    Visually similar to platform-chip but with a slightly larger logo because the
    crypto color icons read better at 16px than the 14px brand logos. */
-.asset-grid {
+.asset-grid,
+.chain-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
+}
+
+/* Off-chain settlement pill — visually distinct from real chain pills so users can tell
+   at a glance that a CEX-P2P venue isn't really "delivering on Base" the way zkp2p is. */
+.tag.chain-chip-offchain {
+  border-style: dashed;
+  color: var(--fg-mute);
+  font-style: italic;
 }
 
 .asset-chip {

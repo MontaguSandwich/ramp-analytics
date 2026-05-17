@@ -113,6 +113,31 @@ export interface Composition {
   period: string;
 }
 
+/**
+ * "Market mix" sibling for venues that don't publish historical volume — for binance_p2p
+ * we surface CURRENT USDT depth per fiat instead of 30d settled volume. Same visual as
+ * Composition but honest field naming (`liquidity_usd` ≠ `volume_usd`).
+ */
+export interface DepthMixItem {
+  key: string;
+  label: string;
+  /** Total liquidity for this market. For bidirectional venues = buy + sell sum. */
+  liquidity_usd: number;
+  share_pct: number;
+  /** Per-direction split (optional). When both populated, the UI renders a dual-bar chart
+   *  showing onramp vs offramp depth side-by-side instead of a single combined bar. */
+  buy_liquidity_usd?: number;
+  sell_liquidity_usd?: number;
+  ad_count?: number;
+  n_makers?: number;
+}
+
+export interface DepthBreakdown {
+  currencies: DepthMixItem[];
+  /** Human-readable period qualifier rendered as sub-text (e.g. "current snapshot"). */
+  period: string;
+}
+
 export interface Market {
   currency: string;
   platform: string;
@@ -190,6 +215,8 @@ export interface Snapshot {
   };
   coverage?: Wrapped<Coverage>;
   composition?: Wrapped<Composition>;
+  /** For venues without historical volume — surfaces current liquidity-per-market. */
+  depth_composition?: Wrapped<DepthBreakdown>;
   markets?: Wrapped<Market[]>;
   network_health?: Wrapped<NetworkHealth>;
   capabilities?: Capabilities;

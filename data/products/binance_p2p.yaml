@@ -33,7 +33,12 @@ assets:
   - { symbol: BNB, chain: bsc }
   - { symbol: FDUSD, chain: ethereum }
 payment_methods: [bank_wire, sepa, p2p_local, cash]
-delivery_chains: []
+# Binance P2P settlement is OFF-CHAIN: the escrow releases to the buyer's USDT balance
+# on Binance's internal ledger. Withdrawal to a self-custodial wallet is a separate
+# post-settlement action; the user picks any chain Binance supports for that asset.
+# Withdrawal options for reference (NOT settlement chains):
+#   ethereum, bitcoin, bsc, tron, solana, polygon, arbitrum, optimism, avalanche, base
+delivery_chains: [offchain]
 
 kyc_tiers:
   - { name: Verified, requirements: [id], min: 0, max: null, period: daily }

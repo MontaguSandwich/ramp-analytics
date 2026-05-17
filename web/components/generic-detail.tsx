@@ -9,10 +9,12 @@ import {
   spreadKpiSub,
 } from '@/lib/format';
 import type { Product, ProductYaml, Snapshot } from '@/lib/types';
-import { KycBadges } from './chips';
+import { FiatChip, KycBadges } from './chips';
 import CoverageCard from './coverage-card';
 import PropertiesCard from './properties-card';
 import LiveRatesTable from './live-rates-table';
+import MixBar from './mix-bar';
+import DualBarChart from './dual-bar-chart';
 
 /**
  * Generic product detail page — used for every product except zkp2p (which uses
@@ -117,12 +119,83 @@ export default function GenericDetail({ product }: { product: Product }) {
         />
       ) : null}
 
-      {/* Composition — currency + payment platform mix. Conditional on data; binance_p2p
-          / ramp_network / kraken_otc don't populate this today. */}
+      {/* Market mix — current snapshot. Two sub-cards side-by-side:
+            1. By USDT locked up — sorted by escrowed depth, classic ranking
+            2. Onramp vs Offramp — dual-bar surfaces direction asymmetry per fiat
+          The variants share data but use different sorts + denominators. */}
+      {s?.depth_composition?.value.currencies.length ? (
+        <section className="section">
+          <h2>
+            Market mix{' '}
+            <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+              · {s.depth_composition.value.period}
+            </span>{' '}
+            <span
+              className="dot"
+              style={{ background: provenanceColor(s.depth_composition.provenance) }}
+              title={`${provenanceLabel(s.depth_composition.provenance)} · ${fmtRelTime(s.depth_composition.last_verified)}`}
+            />
+          </h2>
+          <div className="composition-grid">
+            {(() => {
+              const currencies = s.depth_composition!.value.currencies;
+              const hasSplit = currencies.some(
+                (c) => c.buy_liquidity_usd != null && c.sell_liquidity_usd != null,
+              );
+              const flags = s.coverage?.value.fiat_flags;
+              // Card 1: classic "by USDT locked up" — sorted by BUY-side depth desc.
+              // share_pct recomputed against BUY-only total so percentages read as
+              // "X% of escrowed USDT sits in this fiat market."
+              const buyOnly = hasSplit
+                ? currencies
+                    .filter((c) => (c.buy_liquidity_usd ?? 0) > 0)
+                    .sort(
+                      (a, b) => (b.buy_liquidity_usd ?? 0) - (a.buy_liquidity_usd ?? 0),
+                    )
+                : currencies;
+              const buyTotal = hasSplit
+                ? buyOnly.reduce((sum, c) => sum + (c.buy_liquidity_usd ?? 0), 0)
+                : currencies.reduce((sum, c) => sum + c.liquidity_usd, 0);
+              return (
+                <>
+                  <MixBar
+                    title="By USDT locked up"
+                    items={buyOnly.map((c) => {
+                      const amount = hasSplit ? (c.buy_liquidity_usd ?? 0) : c.liquidity_usd;
+                      return {
+                        key: c.key,
+                        label: c.label,
+                        amount_usd: amount,
+                        share_pct: buyTotal > 0 ? (amount / buyTotal) * 100 : 0,
+                      };
+                    })}
+                    renderLabel={(it) => <FiatChip code={it.label} flag={flags?.[it.label]} />}
+                  />
+                  {hasSplit ? (
+                    <DualBarChart
+                      title="Onramp vs Offramp — by fiat"
+                      items={currencies.map((c) => ({
+                        key: c.key,
+                        label: c.label,
+                        buy_amount_usd: c.buy_liquidity_usd ?? 0,
+                        sell_amount_usd: c.sell_liquidity_usd ?? 0,
+                      }))}
+                      renderLabel={(it) => <FiatChip code={it.label} flag={flags?.[it.label]} />}
+                    />
+                  ) : null}
+                </>
+              );
+            })()}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Market mix — historical 30d composition (when populated). zkp2p uses its
+          bespoke detail page; ramp/kraken don't surface transaction breakdowns. */}
       {s?.composition && (s.composition.value.currencies.length || s.composition.value.platforms.length) ? (
         <section className="section">
           <h2>
-            Composition <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {s.composition.value.period}</span>{' '}
+            Market mix <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {s.composition.value.period}</span>{' '}
             <span
               className="dot"
               style={{ background: provenanceColor(s.composition.provenance) }}
@@ -130,8 +203,24 @@ export default function GenericDetail({ product }: { product: Product }) {
             />
           </h2>
           <div className="composition-grid">
-            <MixBar title="By fiat currency" items={s.composition.value.currencies} />
-            <MixBar title="By payment platform" items={s.composition.value.platforms} />
+            <MixBar
+              title="By fiat currency"
+              items={s.composition.value.currencies.map((c) => ({
+                key: c.key,
+                label: c.label,
+                amount_usd: c.volume_usd,
+                share_pct: c.share_pct,
+              }))}
+            />
+            <MixBar
+              title="By payment platform"
+              items={s.composition.value.platforms.map((p) => ({
+                key: p.key,
+                label: p.label,
+                amount_usd: p.volume_usd,
+                share_pct: p.share_pct,
+              }))}
+            />
           </div>
         </section>
       ) : null}
@@ -248,54 +337,7 @@ function Kpi({ label, value, provenance, ts, notes, sub }: KpiProps) {
   );
 }
 
-interface MixItem {
-  key: string;
-  label: string;
-  volume_usd: number;
-  share_pct: number;
-  fulfilled_intents: number;
-}
-
-function MixBar({ title, items }: { title: string; items: MixItem[] }) {
-  // Dedupe by label (peerlytics returns multiple zelle hashes; we sum them).
-  const merged = new Map<string, MixItem>();
-  for (const it of items) {
-    const key = it.label.toLowerCase();
-    const cur = merged.get(key);
-    if (cur) {
-      cur.volume_usd += it.volume_usd;
-      cur.share_pct += it.share_pct;
-      cur.fulfilled_intents += it.fulfilled_intents;
-    } else {
-      merged.set(key, { ...it });
-    }
-  }
-  const sorted = [...merged.values()].sort((a, b) => b.volume_usd - a.volume_usd);
-  const top = sorted.slice(0, 8);
-
-  return (
-    <div className="mix-card">
-      <div className="mix-title">{title}</div>
-      <div className="mix-rows">
-        {top.map((it) => (
-          <div className="mix-row" key={it.key}>
-            <div className="mix-label">{it.label}</div>
-            <div className="mix-bar-wrap">
-              <div className="mix-bar" style={{ width: `${Math.min(100, it.share_pct).toFixed(2)}%` }} />
-            </div>
-            <div className="mix-pct mono">{it.share_pct.toFixed(1)}%</div>
-            <div className="mix-vol mono muted">{fmtUsdShort(it.volume_usd)}</div>
-          </div>
-        ))}
-        {sorted.length > top.length ? (
-          <div className="mix-row mix-row-more">
-            <div className="mix-label muted">+{sorted.length - top.length} more</div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+// MixBar extracted to ./mix-bar.tsx — shared with zkp2p-detail.tsx.
 
 function fmtUsdShort(n: number): string {
   if (n >= 1e9) return `$${(n / 1e9).toFixed(2)}B`;

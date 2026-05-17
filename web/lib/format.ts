@@ -28,6 +28,38 @@ export function fmtBps(n: number | null | undefined): string {
 }
 
 /**
+ * Pretty-print a blockchain id from its lowercase yaml form to the human-readable name.
+ * Falls back to capitalizing the first letter for unknown chains.
+ */
+const CHAIN_LABEL: Record<string, string> = {
+  ethereum: 'Ethereum',
+  bitcoin: 'Bitcoin',
+  base: 'Base',
+  polygon: 'Polygon',
+  polygonzkevm: 'Polygon zkEVM',
+  arbitrum: 'Arbitrum',
+  optimism: 'Optimism',
+  solana: 'Solana',
+  avalanche: 'Avalanche',
+  bsc: 'BSC',
+  tron: 'Tron',
+  zksyncera: 'zkSync Era',
+  starknet: 'StarkNet',
+  linea: 'Linea',
+  ronin: 'Ronin',
+  near: 'NEAR',
+  celo: 'Celo',
+  moonbeam: 'Moonbeam',
+  hedera: 'Hedera',
+  cosmos: 'Cosmos',
+  worldchain: 'World Chain',
+};
+export function prettifyChain(chain: string): string {
+  const k = chain.toLowerCase();
+  return CHAIN_LABEL[k] ?? chain.charAt(0).toUpperCase() + chain.slice(1);
+}
+
+/**
  * Format a value as a currency in the given ISO 4217 code (no decimals).
  * Falls back to "N CODE" for codes Intl.NumberFormat doesn't recognise.
  */

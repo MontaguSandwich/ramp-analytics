@@ -7,6 +7,7 @@ import {
   fiatFlagEmoji,
   paymentMethodLabel,
   paymentMethodLogoSlug,
+  prettifyChain,
 } from '@/lib/format';
 import type { ProductYaml } from '@/lib/types';
 
@@ -18,6 +19,34 @@ export function FiatChip({ code, flag }: { code: string; flag?: string }) {
     <span className="fiat-chip" title={code}>
       <span className="fiat-flag">{glyph}</span>
       <span className="fiat-code">{code}</span>
+    </span>
+  );
+}
+
+/**
+ * Compact pill for a blockchain network. Plain text on a `.tag` background — chains don't
+ * have reliable logo coverage in the cryptocurrency-icons CDN (Base, Linea, etc. are L2s
+ * without a canonical token glyph), so text-only keeps the row tidy.
+ *
+ * Special-case the `'offchain'` sentinel: CEX-P2P venues like Binance settle on the
+ * exchange's internal ledger, not a blockchain — surface that honestly with a distinct
+ * muted style and a tooltip explaining the model.
+ */
+export function ChainChip({ name }: { name: string }) {
+  const isOffchain = name.toLowerCase() === 'offchain';
+  if (isOffchain) {
+    return (
+      <span
+        className="tag chain-chip chain-chip-offchain"
+        title="Settled to the venue's internal ledger; withdrawal to a self-custodial wallet is a separate post-settlement action"
+      >
+        Off-chain
+      </span>
+    );
+  }
+  return (
+    <span className="tag chain-chip" title={name}>
+      {prettifyChain(name)}
     </span>
   );
 }

@@ -274,12 +274,28 @@ const PROBE_CHUNK_DELAY_MS = 300;
 async function fetchAllMarkets(
   now: number,
   fxMids: Record<string, number>,
+  tradeType: 'BUY' | 'SELL',
 ): Promise<{
   probes: MarketProbe[];
   total_observed_usd: number;
   markets_observed: number;
 }> {
   void now; // reserved for future cache invalidation / timestamp threading
+
+  // Reminder on adv/search semantics: the request `tradeType` is from the TAKER's
+  // perspective. `BUY` returns SELL-side ads (maker selling USDT, taker pays fiat to get
+  // USDT = onramp). `SELL` returns BUY-side ads (maker buying USDT, taker sends USDT to
+  // get fiat = offramp). `surplusAmount` is always in USDT for both directions — it's
+  // the unfilled asset-side capacity of the ad (escrow for SELL ads, target buy amount
+  // for BUY ads).
+  //
+  // Pricing direction:
+  //   tradeType=BUY:  taker buys USDT → lower price is better → best_rate = min(prices)
+  //   tradeType=SELL: taker sells USDT → higher price is better → best_rate = max(prices)
+  //
+  // Spread convention (consistent across products): negative bps = favorable for taker.
+  //   BUY:  spread = (price - mid)/mid * 10_000  (naturally negative when favorable)
+  //   SELL: spread = -((price - mid)/mid) * 10_000  (sign flip — taker getting more than mid)
 
   // Fire requests in chunks instead of one big Promise.all to stay under Binance's
   // burst-rate cliff. Each chunk runs in parallel; chunks are sequential with a brief
@@ -289,7 +305,7 @@ async function fetchAllMarkets(
     const chunk = CANDIDATE_FIATS.slice(i, i + PROBE_CHUNK_SIZE);
     const chunkResults = await Promise.allSettled(
       chunk.map(async (fiat) => {
-        const result = await search({ fiat, asset: 'USDT', tradeType: 'BUY', rows: 20 });
+        const result = await search({ fiat, asset: 'USDT', tradeType, rows: 20 });
         return { fiat, ...result };
       }),
     );
@@ -323,29 +339,30 @@ async function fetchAllMarkets(
     let spread_bps: number | null = null;
     let effective_spread_1k_bps: number | null = null;
     if (prices.length > 0) {
-      best_rate = Math.min(...prices);
+      best_rate = tradeType === 'BUY' ? Math.min(...prices) : Math.max(...prices);
       if (fx_mid !== null && Number.isFinite(fx_mid) && fx_mid > 0) {
-        spread_bps = ((best_rate - fx_mid) / fx_mid) * 10_000;
+        const rawSpread = ((best_rate - fx_mid) / fx_mid) * 10_000;
+        spread_bps = tradeType === 'BUY' ? rawSpread : -rawSpread;
 
-        // Effective spread for a $1k single-match trade.
-        // Target in local fiat: $1000 worth of USDT ≈ 1000 USDT × fx_mid local-per-USDT.
-        // Find the cheapest ad where:
-        //   (a) min_single_tx ≤ target_local ≤ max_single_tx (the maker accepts this size)
-        //   (b) surplus_amount ≥ 1000 (the maker has ≥1000 USDT escrowed to cover the buy)
-        const targetLocal = EFFECTIVE_SIZE_USD * fx_mid;
-        const sorted = [...ads].sort(
-          (a, b) => Number(a.adv.price) - Number(b.adv.price),
-        );
-        for (const ad of sorted) {
-          const price = Number(ad.adv.price);
-          if (!Number.isFinite(price) || price <= 0) continue;
-          const minTx = Number(ad.adv.minSingleTransAmount);
-          const maxTx = Number(ad.adv.maxSingleTransAmount);
-          const surplus = Number(ad.adv.surplusAmount);
-          if (targetLocal < minTx || targetLocal > maxTx) continue;
-          if (!Number.isFinite(surplus) || surplus < EFFECTIVE_SIZE_USD) continue;
-          effective_spread_1k_bps = ((price - fx_mid) / fx_mid) * 10_000;
-          break;
+        // Effective spread for a $1k single-match trade — computed for BUY only (drives
+        // the cross-venue headline KPI). SELL-side equivalent could mirror with a
+        // descending-price sort; skipped here since KPI stays onramp-anchored.
+        if (tradeType === 'BUY') {
+          const targetLocal = EFFECTIVE_SIZE_USD * fx_mid;
+          const sorted = [...ads].sort(
+            (a, b) => Number(a.adv.price) - Number(b.adv.price),
+          );
+          for (const ad of sorted) {
+            const price = Number(ad.adv.price);
+            if (!Number.isFinite(price) || price <= 0) continue;
+            const minTx = Number(ad.adv.minSingleTransAmount);
+            const maxTx = Number(ad.adv.maxSingleTransAmount);
+            const surplus = Number(ad.adv.surplusAmount);
+            if (targetLocal < minTx || targetLocal > maxTx) continue;
+            if (!Number.isFinite(surplus) || surplus < EFFECTIVE_SIZE_USD) continue;
+            effective_spread_1k_bps = ((price - fx_mid) / fx_mid) * 10_000;
+            break;
+          }
         }
       }
     }
@@ -380,10 +397,17 @@ async function snapshot(): Promise<Snapshot> {
   ]);
 
   // STAGE 2: unified market probe — one adv/search call per CANDIDATE_FIAT against
-  // USDT (BUY side, so we're observing maker SELL ads = the only side with escrowed
-  // capital). Drives liquidity / spread / rates / sample_rows in one pass.
-  const { probes, total_observed_usd, markets_observed } =
-    await fetchAllMarkets(now, fxMids);
+  // USDT, both directions. BUY first (taker-buys = onramp) drives liquidity, headline
+  // spread, max single trade, maker aggregates — the historical "Available USDT" view.
+  // SELL second (taker-sells = offramp) feeds the Live Rates table's offramp toggle.
+  //
+  // Sequential rather than parallel because Binance's Cloudflare sheds requests when
+  // we fire too many adv/search calls at once. Two passes of 134 fiats × chunked-10 =
+  // ~60s total snapshot time (was ~30s with BUY-only). Cron budget allows it.
+  const buyResult = await fetchAllMarkets(now, fxMids, 'BUY');
+  const sellResult = await fetchAllMarkets(now, fxMids, 'SELL');
+  const { probes, total_observed_usd, markets_observed } = buyResult;
+  const sellProbes = sellResult.probes;
 
   // Headline observed_spread_bps: effective spread for a $1k single-match trade in the
   // USD market. Picked over a cross-market median because it gives an apples-to-apples
@@ -447,13 +471,54 @@ async function snapshot(): Promise<Snapshot> {
     n_makers: p.n_makers,
   }));
 
-  // Derive: top 10 markets that have an FX mid → Live rates table.
-  const withFx = sortedByDepth.filter(
+  // Derive: per-fiat depth breakdown with BUY/SELL split → "Market mix · current snapshot"
+  // dual-bar chart. Each item carries combined liquidity (both directions summed) plus
+  // the per-direction values, so the UI can render onramp/offramp asymmetry per fiat.
+  //
+  // Total combined depth across all fiats and both directions — used as the share_pct
+  // denominator so values are comparable as "% of total venue liquidity."
+  const sellByFiat = new Map<string, number>();
+  for (const p of sellProbes) sellByFiat.set(p.fiat, p.surplus_sum);
+  const total_combined_depth =
+    total_observed_usd + sellProbes.reduce((acc, p) => acc + p.surplus_sum, 0);
+
+  // Build the union of fiats that appear in either direction with non-zero depth.
+  const fiatsSeen = new Set<string>([
+    ...probes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
+    ...sellProbes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
+  ]);
+  const buyByFiat = new Map<string, (typeof probes)[number]>();
+  for (const p of probes) buyByFiat.set(p.fiat, p);
+
+  const depth_currencies = [...fiatsSeen]
+    .map((fiat) => {
+      const buy = buyByFiat.get(fiat)?.surplus_sum ?? 0;
+      const sell = sellByFiat.get(fiat) ?? 0;
+      const combined = buy + sell;
+      return {
+        key: fiat,
+        label: fiat,
+        liquidity_usd: combined,
+        share_pct: total_combined_depth > 0 ? (combined / total_combined_depth) * 100 : 0,
+        buy_liquidity_usd: buy,
+        sell_liquidity_usd: sell,
+        ad_count: buyByFiat.get(fiat)?.total ?? 0,
+        n_makers: buyByFiat.get(fiat)?.n_makers ?? 0,
+      };
+    })
+    .sort((a, b) => b.liquidity_usd - a.liquidity_usd);
+
+  // Derive: top 10 markets per direction → Live rates table (kind-aware in the view
+  // shows the onramp/offramp toggle when both are populated). Sorted by USDT depth
+  // independently per direction; spread sign already normalized in fetchAllMarkets
+  // (negative = favorable for taker regardless of direction).
+  const withFxBuy = sortedByDepth.filter(
     (p) => p.fx_mid !== null && p.best_rate !== null && p.spread_bps !== null,
   );
-  const marketsTop10: Market[] = withFx.slice(0, 10).map((p) => ({
+  const marketsBuyTop10: Market[] = withFxBuy.slice(0, 10).map((p) => ({
     currency: p.fiat,
     platform: 'binance_p2p',
+    direction: 'buy',
     best_rate: p.best_rate as number,
     fx_mid_rate: p.fx_mid as number,
     spread_bps: p.spread_bps as number,
@@ -461,9 +526,25 @@ async function snapshot(): Promise<Snapshot> {
     deposit_count: p.total, // full-book ad count, not just slice
     n_makers: p.n_makers,
   }));
+  const sortedSellByDepth = [...sellProbes].sort((a, b) => b.surplus_sum - a.surplus_sum);
+  const withFxSell = sortedSellByDepth.filter(
+    (p) => p.fx_mid !== null && p.best_rate !== null && p.spread_bps !== null,
+  );
+  const marketsSellTop10: Market[] = withFxSell.slice(0, 10).map((p) => ({
+    currency: p.fiat,
+    platform: 'binance_p2p',
+    direction: 'sell',
+    best_rate: p.best_rate as number,
+    fx_mid_rate: p.fx_mid as number,
+    spread_bps: p.spread_bps as number,
+    total_liquidity_usd: p.surplus_sum,
+    deposit_count: p.total,
+    n_makers: p.n_makers,
+  }));
+  const marketsTop10: Market[] = [...marketsBuyTop10, ...marketsSellTop10];
 
   // Derive: fee_snapshot.sample_rows — top 5 markets that have FX, one row each.
-  const sample_rows = withFx.slice(0, 5).map((p) => {
+  const sample_rows = withFxBuy.slice(0, 5).map((p) => {
     const top = p.ads[0];
     const method =
       top?.adv.tradeMethods?.[0]?.identifier ??
@@ -538,6 +619,16 @@ async function snapshot(): Promise<Snapshot> {
       evidence_url: SEARCH_URL,
       notes:
         'Top 10 deepest markets (by USDT depth in top-20 ad slice), filtered to those with FX mids available.',
+    },
+    depth_composition: {
+      value: {
+        currencies: depth_currencies,
+        period: 'current snapshot',
+      },
+      provenance: 'api',
+      last_verified: now,
+      evidence_url: SEARCH_URL,
+      notes: `Per-fiat share of USDT escrow observed in the top-20 BUY ad slice across ${markets_observed} fiat markets. Snapshot, not a window — Binance doesn't publish historical volume.`,
     },
     network_health: {
       value: {

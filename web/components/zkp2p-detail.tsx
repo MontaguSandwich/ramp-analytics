@@ -14,6 +14,7 @@ import ProtocolCharts from './protocol-charts';
 import { KycBadges } from './chips';
 import CoverageCard from './coverage-card';
 import PropertiesCard from './properties-card';
+import MixBar from './mix-bar';
 
 interface Props {
   product: Product;
@@ -306,16 +307,35 @@ export default function Zkp2pDetail({ product, history }: Props) {
         </section>
       ) : null}
 
-      {/* Composition */}
+      {/* Market mix — historical 30d volume share. Same widget as binance's depth-based
+          Market mix but with volume semantics; sub-text differentiates. */}
       {composition && (composition.currencies.length || composition.platforms.length) ? (
         <section className="section">
           <h2>
-            Composition{' '}
+            Market mix{' '}
             <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {composition.period}</span>
           </h2>
           <div className="composition-grid">
-            <MixBar title="By fiat currency" items={composition.currencies} flagsByCode={cov?.fiat_flags} />
-            <MixBar title="By payment platform" items={composition.platforms} usePlatformLogo />
+            <MixBar
+              title="By fiat currency"
+              items={composition.currencies.map((c) => ({
+                key: c.key,
+                label: c.label,
+                amount_usd: c.volume_usd,
+                share_pct: c.share_pct,
+              }))}
+              renderLabel={(it) => <FiatChip code={it.label} flag={cov?.fiat_flags?.[it.label]} />}
+            />
+            <MixBar
+              title="By payment platform"
+              items={composition.platforms.map((p) => ({
+                key: p.key,
+                label: p.label,
+                amount_usd: p.volume_usd,
+                share_pct: p.share_pct,
+              }))}
+              renderLabel={(it) => <PlatformChip name={it.label} />}
+            />
           </div>
         </section>
       ) : null}
@@ -409,68 +429,4 @@ function PlatformChip({ name, compact = false }: { name: string; compact?: boole
   );
 }
 
-interface MixItem {
-  key: string;
-  label: string;
-  volume_usd: number;
-  share_pct: number;
-  fulfilled_intents: number;
-}
-
-function MixBar({
-  title,
-  items,
-  flagsByCode,
-  usePlatformLogo,
-}: {
-  title: string;
-  items: MixItem[];
-  flagsByCode?: Record<string, string>;
-  usePlatformLogo?: boolean;
-}) {
-  const merged = new Map<string, MixItem>();
-  for (const it of items) {
-    const key = it.label.toLowerCase();
-    const cur = merged.get(key);
-    if (cur) {
-      cur.volume_usd += it.volume_usd;
-      cur.share_pct += it.share_pct;
-      cur.fulfilled_intents += it.fulfilled_intents;
-    } else {
-      merged.set(key, { ...it });
-    }
-  }
-  const sorted = [...merged.values()].sort((a, b) => b.volume_usd - a.volume_usd);
-  const top = sorted.slice(0, 8);
-
-  return (
-    <div className="mix-card">
-      <div className="mix-title">{title}</div>
-      <div className="mix-rows">
-        {top.map((it) => (
-          <div className="mix-row" key={it.key}>
-            <div className="mix-label">
-              {usePlatformLogo ? (
-                <PlatformChip name={it.label} />
-              ) : flagsByCode ? (
-                <FiatChip code={it.label} flag={flagsByCode[it.label]} />
-              ) : (
-                platformLabel(it.label)
-              )}
-            </div>
-            <div className="mix-bar-wrap">
-              <div className="mix-bar" style={{ width: `${Math.min(100, it.share_pct).toFixed(2)}%` }} />
-            </div>
-            <div className="mix-pct mono">{it.share_pct.toFixed(1)}%</div>
-            <div className="mix-vol mono muted">{fmtUsd(it.volume_usd)}</div>
-          </div>
-        ))}
-        {sorted.length > top.length ? (
-          <div className="mix-row mix-row-more">
-            <div className="mix-label muted">+{sorted.length - top.length} more</div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
+// MixBar extracted to ./mix-bar.tsx — shared with generic-detail.tsx (binance Market mix).

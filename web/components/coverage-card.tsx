@@ -1,6 +1,6 @@
 import { fmtRelTime, provenanceColor, provenanceLabel } from '@/lib/format';
 import type { ProductYaml, Snapshot } from '@/lib/types';
-import { AssetChip } from './chips';
+import { AssetChip, ChainChip } from './chips';
 import FiatBrowser from './fiat-browser';
 import PaymentMethodBrowser from './payment-method-browser';
 
@@ -17,6 +17,25 @@ export default function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYa
   const activeFiats = cov?.fiats?.length ? cov.fiats : y.fiats;
   const inactive = cov?.fiats_inactive ?? [];
   const allPlatforms = cov?.platforms?.length ? cov.platforms : y.payment_methods ?? [];
+
+  // Settlement assets/chains: separated so users see "what tokens" vs "which networks"
+  // as distinct dimensions rather than as a cross-product of asset×chain combos.
+  const uniqueAssetSymbols = Array.from(new Set(y.assets.map((a) => a.symbol)));
+  // When the venue declares off-chain settlement (CEX-P2P like Binance), the asset
+  // entries' `chain` field is just the asset's native network — NOT the settlement
+  // venue. The off-chain sentinel overrides: show a single "Off-chain" pill.
+  const declaredChains = y.delivery_chains ?? [];
+  const isOffchainOnly =
+    declaredChains.length > 0 &&
+    declaredChains.every((c) => c.toLowerCase() === 'offchain');
+  const chainsFromAssets = isOffchainOnly
+    ? []
+    : y.assets
+        .map((a) => a.chain)
+        .filter((c): c is string => Boolean(c) && c !== 'multiple' && c !== 'various');
+  const allChains = isOffchainOnly
+    ? ['offchain']
+    : Array.from(new Set([...declaredChains, ...chainsFromAssets]));
 
   return (
     <div className="info-card">
@@ -41,11 +60,27 @@ export default function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYa
         </dd>
         <dt>Settlement assets</dt>
         <dd>
-          {/* Kept as an inline grid — only 5-6 entries per product, doesn't need a browser. */}
-          {y.assets.length ? (
+          {/* Unique asset symbols only — chains live in their own row below, so showing
+              USDC.eth + USDC.base + USDC.polygon as 3 chips here would just be noise. */}
+          {uniqueAssetSymbols.length ? (
             <div className="asset-grid">
-              {y.assets.map((a) => (
-                <AssetChip key={`${a.symbol}-${a.chain}`} symbol={a.symbol} chain={a.chain} />
+              {uniqueAssetSymbols.map((s) => (
+                <AssetChip key={s} symbol={s} />
+              ))}
+            </div>
+          ) : (
+            '—'
+          )}
+        </dd>
+        <dt>Settlement chains</dt>
+        <dd>
+          {/* Union of `delivery_chains` (the curated capability list) and chains seen on
+              individual asset entries. 'multiple' / 'various' placeholders are skipped since
+              they're not real chain names. */}
+          {allChains.length ? (
+            <div className="chain-grid">
+              {allChains.map((c) => (
+                <ChainChip key={c} name={c} />
               ))}
             </div>
           ) : (

@@ -9,7 +9,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning silences the React warning when browser extensions
+    // (e.g. the Peer extension, MetaMask, others) inject attributes onto <html> or
+    // <body> before hydration. Scoped to one level — extension noise is the only
+    // thing it suppresses; mismatches inside the tree still surface as errors.
+    <html lang="en" suppressHydrationWarning>
       <body>
         <header className="header">
           <div className="container header-inner">
