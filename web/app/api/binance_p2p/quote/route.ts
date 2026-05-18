@@ -19,6 +19,8 @@ interface QuoteRequestBody {
   fiat_currency: string;
   asset?: string;
   payment_methods?: string[];
+  /** 'buy' (default) = taker buys crypto (onramp). 'sell' = taker sells crypto (offramp). */
+  direction?: 'buy' | 'sell';
 }
 
 interface BinanceAdv {
@@ -76,6 +78,7 @@ interface QuoteResponse {
     fiat_amount: number;
     fiat_currency: string;
     asset: string;
+    direction: 'buy' | 'sell';
     payment_methods?: string[];
   };
   ts: number;
@@ -109,12 +112,17 @@ export async function POST(req: Request) {
   }
 
   const payTypes = (body.payment_methods ?? []).filter((s) => typeof s === 'string' && s.length > 0);
+  const direction: 'buy' | 'sell' = body.direction === 'sell' ? 'sell' : 'buy';
+  // adv/search tradeType is from the taker's perspective:
+  //   BUY  → returns SELL ads (maker selling crypto, taker pays fiat)  = onramp
+  //   SELL → returns BUY ads (maker buying crypto, taker sends fiat)   = offramp
+  const tradeType: 'BUY' | 'SELL' = direction === 'buy' ? 'BUY' : 'SELL';
 
   const upstreamBody = {
     fiat,
     page: 1,
     rows: 20,
-    tradeType: 'BUY', // taker buys crypto → endpoint returns maker SELL ads (escrowed)
+    tradeType,
     asset,
     countries: [],
     payTypes,
@@ -204,8 +212,9 @@ export async function POST(req: Request) {
     });
   }
 
-  // Sort by price ascending: lowest fiat-per-asset = most asset received for the fiat = best for taker.
-  candidates.sort((a, b) => a.price - b.price);
+  // For buy (taker buys asset): lowest price = most asset for the fiat = best for taker.
+  // For sell (taker sells asset): highest price = most fiat for the asset = best for taker.
+  candidates.sort((a, b) => (direction === 'buy' ? a.price - b.price : b.price - a.price));
 
   // Best per method — one row per unique payment method, smallest price.
   const seen = new Set<string>();
@@ -222,7 +231,7 @@ export async function POST(req: Request) {
   const resp: QuoteResponse = {
     candidates: candidates.slice(0, 20),
     best_per_method: bestPerMethod.slice(0, 5),
-    request: { fiat_amount: body.fiat_amount, fiat_currency: fiat, asset, payment_methods: payTypes },
+    request: { fiat_amount: body.fiat_amount, fiat_currency: fiat, asset, direction, payment_methods: payTypes },
     ts: Date.now(),
   };
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import './globals.css';
+import MainNav from '@/components/main-nav';
 
 export const metadata: Metadata = {
   title: 'hip3 — on/off-ramp dashboard',
@@ -24,6 +25,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <span>Methodology</span>
               <span>Open data</span>
             </nav>
+          </div>
+          <div className="container">
+            <MainNav />
           </div>
         </header>
         <main>{children}</main>

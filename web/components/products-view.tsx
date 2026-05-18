@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import type { Product } from '@/lib/types';
 import {
   bestFeePctOrBps,
@@ -13,18 +13,13 @@ import {
   snapshotTvlUsd,
 } from '@/lib/format';
 import Sparkline from './sparkline';
+import { FiatChip } from './chips';
 
 const CATEGORY_LABEL: Record<string, string> = {
   onchain: 'Onchain P2P',
   cex_p2p: 'CEX P2P',
   ramp: 'Ramp',
-  otc: 'OTC',
-};
-
-const DIRECTION_LABEL: Record<string, string> = {
-  on: '↑ on',
-  off: '↓ off',
-  both: '↕ both',
+  rtpn: 'Crypto-friendly RTPNs',
 };
 
 type Category = Product['yaml']['category'];
@@ -94,11 +89,27 @@ function isFiltersActive(f: Filters): boolean {
 export default function ProductsView({
   products,
   sparklines = {},
+  initialCategory,
 }: {
   products: Product[];
   sparklines?: Record<string, number[]>;
+  /** When provided (e.g. arriving from /categories with ?category=X), pre-select that
+   *  category chip so the table opens already filtered. */
+  initialCategory?: Category;
 }) {
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<Filters>(() =>
+    initialCategory
+      ? { ...EMPTY_FILTERS, categories: new Set([initialCategory]) }
+      : EMPTY_FILTERS,
+  );
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExpanded = (id: string) =>
+    setExpanded((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   const allFiats = useMemo(() => {
     const set = new Set<string>();
@@ -119,7 +130,7 @@ export default function ProductsView({
     <>
       <div className="filters">
         <ChipGroup label="Category">
-          {(['onchain', 'cex_p2p', 'ramp', 'otc'] as Category[]).map((c) => (
+          {(['onchain', 'cex_p2p', 'ramp', 'rtpn'] as Category[]).map((c) => (
             <Chip
               key={c}
               active={filters.categories.has(c)}
@@ -220,8 +231,8 @@ export default function ProductsView({
               <tr>
                 <th>Name</th>
                 <th>Category</th>
-                <th>Dir</th>
-                <th>Fiats</th>
+                <th>Direction</th>
+                <th># Fiats</th>
                 <th>KYC floor</th>
                 <th>Custody</th>
                 <th>Best fee*</th>
@@ -236,52 +247,93 @@ export default function ProductsView({
                 const prov = rowProvenance(p.snapshot);
                 const tvl = snapshotTvlUsd(p.snapshot);
                 const fees = bestFeePctOrBps(p.snapshot);
+                // Active fiats prefer snapshot.coverage (live, fresh from API) over the
+                // YAML list (curated, may lag). Coverage carries the optional fiat_flags
+                // map for non-programmatic flag overrides (e.g. zkp2p sources from
+                // Peerlytics meta/currencies).
+                const cov = p.snapshot?.coverage?.value;
+                const fiatList = cov?.fiats?.length ? cov.fiats : p.yaml.fiats;
+                const flags = cov?.fiat_flags;
+                const isOpen = expanded.has(p.yaml.id);
+                const showOn = p.yaml.direction === 'on' || p.yaml.direction === 'both';
+                const showOff = p.yaml.direction === 'off' || p.yaml.direction === 'both';
                 return (
-                  <tr key={p.yaml.id}>
-                    <td>
-                      <Link href={`/products/${p.yaml.id}`} className="pname">
-                        <span className="pname-name">{p.yaml.name}</span>
-                        {p.yaml.subcategory ? <span className="pname-sub">{p.yaml.subcategory}</span> : null}
-                      </Link>
-                    </td>
-                    <td>
-                      <span className={`tag cat-${p.yaml.category}`}>{CATEGORY_LABEL[p.yaml.category]}</span>
-                    </td>
-                    <td className="muted">{DIRECTION_LABEL[p.yaml.direction]}</td>
-                    <td>
-                      <div className="fiats-list">
-                        {p.yaml.fiats.slice(0, 5).map((f) => (
-                          <span key={f} className="tag">
-                            {f}
-                          </span>
-                        ))}
-                        {p.yaml.fiats.length > 5 ? (
-                          <span className="tag muted">+{p.yaml.fiats.length - 5}</span>
-                        ) : null}
-                      </div>
-                    </td>
-                    <td className="muted">{p.yaml.pii_floor ?? '—'}</td>
-                    <td className="muted">{p.yaml.delivery_custody}</td>
-                    <td className="mono">{fees.label}</td>
-                    <td className="mono">{fmtUsd(p.snapshot?.volume_30d_usd.value ?? null)}</td>
-                    <td className="mono">{fmtUsd(tvl)}</td>
-                    <td>
-                      <Sparkline
-                        values={sparklines[p.yaml.id] ?? []}
-                        ariaLabel={`${p.yaml.name} 14-day liquidity trend`}
-                      />
-                    </td>
-                    <td>
-                      <span
-                        className="dot"
-                        style={{ background: provenanceColor(prov) }}
-                        title={`${provenanceLabel(prov)} · ${fmtRelTime(p.snapshot?.liquidity.last_verified)}`}
-                      />{' '}
-                      <span className="muted" style={{ fontSize: 11 }}>
-                        {fmtRelTime(p.snapshot?.liquidity.last_verified)}
-                      </span>
-                    </td>
-                  </tr>
+                  // Fragment key must live on Fragment itself (the shorthand `<>` can't
+                  // take a key prop) — each map iteration produces a main <tr> plus an
+                  // optional expansion <tr>, so we need the outer Fragment to carry it.
+                  <Fragment key={p.yaml.id}>
+                    <tr>
+                      <td>
+                        <Link href={`/products/${p.yaml.id}`} className="pname">
+                          <span className="pname-name">{p.yaml.display_name ?? p.yaml.name}</span>
+                          {p.yaml.subcategory ? <span className="pname-sub">{p.yaml.subcategory}</span> : null}
+                        </Link>
+                      </td>
+                      <td>
+                        <span className={`tag cat-${p.yaml.category}`}>{CATEGORY_LABEL[p.yaml.category]}</span>
+                      </td>
+                      <td>
+                        <div className="direction-pills">
+                          {showOn ? <span className="tag tag-onramp">Onramp</span> : null}
+                          {showOff ? <span className="tag tag-offramp">Offramp</span> : null}
+                        </div>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="fiats-count-btn"
+                          onClick={() => toggleExpanded(p.yaml.id)}
+                          aria-expanded={isOpen}
+                          aria-label={`${fiatList.length} fiats — ${isOpen ? 'hide' : 'show'} flags`}
+                          disabled={fiatList.length === 0}
+                        >
+                          <span className="mono">{fiatList.length}</span>
+                          {fiatList.length > 0 ? (
+                            <span className="fiats-count-caret" aria-hidden>
+                              {isOpen ? '▾' : '▸'}
+                            </span>
+                          ) : null}
+                        </button>
+                      </td>
+                      <td className="muted">{p.yaml.pii_floor ?? '—'}</td>
+                      <td className="muted">{p.yaml.delivery_custody}</td>
+                      <td className="mono">{fees.label}</td>
+                      <td className="mono">{fmtUsd(p.snapshot?.volume_30d_usd.value ?? null)}</td>
+                      <td className="mono">{fmtUsd(tvl)}</td>
+                      <td>
+                        <Sparkline
+                          values={sparklines[p.yaml.id] ?? []}
+                          ariaLabel={`${p.yaml.name} 14-day liquidity trend`}
+                        />
+                      </td>
+                      <td>
+                        <span
+                          className="dot"
+                          style={{ background: provenanceColor(prov) }}
+                          title={`${provenanceLabel(prov)} · ${fmtRelTime(p.snapshot?.liquidity.last_verified)}`}
+                        />{' '}
+                        <span className="muted" style={{ fontSize: 11 }}>
+                          {fmtRelTime(p.snapshot?.liquidity.last_verified)}
+                        </span>
+                      </td>
+                    </tr>
+                    {isOpen ? (
+                      <tr className="fiats-expand-row">
+                        <td colSpan={11}>
+                          <div className="fiats-expand-content">
+                            <span className="muted" style={{ fontSize: 11, marginRight: 8 }}>
+                              All {fiatList.length} fiat{fiatList.length === 1 ? '' : 's'}:
+                            </span>
+                            <div className="fiat-grid">
+                              {fiatList.map((f) => (
+                                <FiatChip key={f} code={f} flag={flags?.[f]} />
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
                 );
               })}
             </tbody>

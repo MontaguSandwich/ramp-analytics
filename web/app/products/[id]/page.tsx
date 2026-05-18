@@ -24,7 +24,7 @@ export default async function ProductDetail({ params }: { params: Promise<{ id: 
     return <Zkp2pDetail product={product} history={history} />;
   }
 
-  // Every other product (binance_p2p, ramp_network, kraken_otc) renders through the
+  // Every other product (binance_p2p, ramp_network) renders through the
   // generic detail page. The layout always provides the container + back-link +
   // ProductHeader hero (and tab nav when capabilities are set); GenericDetail just
   // renders the body content.

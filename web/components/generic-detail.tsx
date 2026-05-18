@@ -49,13 +49,11 @@ export default function GenericDetail({ product }: { product: Product }) {
       ? `top 20 ads × ${s.liquidity.value.markets_observed} markets`
       : undefined;
 
-  // Marketplace dynamics card has nothing useful for products where neither maker-
-  // aggregate data (binance) nor a real spread (zkp2p / future onchain) is populated.
-  // For ramp_network and kraken_otc we hide the card entirely rather than render an
-  // empty 4-row table of "—".
-  const hasMakerAggregates = s?.network_health?.value?.active_makers != null;
-  const hasRealSpread = s?.observed_spread_bps?.value != null;
-  const showMarketplaceDynamics = hasMakerAggregates || hasRealSpread;
+  // Marketplace dynamics card: only meaningful when the adapter populates maker-aggregate
+  // data (binance's active_makers / finish-rate / merchant share). The "spread fallback"
+  // path renders mostly duplicates — Spread is already in the KPI strip, Reachable fiats
+  // is in Coverage. Hide for ramp/kraken/future single-vendor venues.
+  const showMarketplaceDynamics = s?.network_health?.value?.active_makers != null;
 
   return (
     <>

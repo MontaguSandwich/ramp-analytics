@@ -10,7 +10,7 @@ export const CATEGORY_LABEL: Record<string, string> = {
   onchain: 'Onchain P2P',
   cex_p2p: 'CEX P2P',
   ramp: 'Ramp',
-  otc: 'OTC',
+  rtpn: 'Crypto-friendly RTPNs',
 };
 
 export function fmtUsd(n: number | null | undefined): string {

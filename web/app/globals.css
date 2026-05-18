@@ -105,6 +105,481 @@ pre,
   font-size: 13px;
 }
 
+/* Primary section tabs sitting under the header brand. Active tab gets a bottom
+   border accent matching the brand color; inactive tabs are muted text. */
+.main-nav {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 4px;
+}
+.main-nav-tab {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-mute);
+  border-radius: 6px 6px 0 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px; /* overlap the header border */
+  transition: color 120ms ease, border-color 120ms ease;
+}
+.main-nav-tab:hover {
+  color: var(--fg);
+}
+.main-nav-tab.is-active {
+  color: var(--fg);
+  border-bottom-color: var(--accent);
+  background: var(--bg-elev);
+}
+
+/* Editorial intro block at the top of section pages (Venues, Categories, Aggregator). */
+.page-intro {
+  margin: 24px 0 20px;
+}
+.page-intro h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+}
+.page-intro p {
+  margin: 0;
+  font-size: 14px;
+  max-width: 640px;
+}
+
+/* Overview hero — large intro paragraph + dashboard mission statement. */
+.hero-intro {
+  margin: 32px 0 24px;
+}
+.hero-intro h1 {
+  margin: 0 0 12px;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.hero-intro p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 720px;
+  color: var(--fg);
+}
+
+/* Highlight callout for the "cheapest right now" headline. */
+.highlight-card {
+  border: 1px solid var(--accent);
+  background: var(--bg-elev);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin: 24px 0;
+}
+.highlight-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-mute);
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.highlight-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 20px;
+  font-weight: 600;
+}
+.highlight-venue {
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+}
+.highlight-spread {
+  color: var(--prov-good);
+  font-family: var(--font-mono, monospace);
+}
+.highlight-sub {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+/* Categories strip on the Overview tab — compact horizontal nav between hero and venues. */
+.category-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-top: 12px;
+}
+@media (max-width: 720px) {
+  .category-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.category-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--bg-elev);
+  transition: border-color 120ms ease;
+}
+.category-strip-item:hover {
+  border-color: var(--accent);
+}
+.category-strip-item .mono {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* Categories tab — vertical stack of editorial cards, one per category. */
+.category-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+.category-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  background: var(--bg-elev);
+  transition: border-color 120ms ease;
+}
+.category-card:hover {
+  border-color: var(--accent);
+}
+.category-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.category-card-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+/* Title takes the category accent color. Mirrors the cat-* tag palette. */
+.category-card-title.cat-onchain { color: var(--prov-good); }
+.category-card-title.cat-cex_p2p { color: var(--prov-mid); }
+.category-card-title.cat-ramp { color: #60a5fa; }
+.category-card-title.cat-rtpn { color: #c084fc; }
+.category-card-count {
+  font-size: 11px;
+  color: var(--fg-mute);
+}
+.category-card-blurb {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--fg);
+}
+.category-card-kyc {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--fg-mute);
+  font-style: italic;
+}
+.category-card-venues {
+  font-size: 12px;
+  color: var(--fg-mute);
+  font-weight: 500;
+}
+.category-card-cta {
+  font-size: 12px;
+  color: var(--accent);
+  font-weight: 500;
+  margin-top: auto;
+}
+/* Disabled state for categories with 0 venues — kept visible (to advertise the slot)
+   but non-interactive and visually muted. */
+.category-card-disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.category-card-disabled:hover {
+  border-color: var(--border);
+}
+
+/* Venue cards on the Overview tab — compact summary linking into each detail page. */
+.venue-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+}
+@media (max-width: 720px) {
+  .venue-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.venue-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  background: var(--bg-elev);
+  transition: border-color 120ms ease;
+}
+.venue-card:hover {
+  border-color: var(--accent);
+}
+.venue-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.venue-card-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.venue-card-grid-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.venue-card-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-mute);
+}
+.venue-card-value {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ── Aggregator widget ───────────────────────────────────────────────────────
+   Form on top (direction toggle + fiat/asset/method selectors + amount), results
+   table below. Designed to evolve into a richer picker UI per the zkp2p-inspired
+   reference (custom dropdowns with flags + platform logos). */
+.aggregator {
+  margin: 24px 0;
+}
+.aggregator-form {
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  border-radius: 10px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.aggregator-direction {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  align-self: flex-start;
+}
+.aggregator-dir-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg-mute);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 18px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.aggregator-dir-btn:hover { color: var(--fg); }
+.aggregator-dir-btn.is-active {
+  background: var(--bg-elev);
+  color: var(--fg);
+}
+.aggregator-fields {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.5fr;
+  gap: 12px;
+}
+@media (max-width: 720px) {
+  .aggregator-fields { grid-template-columns: 1fr; }
+}
+.aggregator-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.aggregator-field-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-mute);
+  font-weight: 600;
+}
+.aggregator-amount-row {
+  display: flex;
+  gap: 6px;
+}
+.aggregator-input,
+.aggregator-select {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  width: 100%;
+}
+.aggregator-fiat-select { max-width: 110px; }
+.aggregator-input:focus,
+.aggregator-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.aggregator-submit {
+  appearance: none;
+  border: 0;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: opacity 120ms ease;
+}
+.aggregator-submit:hover { opacity: 0.9; }
+.aggregator-submit:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.aggregator-error {
+  color: var(--warn);
+  font-size: 12px;
+}
+
+/* Results */
+.aggregator-results {
+  margin-top: 24px;
+}
+.aggregator-best {
+  border: 1px solid var(--accent);
+  background: var(--bg-elev);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 12px 0;
+}
+.aggregator-best-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--fg-mute);
+  font-weight: 600;
+}
+.aggregator-best-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.aggregator-best-value {
+  color: var(--prov-good);
+}
+.aggregator-empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--fg-mute);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 13px;
+}
+.aggregator-row-na {
+  opacity: 0.55;
+}
+.aggregator-source {
+  font-size: 11px;
+  font-weight: 500;
+}
+.aggregator-source-live { color: var(--prov-good); }
+.aggregator-source-approximated { color: var(--prov-mid); }
+.aggregator-source-unavailable { color: var(--fg-mute); }
+
+/* Legacy aggregator placeholder card (now unused but kept for forward-compat). */
+.placeholder-card {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  background: var(--bg-elev);
+  text-align: center;
+  margin: 24px 0;
+}
+.placeholder-card h2 {
+  margin: 8px 0 12px;
+  font-size: 18px;
+}
+.placeholder-card p {
+  margin: 6px auto;
+  max-width: 500px;
+  font-size: 14px;
+}
+.placeholder-badge {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+/* Venues table — clickable fiat count + expand-to-flags row. */
+.fiats-count-btn {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 120ms ease;
+}
+.fiats-count-btn:hover:not(:disabled) {
+  background: var(--bg-elev);
+}
+.fiats-count-btn:disabled {
+  cursor: default;
+  color: var(--fg-mute);
+}
+.fiats-count-caret {
+  font-size: 9px;
+  color: var(--fg-mute);
+}
+.fiats-expand-row {
+  background: var(--bg-elev);
+}
+.fiats-expand-content {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 4px;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -343,7 +818,7 @@ tbody tr:hover {
   border-color: rgba(96, 165, 250, 0.3);
   color: #60a5fa;
 }
-.tag.cat-otc {
+.tag.cat-rtpn {
   border-color: rgba(168, 85, 247, 0.3);
   color: #c084fc;
 }
