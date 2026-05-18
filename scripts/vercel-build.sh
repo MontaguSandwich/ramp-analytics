@@ -17,27 +17,31 @@ set -e
 
 cd ..
 
-echo "[vercel-build] Restoring charts from origin/data..."
+echo "[vercel-build] Restoring charts from data branch..."
 mkdir -p data/charts
-# Vercel does a single-branch shallow clone of main, so the remote config only knows
-# about main's refspec. Passing the explicit refspec '+refs/heads/data:refs/remotes/
-# origin/data' forces git to create the remote-tracking ref for data even on a
-# single-branch clone. Don't suppress stderr — if this fails we want to see why.
-if git fetch origin '+refs/heads/data:refs/remotes/origin/data' --depth=1; then
+# Vercel's build sandbox doesn't have a usable git remote (observed: 'fatal: origin
+# does not appear to be a git repository'), so we can't use `git fetch origin data`.
+# Instead, pull each file via raw.githubusercontent.com with a fine-scoped PAT that
+# the user adds to Vercel env vars as GITHUB_DATA_TOKEN. The repo is private so the
+# token is required; without it we ship empty sparklines (graceful degrade).
+if [ -n "${GITHUB_DATA_TOKEN:-}" ]; then
+  REPO="${VERCEL_GIT_REPO_OWNER:-MontaguSandwich}/${VERCEL_GIT_REPO_SLUG:-ramp-analytics}"
   for f in charts/zkp2p.json \
            charts/zkp2p_active_liquidity.json \
            charts/binance_p2p_active_liquidity.json \
            charts/ramp_network_active_liquidity.json; do
-    if git show "origin/data:$f" > "data/$f" 2>/dev/null; then
+    url="https://raw.githubusercontent.com/$REPO/data/$f"
+    if curl -fsSL -H "Authorization: token $GITHUB_DATA_TOKEN" "$url" -o "data/$f"; then
       echo "[vercel-build]   restored $f"
     else
-      # If the file doesn't exist on data branch, clean up the empty file that
-      # > creates so we don't ship a zero-byte JSON.
+      # File missing on data branch (e.g. ramp_network's active_liquidity isn't
+      # populated by appendLiquidityLog) — clean up partial file so we don't ship junk.
       rm -f "data/$f"
     fi
   done
 else
-  echo "[vercel-build]   data branch fetch failed (see error above) — sparklines will be empty"
+  echo "[vercel-build]   GITHUB_DATA_TOKEN not set — sparklines will be empty"
+  echo "[vercel-build]   Set a fine-scoped PAT (Contents: read-only) in Vercel env vars to restore historical charts"
 fi
 
 echo "[vercel-build] Installing root deps (with devDeps for tsx)..."
