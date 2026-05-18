@@ -19,7 +19,11 @@ cd ..
 
 echo "[vercel-build] Restoring charts from origin/data..."
 mkdir -p data/charts
-if git fetch origin data --depth=1 2>/dev/null; then
+# Vercel does a single-branch shallow clone of main, so the remote config only knows
+# about main's refspec. Passing the explicit refspec '+refs/heads/data:refs/remotes/
+# origin/data' forces git to create the remote-tracking ref for data even on a
+# single-branch clone. Don't suppress stderr — if this fails we want to see why.
+if git fetch origin '+refs/heads/data:refs/remotes/origin/data' --depth=1; then
   for f in charts/zkp2p.json \
            charts/zkp2p_active_liquidity.json \
            charts/binance_p2p_active_liquidity.json \
@@ -33,7 +37,7 @@ if git fetch origin data --depth=1 2>/dev/null; then
     fi
   done
 else
-  echo "[vercel-build]   data branch not available — sparklines will be empty for now"
+  echo "[vercel-build]   data branch fetch failed (see error above) — sparklines will be empty"
 fi
 
 echo "[vercel-build] Installing root deps (with devDeps for tsx)..."
