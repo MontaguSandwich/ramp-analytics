@@ -9,8 +9,8 @@ import type { Provenance, Snapshot } from './types';
 export const CATEGORY_LABEL: Record<string, string> = {
   onchain: 'Onchain P2P',
   cex_p2p: 'CEX P2P',
-  ramp: 'Ramp',
-  rtpn: 'Crypto-friendly RTPNs',
+  ramp: 'Ramps',
+  rtpn: 'RTPNs',
 };
 
 export function fmtUsd(n: number | null | undefined): string {

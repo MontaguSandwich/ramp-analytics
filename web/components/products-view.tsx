@@ -18,8 +18,8 @@ import { FiatChip } from './chips';
 const CATEGORY_LABEL: Record<string, string> = {
   onchain: 'Onchain P2P',
   cex_p2p: 'CEX P2P',
-  ramp: 'Ramp',
-  rtpn: 'Crypto-friendly RTPNs',
+  ramp: 'Ramps',
+  rtpn: 'RTPNs',
 };
 
 type Category = Product['yaml']['category'];

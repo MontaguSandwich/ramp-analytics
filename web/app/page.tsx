@@ -1,7 +1,8 @@
+import Link from 'next/link';
 import { loadAllProducts, loadHistory } from '@/lib/data';
-import { fmtUsd, snapshotTvlUsd } from '@/lib/format';
+import { CATEGORY_LABEL, fmtUsd, snapshotTvlUsd } from '@/lib/format';
 import ProductsView from '@/components/products-view';
-import type { ProductYaml } from '@/lib/types';
+import type { Product, ProductYaml } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,17 @@ export default async function OverviewPage({
   ).size;
   const categoriesCovered = new Set(products.map((p) => p.yaml.category)).size;
 
+  // Category breakdown for the strip — group products by category, sum liquidity per
+  // bucket (where measurable). Includes the empty RTPN slot so users see the full
+  // taxonomy without bouncing to /categories.
+  const byCategory = new Map<ProductYaml['category'], Product[]>();
+  for (const p of products) {
+    const arr = byCategory.get(p.yaml.category) ?? [];
+    arr.push(p);
+    byCategory.set(p.yaml.category, arr);
+  }
+  const CATEGORY_ORDER: ProductYaml['category'][] = ['onchain', 'cex_p2p', 'ramp', 'rtpn'];
+
   return (
     <div className="container">
       <section className="hero-intro">
@@ -89,6 +101,28 @@ export default async function OverviewPage({
           <div className="stat-value">{totalMethods}</div>
         </div>
       </div>
+
+      <section className="section">
+        <h2>By category</h2>
+        <div className="category-strip">
+          {CATEGORY_ORDER.map((c) => {
+            const venues = byCategory.get(c) ?? [];
+            const subTvl = venues.reduce(
+              (sum, p) => sum + (snapshotTvlUsd(p.snapshot) ?? 0),
+              0,
+            );
+            return (
+              <Link key={c} href={`/?category=${c}`} className="category-strip-item">
+                <span className={`tag cat-${c}`}>{CATEGORY_LABEL[c]}</span>
+                <div className="mono">{venues.length}</div>
+                <div className="muted" style={{ fontSize: 11 }}>
+                  {subTvl > 0 ? fmtUsd(subTvl) : '—'} liquidity
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       <h2 className="section-title">Venues</h2>
       <ProductsView
