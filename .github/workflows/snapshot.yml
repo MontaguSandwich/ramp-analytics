@@ -22,7 +22,7 @@ jobs:
           set -e
           git fetch origin data --depth=1 || true
           mkdir -p data/charts
-          for id in zkp2p binance_p2p ramp_network kraken_otc; do
+          for id in zkp2p binance_p2p ramp_network; do
             # Restore via mktemp + non-empty check — otherwise `> file 2>/dev/null || true`
             # creates a zero-byte file when the source doesn't exist on the data branch,
             # which then gets committed back as an empty log.
@@ -72,3 +72,18 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "snapshot: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           git push origin data
+      - name: Trigger Vercel redeploy
+        # The data branch commit doesn't itself trigger Vercel (we configured
+        # web/vercel.json to skip non-main builds). Vercel only bakes fresh
+        # snapshot data into the deploy when main rebuilds — so we hit a deploy
+        # hook here to kick off a main rebuild every cron tick. The build then
+        # re-runs `npm run snapshot` and pulls the fresh active_liquidity logs
+        # we just pushed to the data branch.
+        env:
+          VERCEL_DEPLOY_HOOK_URL: ${{ secrets.VERCEL_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$VERCEL_DEPLOY_HOOK_URL" ]; then
+            echo "VERCEL_DEPLOY_HOOK_URL secret not set — skipping redeploy trigger"
+            exit 0
+          fi
+          curl -fsSL -X POST "$VERCEL_DEPLOY_HOOK_URL" && echo "Vercel redeploy triggered"
