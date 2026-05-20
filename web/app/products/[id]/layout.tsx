@@ -27,7 +27,7 @@ export default async function ProductLayout({
   return (
     <div className="container">
       <Link href="/" className="back-link">
-        ← All products
+        ← All venues
       </Link>
       <ProductHeader yaml={product.yaml} />
       {hasTabs ? <TabNav id={id} capabilities={caps} /> : null}

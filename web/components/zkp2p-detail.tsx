@@ -139,8 +139,8 @@ export default function Zkp2pDetail({ product, history }: Props) {
       <section className="protocol-intro">
         <p>
           <strong>Peer</strong> is a permissionless, privacy-focused ramp for fiat ↔ crypto swaps on Base.
-          Makers lock USDC and quote rates; takers signal intent, pay the maker via payment method.
-          USDC is unlocked to the Taker upon successful payment proof submission via the Peer extension.
+          Makers lock USDC and quote rates; takers signal intent, pay the maker via preferred payment method.
+          USDC is unlocked to the Taker upon successful payment proof submission.
         </p>
       </section>
 
@@ -201,7 +201,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
               <Badge
                 state={y.non_kyc_available ? 'ok' : 'warn'}
                 title="No KYC"
-                desc="Protocol layer requires no PII; payment-platform KYC is out of scope"
+                desc="Venue requires no PII; payment-platform KYC is out of scope"
               />
               <Badge
                 state={y.open_source?.is_open ? 'ok' : 'warn'}
@@ -210,8 +210,8 @@ export default function Zkp2pDetail({ product, history }: Props) {
               />
               <Badge
                 state={y.onchain_privacy === 'zk_proof' ? 'ok' : 'warn'}
-                title="Onchain Settlement"
-                desc="Trades settle on Base; zk proof attests payment without revealing identity"
+                title="Settlement"
+                desc="Trades settle onchain; zk proofs attests payment without manual approval from counterparty"
               />
             </div>
           </div>
@@ -312,7 +312,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
       {composition && (composition.currencies.length || composition.platforms.length) ? (
         <section className="section">
           <h2>
-            Market mix{' '}
+            Fiat and Payment Methods stats{' '}
             <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {composition.period}</span>
           </h2>
           <div className="composition-grid">

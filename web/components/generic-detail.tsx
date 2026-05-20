@@ -124,7 +124,7 @@ export default function GenericDetail({ product }: { product: Product }) {
       {s?.depth_composition?.value.currencies.length ? (
         <section className="section">
           <h2>
-            Market mix{' '}
+            Fiat and Payment Methods stats{' '}
             <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
               · {s.depth_composition.value.period}
             </span>{' '}
@@ -193,7 +193,7 @@ export default function GenericDetail({ product }: { product: Product }) {
       {s?.composition && (s.composition.value.currencies.length || s.composition.value.platforms.length) ? (
         <section className="section">
           <h2>
-            Market mix <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {s.composition.value.period}</span>{' '}
+            Fiat and Payment Methods stats <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {s.composition.value.period}</span>{' '}
             <span
               className="dot"
               style={{ background: provenanceColor(s.composition.provenance) }}
@@ -439,10 +439,11 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
     const updated = por.last_updated ? ` (last updated ${por.last_updated})` : '';
     porDesc = por.url ? (
       <>
-        Reserves are cryptographically attested{updated}.{' '}
+        CEX&apos;s reserves backing users&apos; funds are fully backed according to its PoR{' '}
         <a href={por.url} target="_blank" rel="noreferrer">
-          View ↗
+          here ↗
         </a>
+        .
       </>
     ) : (
       `Self-attested reserves${updated}.`
@@ -479,7 +480,9 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
           title="Settlement"
           desc={settlementDesc}
         />
-        <Badge state={porState} title="Proof of Reserves" desc={porDesc} />
+        {/* Ramps quote against their own capacity, not a pooled reserve — PoR isn't a
+            meaningful signal there, so hide the badge entirely rather than warn. */}
+        {isRamp ? null : <Badge state={porState} title="Proof of Reserves" desc={porDesc} />}
       </div>
     </div>
   );
