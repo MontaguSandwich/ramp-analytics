@@ -104,6 +104,13 @@ pre,
   color: var(--fg-dim);
   font-size: 13px;
 }
+.nav a {
+  color: inherit;
+  text-decoration: none;
+}
+.nav a:hover {
+  color: var(--fg);
+}
 
 /* Primary section tabs sitting under the header brand. Active tab gets a bottom
    border accent matching the brand color; inactive tabs are muted text. */
@@ -2474,4 +2481,167 @@ tbody tr:hover {
 .count-browser-empty {
   font-size: 11px;
   margin-top: 2px;
+}
+
+/* ---- Methodology docs (GitBook/DefiLlama-style two-column layout) ------------ */
+.docs-layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 40px;
+  padding: 24px 0 64px;
+  align-items: start;
+}
+
+.docs-sidebar {
+  position: sticky;
+  top: 24px;
+  align-self: start;
+}
+.docs-sidebar-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-mute);
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.docs-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.docs-sidebar-link {
+  display: block;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--fg-dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+}
+.docs-sidebar-link:hover {
+  color: var(--fg);
+  background: var(--bg-elev);
+}
+.docs-sidebar-link.is-active {
+  color: var(--fg);
+  background: var(--bg-elev);
+  border-left-color: var(--accent);
+  font-weight: 600;
+}
+
+.docs-content {
+  max-width: 760px;
+  min-width: 0;
+}
+.docs-title {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0 0 20px;
+}
+
+/* Rendered markdown body */
+.prose {
+  color: var(--fg-dim);
+  font-size: 15px;
+  line-height: 1.7;
+}
+.prose > :first-child {
+  margin-top: 0;
+}
+.prose h2 {
+  font-size: 19px;
+  font-weight: 650;
+  color: var(--fg);
+  letter-spacing: -0.01em;
+  margin: 32px 0 12px;
+}
+.prose h3 {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--fg);
+  margin: 24px 0 8px;
+}
+.prose p {
+  margin: 0 0 14px;
+}
+.prose ul,
+.prose ol {
+  margin: 0 0 14px;
+  padding-left: 22px;
+}
+.prose li {
+  margin: 4px 0;
+}
+.prose li::marker {
+  color: var(--fg-mute);
+}
+.prose a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.prose a:hover {
+  text-decoration: underline;
+}
+.prose strong {
+  color: var(--fg);
+  font-weight: 650;
+}
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.86em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.prose blockquote {
+  margin: 18px 0;
+  padding: 10px 16px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--bg-elev);
+  border-radius: 0 6px 6px 0;
+  color: var(--fg-mute);
+  font-size: 14px;
+}
+.prose blockquote p {
+  margin: 0;
+}
+.prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+.prose th {
+  background: var(--bg-elev);
+  color: var(--fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.prose td {
+  color: var(--fg-dim);
+}
+
+@media (max-width: 760px) {
+  .docs-layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .docs-sidebar {
+    position: static;
+  }
 }
