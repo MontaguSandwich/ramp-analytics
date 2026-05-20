@@ -3,29 +3,26 @@
 import Link from 'next/link';
 import { Fragment, useMemo, useState } from 'react';
 import type { Product } from '@/lib/types';
-import {
-  bestFeePctOrBps,
-  fmtRelTime,
-  fmtUsd,
-  provenanceColor,
-  provenanceLabel,
-  rowProvenance,
-  snapshotTvlUsd,
-} from '@/lib/format';
+import { fmtPct, fmtUsd, snapshotTvlUsd } from '@/lib/format';
 import Sparkline from './sparkline';
-import { FiatChip } from './chips';
+import { FiatChip, PaymentChip } from './chips';
 
 const CATEGORY_LABEL: Record<string, string> = {
   onchain: 'Onchain P2P',
   cex_p2p: 'CEX P2P',
-  ramp: 'Ramps',
+  ramp: 'Licensed Ramps',
   rtpn: 'RTPNs',
 };
 
 type Category = Product['yaml']['category'];
 type Custody = Product['yaml']['delivery_custody'];
 type KycMax = 'any' | 'none' | 'email' | 'id' | 'id+poa';
+// 'all' is still the resting state (no chip active). The Direction filter renders only
+// the On-ramp / Off-ramp chips now — clicking an active chip toggles back to 'all'.
 type DirectionMode = 'all' | 'on' | 'off';
+// Which detail column (if any) is expanded under a given row. A row shows at most one
+// expansion <tr> at a time; clicking the other column's count switches which is open.
+type ExpandKind = 'fiats' | 'methods';
 
 const KYC_ORDER = ['none', 'email', 'id', 'id+poa', 'enhanced'] as const;
 
@@ -39,7 +36,6 @@ interface Filters {
   direction: DirectionMode;
   kycMax: KycMax;
   fiat: string;
-  openSourceOnly: boolean;
 }
 
 const EMPTY_FILTERS: Filters = {
@@ -48,7 +44,6 @@ const EMPTY_FILTERS: Filters = {
   direction: 'all',
   kycMax: 'any',
   fiat: 'any',
-  openSourceOnly: false,
 };
 
 function applyFilters(products: Product[], f: Filters): Product[] {
@@ -70,7 +65,6 @@ function applyFilters(products: Product[], f: Filters): Product[] {
     if (f.fiat !== 'any') {
       if (!p.yaml.fiats.includes(f.fiat)) return false;
     }
-    if (f.openSourceOnly && !p.yaml.open_source?.is_open) return false;
     return true;
   });
 }
@@ -81,8 +75,7 @@ function isFiltersActive(f: Filters): boolean {
     f.custodies.size > 0 ||
     f.direction !== 'all' ||
     f.kycMax !== 'any' ||
-    f.fiat !== 'any' ||
-    f.openSourceOnly
+    f.fiat !== 'any'
   );
 }
 
@@ -102,12 +95,14 @@ export default function ProductsView({
       ? { ...EMPTY_FILTERS, categories: new Set([initialCategory]) }
       : EMPTY_FILTERS,
   );
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const toggleExpanded = (id: string) =>
+  // id → which column is expanded for that row. Absent = collapsed. Clicking a count
+  // either opens its kind, switches from the other kind, or closes if already open.
+  const [expanded, setExpanded] = useState<Map<string, ExpandKind>>(new Map());
+  const toggleExpanded = (id: string, kind: ExpandKind) =>
     setExpanded((cur) => {
-      const next = new Set(cur);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      const next = new Map(cur);
+      if (next.get(id) === kind) next.delete(id);
+      else next.set(id, kind);
       return next;
     });
 
@@ -142,19 +137,23 @@ export default function ProductsView({
         </ChipGroup>
 
         <ChipGroup label="Direction">
-          {(['all', 'on', 'off'] as DirectionMode[]).map((d) => (
+          {(['on', 'off'] as const).map((d) => (
             <Chip
               key={d}
               active={filters.direction === d}
-              onClick={() => setFilters({ ...filters, direction: d })}
+              // No "All" chip — clicking the active direction toggles back to the
+              // resting 'all' state, which shows every venue.
+              onClick={() =>
+                setFilters({ ...filters, direction: filters.direction === d ? 'all' : d })
+              }
             >
-              {d === 'all' ? 'All' : d === 'on' ? 'On-ramp' : 'Off-ramp'}
+              {d === 'on' ? 'On-ramp' : 'Off-ramp'}
             </Chip>
           ))}
         </ChipGroup>
 
         <ChipGroup label="Custody">
-          {(['self', 'hosted', 'either'] as Custody[]).map((c) => (
+          {(['self', 'hosted'] as Custody[]).map((c) => (
             <Chip
               key={c}
               active={filters.custodies.has(c)}
@@ -166,7 +165,7 @@ export default function ProductsView({
         </ChipGroup>
 
         <div className="filter-select-group">
-          <label className="filter-label">KYC tolerance</label>
+          <label className="filter-label">KYC requirements</label>
           <select
             className="filter-select"
             value={filters.kycMax}
@@ -196,13 +195,6 @@ export default function ProductsView({
           </select>
         </div>
 
-        <Chip
-          active={filters.openSourceOnly}
-          onClick={() => setFilters({ ...filters, openSourceOnly: !filters.openSourceOnly })}
-        >
-          Open source only
-        </Chip>
-
         <div className="filter-spacer" />
 
         <div className="filter-summary">
@@ -229,32 +221,39 @@ export default function ProductsView({
           <table>
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Venues</th>
                 <th>Category</th>
                 <th>Direction</th>
                 <th># Fiats</th>
+                <th># Methods</th>
                 <th>KYC floor</th>
                 <th>Custody</th>
-                <th>Best fee*</th>
+                <th>Spread (~$1k)*</th>
                 <th>30d volume</th>
-                <th>Liquidity / TVL</th>
-                <th>14d trend</th>
-                <th>Data freshness</th>
+                <th>Available liquidity</th>
+                <th>Liquidity: 14d trend</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => {
-                const prov = rowProvenance(p.snapshot);
                 const tvl = snapshotTvlUsd(p.snapshot);
-                const fees = bestFeePctOrBps(p.snapshot);
-                // Active fiats prefer snapshot.coverage (live, fresh from API) over the
-                // YAML list (curated, may lag). Coverage carries the optional fiat_flags
-                // map for non-programmatic flag overrides (e.g. zkp2p sources from
-                // Peerlytics meta/currencies).
+                // For ramp-style venues the "Available liquidity" figure is actually the
+                // max single trade the venue will process (see snapshotTvlUsd) — not pooled
+                // depth like the order-book venues. Flag it so the two aren't conflated.
+                const liqIsCapacity = p.snapshot?.liquidity.value.kind === 'ramp_capacity';
+                // Active fiats / methods prefer snapshot.coverage (live, fresh from API)
+                // over the YAML lists (curated, may lag). Coverage carries the optional
+                // fiat_flags map for non-programmatic flag overrides (e.g. zkp2p sources
+                // from Peerlytics meta/currencies).
                 const cov = p.snapshot?.coverage?.value;
                 const fiatList = cov?.fiats?.length ? cov.fiats : p.yaml.fiats;
+                const methodList = cov?.platforms?.length
+                  ? cov.platforms
+                  : p.yaml.payment_methods ?? [];
                 const flags = cov?.fiat_flags;
-                const isOpen = expanded.has(p.yaml.id);
+                const openKind = expanded.get(p.yaml.id);
+                const fiatsOpen = openKind === 'fiats';
+                const methodsOpen = openKind === 'methods';
                 const showOn = p.yaml.direction === 'on' || p.yaml.direction === 'both';
                 const showOff = p.yaml.direction === 'off' || p.yaml.direction === 'both';
                 return (
@@ -266,7 +265,6 @@ export default function ProductsView({
                       <td>
                         <Link href={`/products/${p.yaml.id}`} className="pname">
                           <span className="pname-name">{p.yaml.display_name ?? p.yaml.name}</span>
-                          {p.yaml.subcategory ? <span className="pname-sub">{p.yaml.subcategory}</span> : null}
                         </Link>
                       </td>
                       <td>
@@ -282,42 +280,59 @@ export default function ProductsView({
                         <button
                           type="button"
                           className="fiats-count-btn"
-                          onClick={() => toggleExpanded(p.yaml.id)}
-                          aria-expanded={isOpen}
-                          aria-label={`${fiatList.length} fiats — ${isOpen ? 'hide' : 'show'} flags`}
+                          onClick={() => toggleExpanded(p.yaml.id, 'fiats')}
+                          aria-expanded={fiatsOpen}
+                          aria-label={`${fiatList.length} fiats — ${fiatsOpen ? 'hide' : 'show'} flags`}
                           disabled={fiatList.length === 0}
                         >
                           <span className="mono">{fiatList.length}</span>
                           {fiatList.length > 0 ? (
                             <span className="fiats-count-caret" aria-hidden>
-                              {isOpen ? '▾' : '▸'}
+                              {fiatsOpen ? '▾' : '▸'}
+                            </span>
+                          ) : null}
+                        </button>
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="fiats-count-btn"
+                          onClick={() => toggleExpanded(p.yaml.id, 'methods')}
+                          aria-expanded={methodsOpen}
+                          aria-label={`${methodList.length} payment methods — ${methodsOpen ? 'hide' : 'show'} list`}
+                          disabled={methodList.length === 0}
+                        >
+                          <span className="mono">{methodList.length}</span>
+                          {methodList.length > 0 ? (
+                            <span className="fiats-count-caret" aria-hidden>
+                              {methodsOpen ? '▾' : '▸'}
                             </span>
                           ) : null}
                         </button>
                       </td>
                       <td className="muted">{p.yaml.pii_floor ?? '—'}</td>
                       <td className="muted">{p.yaml.delivery_custody}</td>
-                      <td className="mono">{fees.label}</td>
+                      <td className="mono">{fmtPct(p.snapshot?.observed_spread_bps.value)}</td>
                       <td className="mono">{fmtUsd(p.snapshot?.volume_30d_usd.value ?? null)}</td>
-                      <td className="mono">{fmtUsd(tvl)}</td>
+                      <td className="mono">
+                        {fmtUsd(tvl)}
+                        {liqIsCapacity ? (
+                          <sup
+                            style={{ cursor: 'help', marginLeft: 1 }}
+                            title="Max single trade the venue will process — not aggregate locked liquidity"
+                          >
+                            †
+                          </sup>
+                        ) : null}
+                      </td>
                       <td>
                         <Sparkline
                           values={sparklines[p.yaml.id] ?? []}
                           ariaLabel={`${p.yaml.name} 14-day liquidity trend`}
                         />
                       </td>
-                      <td>
-                        <span
-                          className="dot"
-                          style={{ background: provenanceColor(prov) }}
-                          title={`${provenanceLabel(prov)} · ${fmtRelTime(p.snapshot?.liquidity.last_verified)}`}
-                        />{' '}
-                        <span className="muted" style={{ fontSize: 11 }}>
-                          {fmtRelTime(p.snapshot?.liquidity.last_verified)}
-                        </span>
-                      </td>
                     </tr>
-                    {isOpen ? (
+                    {fiatsOpen ? (
                       <tr className="fiats-expand-row">
                         <td colSpan={11}>
                           <div className="fiats-expand-content">
@@ -333,6 +348,22 @@ export default function ProductsView({
                         </td>
                       </tr>
                     ) : null}
+                    {methodsOpen ? (
+                      <tr className="fiats-expand-row">
+                        <td colSpan={11}>
+                          <div className="fiats-expand-content">
+                            <span className="muted" style={{ fontSize: 11, marginRight: 8 }}>
+                              All {methodList.length} payment method{methodList.length === 1 ? '' : 's'}:
+                            </span>
+                            <div className="fiat-grid">
+                              {methodList.map((m) => (
+                                <PaymentChip key={m} name={m} />
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
                   </Fragment>
                 );
               })}
@@ -342,8 +373,14 @@ export default function ProductsView({
       )}
 
       <div style={{ color: 'var(--fg-mute)', fontSize: 12, margin: '12px 4px' }}>
-        * representative fee from the cheapest sample row in the latest snapshot. Real per-tx fee depends on payment
-        method, fiat, asset, and amount — click a row to see the live sample table.
+        <div>
+          * effective spread on a ~$1,000 trade in the venue&apos;s deepest USD market, measured against the
+          oracle/FX mid. Methodology varies by venue type — click a row to see the live sample table.
+        </div>
+        <div style={{ marginTop: 4 }}>
+          † for Licensed Ramps, this is the largest single transaction the venue will process (max single
+          trade), not aggregate locked liquidity — ramps quote against their own capacity, not a pooled order book.
+        </div>
       </div>
     </>
   );

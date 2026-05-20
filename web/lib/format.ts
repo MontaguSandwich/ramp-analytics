@@ -9,7 +9,7 @@ import type { Provenance, Snapshot } from './types';
 export const CATEGORY_LABEL: Record<string, string> = {
   onchain: 'Onchain P2P',
   cex_p2p: 'CEX P2P',
-  ramp: 'Ramps',
+  ramp: 'Licensed Ramps',
   rtpn: 'RTPNs',
 };
 

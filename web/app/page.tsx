@@ -103,7 +103,7 @@ export default async function OverviewPage({
       </div>
 
       <section className="section">
-        <h2>By category</h2>
+        <h2>Categories</h2>
         <div className="category-strip">
           {CATEGORY_ORDER.map((c) => {
             const venues = byCategory.get(c) ?? [];
@@ -116,7 +116,11 @@ export default async function OverviewPage({
                 <span className={`tag cat-${c}`}>{CATEGORY_LABEL[c]}</span>
                 <div className="mono">{venues.length}</div>
                 <div className="muted" style={{ fontSize: 11 }}>
-                  {subTvl > 0 ? fmtUsd(subTvl) : '—'} liquidity
+                  {/* Ramp's "liquidity" is a max-single-trade proxy, not aggregate depth;
+                      RTPN has no venues yet. Show N/A rather than a misleading figure. */}
+                  {c === 'ramp' || c === 'rtpn'
+                    ? 'N/A'
+                    : `${subTvl > 0 ? fmtUsd(subTvl) : '—'} liquidity`}
                 </div>
               </Link>
             );
@@ -124,12 +128,14 @@ export default async function OverviewPage({
         </div>
       </section>
 
-      <h2 className="section-title">Venues</h2>
-      <ProductsView
-        products={products}
-        sparklines={sparklines}
-        initialCategory={initialCategory}
-      />
+      <section className="section">
+        <h2>Venues</h2>
+        <ProductsView
+          products={products}
+          sparklines={sparklines}
+          initialCategory={initialCategory}
+        />
+      </section>
     </div>
   );
 }

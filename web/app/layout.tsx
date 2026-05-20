@@ -4,7 +4,7 @@ import './globals.css';
 import MainNav from '@/components/main-nav';
 
 export const metadata: Metadata = {
-  title: 'hip3 — on/off-ramp dashboard',
+  title: 'Payments/ OOI — on/off-ramp dashboard',
   description: 'Neutral, transparent comparison of crypto on/off-ramp products',
 };
 
@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="header">
           <div className="container header-inner">
             <Link href="/" className="brand">
-              hip3<small>on/off-ramp dashboard · MVP</small>
+              Payments/ OOI<small>on/off-ramp dashboard · MVP</small>
             </Link>
             <nav className="nav">
               <span>Methodology</span>
