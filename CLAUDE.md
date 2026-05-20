@@ -82,8 +82,8 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - `yaml.pricing.layers` is a `('maker_quote'|'venue_quote'|'venue_fee')[]` array rendered as pills in PropertiesCard. **Replaces** the freeform `spread_method` for display.
 - Per-product mapping:
   - zkp2p: `[maker_quote]`
-  - binance: `[maker_quote, venue_fee]`
-  - ramp: `[venue_quote]`
+  - binance: `[maker_quote]` (venue fee is charged to the maker, not a separate taker-facing layer)
+  - ramp: `[venue_quote, venue_fee]`
 - "Venue fee" = venue takes a separately-itemized commission on top of a maker-set price. Kraken (had `venue_quote` only) doesn't get "Venue fee" because its spread is intrinsic to the quote, not a separate layer.
 - CSS: `.tag.tag-maker-quote` (blue), `.tag.tag-venue-quote` (purple), `.tag.tag-venue-fee` (amber).
 
