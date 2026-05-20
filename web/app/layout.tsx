@@ -22,7 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               Payments/ OOI<small>on/off-ramp dashboard · MVP</small>
             </Link>
             <nav className="nav">
-              <Link href="/methodology">Methodology (in the works)</Link>
+              <Link href="/methodology">Methodology</Link>
             </nav>
           </div>
           <div className="container">
