@@ -46,7 +46,7 @@ export default function GenericDetail({ product }: { product: Product }) {
           : 'Available liquidity';
   const liqSub =
     liqKind === 'p2p_offerbook' && s?.liquidity.value.markets_observed
-      ? `top 20 ads × ${s.liquidity.value.markets_observed} markets`
+      ? `up to 100 ads × ${s.liquidity.value.markets_observed} markets`
       : undefined;
 
   // Marketplace dynamics card: only meaningful when the adapter populates maker-aggregate

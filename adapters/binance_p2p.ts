@@ -90,6 +90,7 @@ interface SearchParams {
   tradeType: 'BUY' | 'SELL';
   payTypes?: string[];
   rows?: number;
+  page?: number;
 }
 
 interface SearchResult {
@@ -101,7 +102,7 @@ interface SearchResult {
 async function search(params: SearchParams): Promise<SearchResult> {
   const body = {
     fiat: params.fiat,
-    page: 1,
+    page: params.page ?? 1,
     rows: params.rows ?? 20,
     tradeType: params.tradeType,
     asset: params.asset,
@@ -270,6 +271,53 @@ const EFFECTIVE_SIZE_USD = 1000;
 // cost (~10s for the markets probe instead of ~3s, but the request actually completes).
 const PROBE_CHUNK_SIZE = 10;
 const PROBE_CHUNK_DELAY_MS = 300;
+const ROWS_PER_PAGE = 20;
+// Adaptive depth cap: pull up to MAX_PAGES per market (≤100 ads at 20/page), stopping
+// early once `total` is covered or a short page signals end-of-book. ~80% book coverage
+// vs. the old top-20 (~14%). The headline $1k spread KPI is unaffected — the cheapest
+// USD ad is always on page 1.
+const MAX_PAGES = 5;
+// Brief pause between sequential page fetches *within* a market. Pages are sequential so
+// peak concurrency stays at PROBE_CHUNK_SIZE (the across-fiats chunk) — same instantaneous
+// burst as before, just sustained longer — keeping us under Binance's Cloudflare cliff.
+const PROBE_PAGE_DELAY_MS = 150;
+
+/**
+ * Fetch up to MAX_PAGES of a single fiat market, adaptively. Page 1 reports `total`
+ * (the full-book ad count); we then pull pages 2..min(MAX_PAGES, ceil(total/ROWS_PER_PAGE)),
+ * bailing early if a page returns a short result (end of book). Ads are concatenated and
+ * deduped by `advNo` — defensive, since ad churn between sequential requests can
+ * occasionally repeat one across page boundaries.
+ */
+async function fetchMarketPages(
+  fiat: string,
+  tradeType: 'BUY' | 'SELL',
+): Promise<{ ads: BinanceAd[]; total: number }> {
+  const first = await search({ fiat, asset: 'USDT', tradeType, rows: ROWS_PER_PAGE, page: 1 });
+  const seen = new Set<string>();
+  const ads: BinanceAd[] = [];
+  const push = (batch: BinanceAd[]) => {
+    for (const ad of batch) {
+      const id = ad.adv.advNo;
+      if (id && seen.has(id)) continue;
+      if (id) seen.add(id);
+      ads.push(ad);
+    }
+  };
+  push(first.ads);
+
+  const pagesNeeded = Math.min(MAX_PAGES, Math.max(1, Math.ceil(first.total / ROWS_PER_PAGE)));
+  // Only keep paging if page 1 was full — a short first page means the book is exhausted.
+  if (first.ads.length >= ROWS_PER_PAGE) {
+    for (let page = 2; page <= pagesNeeded; page++) {
+      await new Promise((r) => setTimeout(r, PROBE_PAGE_DELAY_MS));
+      const next = await search({ fiat, asset: 'USDT', tradeType, rows: ROWS_PER_PAGE, page });
+      push(next.ads);
+      if (next.ads.length < ROWS_PER_PAGE) break; // reached end of book
+    }
+  }
+  return { ads, total: first.total };
+}
 
 async function fetchAllMarkets(
   now: number,
@@ -305,7 +353,7 @@ async function fetchAllMarkets(
     const chunk = CANDIDATE_FIATS.slice(i, i + PROBE_CHUNK_SIZE);
     const chunkResults = await Promise.allSettled(
       chunk.map(async (fiat) => {
-        const result = await search({ fiat, asset: 'USDT', tradeType, rows: 20 });
+        const result = await fetchMarketPages(fiat, tradeType);
         return { fiat, ...result };
       }),
     );
@@ -570,7 +618,7 @@ async function snapshot(): Promise<Snapshot> {
       provenance: 'api',
       last_verified: now,
       evidence_url: SEARCH_URL,
-      notes: `USDT escrowed across ${markets_observed} fiat markets (top 20 ads per market).`,
+      notes: `USDT escrowed across ${markets_observed} fiat markets (up to 100 ads per market, 5-page adaptive depth).`,
     },
     volume_30d_usd: {
       value: null,

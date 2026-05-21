@@ -59,7 +59,10 @@ interface Props {
 const POLL_MS = 30_000;
 const ASSETS = ['USDT', 'BTC', 'ETH', 'USDC', 'BNB', 'FDUSD'] as const;
 const LIMIT_OPTIONS = [20, 50, 100, 200] as const;
-const DEFAULT_LIMIT: (typeof LIMIT_OPTIONS)[number] = 50;
+// Default to 100 ads (5 pages) to match the snapshot's multi-page probing depth, so the
+// orderbook page and the venue detail page report consistent per-fiat liquidity. Users
+// can still narrow to 20/50 or go deeper to 200 via the selector.
+const DEFAULT_LIMIT: (typeof LIMIT_OPTIONS)[number] = 100;
 
 type SortKey = 'price' | 'amount' | 'maker_orders' | 'finish_rate';
 

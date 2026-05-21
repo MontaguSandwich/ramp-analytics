@@ -65,7 +65,7 @@ export default function LiveRatesTable({
       ? `${filtered.length} fiats · ${asset} reference`
       : `${filtered.length} markets`;
   const subtitle = dirSubtitle ? `${baseSubtitle} · ${dirSubtitle}` : baseSubtitle;
-  const liquidityLabel = isP2p ? 'Liquidity (top 20)' : 'Max trade';
+  const liquidityLabel = isP2p ? 'Liquidity (top 100)' : 'Max trade';
   const footerText = isP2p
     ? 'One row per currency · ranked top-10 by USD offer value · sorted by best spread.'
     : isRamp

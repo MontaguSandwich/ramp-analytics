@@ -31,7 +31,7 @@ export type LiquidityValue =
       top_pairs: Array<{ pair: string; sum_offers_usd: number; n_makers: number }>;
       /**
        * Sum of observed escrowed-asset surplus across every probed market — for binance_p2p,
-       * this is "USDT depth in top 20 ads × N markets" (USDT ≈ $1, so units ≈ USD).
+       * this is "USDT depth in up to 100 ads (5-page adaptive) × N markets" (USDT ≈ $1, so units ≈ USD).
        * This is the basis for the "Available USDT" KPI. Optional for backward compat with
        * older snapshots that only stored `top_pairs`.
        */
