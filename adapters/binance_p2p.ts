@@ -291,9 +291,10 @@ const PROBE_PAGE_DELAY_MS = 150;
  */
 async function fetchMarketPages(
   fiat: string,
+  asset: string,
   tradeType: 'BUY' | 'SELL',
 ): Promise<{ ads: BinanceAd[]; total: number }> {
-  const first = await search({ fiat, asset: 'USDT', tradeType, rows: ROWS_PER_PAGE, page: 1 });
+  const first = await search({ fiat, asset, tradeType, rows: ROWS_PER_PAGE, page: 1 });
   const seen = new Set<string>();
   const ads: BinanceAd[] = [];
   const push = (batch: BinanceAd[]) => {
@@ -311,7 +312,7 @@ async function fetchMarketPages(
   if (first.ads.length >= ROWS_PER_PAGE) {
     for (let page = 2; page <= pagesNeeded; page++) {
       await new Promise((r) => setTimeout(r, PROBE_PAGE_DELAY_MS));
-      const next = await search({ fiat, asset: 'USDT', tradeType, rows: ROWS_PER_PAGE, page });
+      const next = await search({ fiat, asset, tradeType, rows: ROWS_PER_PAGE, page });
       push(next.ads);
       if (next.ads.length < ROWS_PER_PAGE) break; // reached end of book
     }
@@ -323,6 +324,7 @@ async function fetchAllMarkets(
   now: number,
   fxMids: Record<string, number>,
   tradeType: 'BUY' | 'SELL',
+  asset: string = 'USDT',
 ): Promise<{
   probes: MarketProbe[];
   total_observed_usd: number;
@@ -353,7 +355,7 @@ async function fetchAllMarkets(
     const chunk = CANDIDATE_FIATS.slice(i, i + PROBE_CHUNK_SIZE);
     const chunkResults = await Promise.allSettled(
       chunk.map(async (fiat) => {
-        const result = await fetchMarketPages(fiat, tradeType);
+        const result = await fetchMarketPages(fiat, asset, tradeType);
         return { fiat, ...result };
       }),
     );
@@ -450,12 +452,37 @@ async function snapshot(): Promise<Snapshot> {
   // SELL second (taker-sells = offramp) feeds the Live Rates table's offramp toggle.
   //
   // Sequential rather than parallel because Binance's Cloudflare sheds requests when
-  // we fire too many adv/search calls at once. Two passes of 134 fiats × chunked-10 =
-  // ~60s total snapshot time (was ~30s with BUY-only). Cron budget allows it.
+  // we fire too many adv/search calls at once. Four passes (USDT BUY/SELL, USDC BUY/SELL)
+  // of 134 fiats × chunked-10 = ~120s total snapshot time. Cron budget allows it.
+  //
+  // USDC is summed alongside USDT for depth aggregates only — both peg to $1 so
+  // surplusAmount is directly addable. Empirically USDC dominates EUR depth
+  // (~$352k vs $196k for USDT on top-20) and is non-trivial on USD. USDT-only metrics
+  // (best_rate, effective_spread, markets, fee_snapshot) are kept stable for historical
+  // continuity; USDC just adds to the headline "total observed USD" KPI.
   const buyResult = await fetchAllMarkets(now, fxMids, 'BUY');
   const sellResult = await fetchAllMarkets(now, fxMids, 'SELL');
-  const { probes, total_observed_usd, markets_observed } = buyResult;
+  const usdcBuyResult = await fetchAllMarkets(now, fxMids, 'BUY', 'USDC');
+  const usdcSellResult = await fetchAllMarkets(now, fxMids, 'SELL', 'USDC');
+  const { probes } = buyResult;
   const sellProbes = sellResult.probes;
+  const usdcBuyProbes = usdcBuyResult.probes;
+  const usdcSellProbes = usdcSellResult.probes;
+
+  const usdcBuyByFiat = new Map<string, (typeof usdcBuyProbes)[number]>();
+  for (const p of usdcBuyProbes) usdcBuyByFiat.set(p.fiat, p);
+  const usdcSellByFiat = new Map<string, (typeof usdcSellProbes)[number]>();
+  for (const p of usdcSellProbes) usdcSellByFiat.set(p.fiat, p);
+
+  // total_observed_usd: USDT BUY depth + USDC BUY depth (both ≈ $1). Same convention
+  // as the historical KPI but now spans both stables instead of USDT alone.
+  const total_observed_usd =
+    buyResult.total_observed_usd + usdcBuyResult.total_observed_usd;
+  // markets_observed: union of fiats with depth in either USDT or USDC BUY.
+  const observedFiats = new Set<string>();
+  for (const p of probes) if (p.surplus_sum > 0) observedFiats.add(p.fiat);
+  for (const p of usdcBuyProbes) if (p.surplus_sum > 0) observedFiats.add(p.fiat);
+  const markets_observed = observedFiats.size;
 
   // Headline observed_spread_bps: effective spread for a $1k single-match trade in the
   // USD market. Picked over a cross-market median because it gives an apples-to-apples
@@ -483,11 +510,20 @@ async function snapshot(): Promise<Snapshot> {
 
   // Derive: maker-reputation aggregates for the Network Health card. Distinct
   // advertisers across every probed market (a maker posting in 3 fiats counts once),
-  // then mean/share over that deduped set. Binance only surfaces the top-20 ads per
-  // market, so this is "makers visible in our sample," not a 30d window.
+  // then mean/share over that deduped set. Spans both USDT and USDC probes — a maker
+  // active on both stables for the same fiat counts once.
   const advertisersById = new Map<string, BinanceAdvertiser>();
   let total_ad_count = 0;
   for (const p of probes) {
+    total_ad_count += p.total;
+    for (const ad of p.ads) {
+      const a = ad.advertiser;
+      if (a?.userNo && !advertisersById.has(a.userNo)) {
+        advertisersById.set(a.userNo, a);
+      }
+    }
+  }
+  for (const p of usdcBuyProbes) {
     total_ad_count += p.total;
     for (const ad of p.ads) {
       const a = ad.advertiser;
@@ -511,7 +547,10 @@ async function snapshot(): Promise<Snapshot> {
   const merchant_share_pct =
     advertisers.length > 0 ? (merchantCount / advertisers.length) * 100 : undefined;
 
-  // Derive: top_pairs (top 10 by USDT depth, for KPI breakdown / drill-in).
+  // Derive: top_pairs (top 10 by USDT depth, for KPI breakdown / drill-in). Kept
+  // USDT-only — the pair label refers to a specific asset, so adding USDC depth here
+  // would conflate two distinct order books. USDC is reflected in the headline
+  // total_observed_usd and in depth_composition (per-fiat) instead.
   const sortedByDepth = [...probes].sort((a, b) => b.surplus_sum - a.surplus_sum);
   const top_pairs = sortedByDepth.slice(0, 10).map((p) => ({
     pair: `USDT/${p.fiat}`,
@@ -525,23 +564,35 @@ async function snapshot(): Promise<Snapshot> {
   //
   // Total combined depth across all fiats and both directions — used as the share_pct
   // denominator so values are comparable as "% of total venue liquidity."
+  // Per-fiat depth folds in both USDT and USDC. USDT and USDC are both ≈ $1 so
+  // surplusAmount sums directly. ad_count and n_makers use USDT-only as the primary
+  // signal (USDT is >95% of P2P volume); USDC widens the dollar-depth surface but
+  // we don't double-count maker rosters across stables here.
   const sellByFiat = new Map<string, number>();
   for (const p of sellProbes) sellByFiat.set(p.fiat, p.surplus_sum);
   const total_combined_depth =
-    total_observed_usd + sellProbes.reduce((acc, p) => acc + p.surplus_sum, 0);
+    total_observed_usd +
+    sellProbes.reduce((acc, p) => acc + p.surplus_sum, 0) +
+    usdcSellProbes.reduce((acc, p) => acc + p.surplus_sum, 0);
 
-  // Build the union of fiats that appear in either direction with non-zero depth.
+  // Build the union of fiats that appear in any direction × asset with non-zero depth.
   const fiatsSeen = new Set<string>([
     ...probes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
     ...sellProbes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
+    ...usdcBuyProbes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
+    ...usdcSellProbes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
   ]);
   const buyByFiat = new Map<string, (typeof probes)[number]>();
   for (const p of probes) buyByFiat.set(p.fiat, p);
 
   const depth_currencies = [...fiatsSeen]
     .map((fiat) => {
-      const buy = buyByFiat.get(fiat)?.surplus_sum ?? 0;
-      const sell = sellByFiat.get(fiat) ?? 0;
+      const usdtBuy = buyByFiat.get(fiat)?.surplus_sum ?? 0;
+      const usdtSell = sellByFiat.get(fiat) ?? 0;
+      const usdcBuy = usdcBuyByFiat.get(fiat)?.surplus_sum ?? 0;
+      const usdcSell = usdcSellByFiat.get(fiat)?.surplus_sum ?? 0;
+      const buy = usdtBuy + usdcBuy;
+      const sell = usdtSell + usdcSell;
       const combined = buy + sell;
       return {
         key: fiat,
@@ -618,7 +669,7 @@ async function snapshot(): Promise<Snapshot> {
       provenance: 'api',
       last_verified: now,
       evidence_url: SEARCH_URL,
-      notes: `USDT escrowed across ${markets_observed} fiat markets (up to 100 ads per market, 5-page adaptive depth).`,
+      notes: `USDT + USDC escrowed across ${markets_observed} fiat markets (up to 100 ads per market per stable, 5-page adaptive depth).`,
     },
     volume_30d_usd: {
       value: null,
@@ -676,7 +727,7 @@ async function snapshot(): Promise<Snapshot> {
       provenance: 'api',
       last_verified: now,
       evidence_url: SEARCH_URL,
-      notes: `Per-fiat share of USDT escrow observed in the top-20 BUY ad slice across ${markets_observed} fiat markets. Snapshot, not a window — Binance doesn't publish historical volume.`,
+      notes: `Per-fiat share of USDT + USDC escrow observed across ${markets_observed} fiat markets (up to 100 ads per stable per direction). Snapshot, not a window — Binance doesn't publish historical volume.`,
     },
     network_health: {
       value: {
@@ -690,7 +741,7 @@ async function snapshot(): Promise<Snapshot> {
       last_verified: now,
       evidence_url: SEARCH_URL,
       notes:
-        'Maker-reputation aggregates across distinct advertisers seen in the top-20 slice of every probed market. Snapshot of currently-posting makers, not a 30d window.',
+        'Maker-reputation aggregates across distinct advertisers seen on USDT and USDC books across every probed market. Snapshot of currently-posting makers, not a 30d window.',
     },
   };
 }
