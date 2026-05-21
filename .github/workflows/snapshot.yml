@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Restore liquidity logs from data branch
         # The runner starts from a fresh main checkout where data/charts/ is gitignored.
         # The self-accumulating liquidity logs live on the `data` branch — pull them down
@@ -34,7 +34,7 @@ jobs:
             fi
           done
           ls -la data/charts/ || true
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: 'npm'
