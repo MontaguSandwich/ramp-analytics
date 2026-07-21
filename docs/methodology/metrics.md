@@ -29,6 +29,10 @@ The headline liquidity figure is **kind-aware** — what "liquidity" means depen
 
 Because these are different measurements, we never sum them into one cross-venue "total liquidity" without saying which kind each contribution is.
 
+**Fillable depth, not raw book depth.** For CEX-P2P offer books we publish the depth priced **within ±5% of the FX mid**, not the sum of every ad on the book. A full book is padded with offers priced 20–30% away from mid that no taker will ever fill — quoting them as "available" would overstate the venue by roughly a third. (We use ±5% rather than the ±2% common for CEX order books because P2P spreads are structurally wider.) The raw full-book total is still shown alongside, so the filtering is visible rather than hidden.
+
+**Escrowed liquidity is not the same as advertised demand.** On a P2P venue only one side of the book is capital-committed. When a maker offers to *sell* crypto, the venue escrows their asset — that depth is real. When a maker offers to *buy*, nothing is locked: they can advertise a million-dollar appetite for free. We therefore label the two sides **"onramp liquidity"** and **"offramp demand"**, never add them together, and never present them as like-for-like. At full book depth the gap is not subtle — one venue's USD market showed $8.05M of escrowed liquidity against $350.79M of unbacked buy intent.
+
 ### Spread (~$1k)
 
 The effective spread on a **~$1,000 trade** in the venue's deepest USD market, measured against an oracle or FX mid. By convention, **negative = favorable for the taker**. The exact computation varies by venue type:

@@ -232,6 +232,28 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - Surface area (since d22b2bc, multi-page adaptive): 134 candidate fiats × 2 directions, **up to 5 pages × 20 ads per market** (`MAX_PAGES`, `ROWS_PER_PAGE`) with adaptive stopping — page 1 reports `total`, so most markets finish in 1–2 pages; a short page also stops the loop. Pages are sequential per market with a 150ms pause (`PROBE_PAGE_DELAY_MS`); ads deduped by `advNo`. Across fiats: chunks of 10 with 300ms gap (`PROBE_CHUNK_SIZE`, `PROBE_CHUNK_DELAY_MS`) — peak concurrency unchanged vs the top-20 era. Two direction passes run **sequentially**, not parallel — Cloudflare sheds under burst.
 - Result: total_observed_usd ~$13M → ~$32–37M, ~42% of all ads captured, 66% of markets fully covered. Orderbook view default depth raised 50 → 100 to match.
 
+### Full-book coverage + fillable-depth bands (2026-07-21)
+
+- `DEEP_COVERAGE_FIATS = {USD, EUR}` are probed to the **entire book** (no 5-page cap);
+  everything else stays at `MAX_PAGES`. Binance paginates all the way (verified: page 71
+  of USD BUY returns the last 2 ads), and **`rows` is hard-capped at 20** server-side —
+  rows=50/100 return zero, so more pages is the only way deeper.
+- **Deep coverage is BUY-side ONLY, and this is load-bearing.** `tradeType: SELL` returns
+  maker BUY ads, which have **no escrow** — a maker can advertise buying 1,000,000 USDT
+  with nothing locked. Full-depth SELL measured **$350.79M for USD vs $8.05M** of real
+  escrowed BUY depth (44× phantom). Never sum the two, never chart them as equivalents.
+  UI labels them **"Onramp liquidity" vs "Offramp demand"** with hover definitions.
+- **Headline "Available USDT" = depth within ±5% of the FX mid**, not the raw book:
+  full-book sums are padded with ads 30%+ from mid that can never fill (page 71 of USD BUY
+  is priced 1.21–1.33). `liquidity.depth_bands_usd` carries `pct_0_5 / pct_2 / pct_5`;
+  `snapshotTvlUsd` prefers `pct_5`. Measured 2026-07-21: full book $44.56M → ±5% $30.10M
+  → ±2% $22.23M → ±0.5% $11.61M. **±5%, not DefiLlama's ±2%** — P2P spreads run much
+  wider than CEX books (user decision).
+- `total_observed_usd` still stores the **raw full book** so the daily liquidity log keeps
+  a continuous definition; only the UI headline uses the band.
+- Cost: snapshot wall time ~60s → ~130s. Don't add fiats to `DEEP_COVERAGE_FIATS` without
+  re-measuring — each one is `ceil(total/20)` sequential pages.
+
 ### cost_1k decomposition (DefiLlama-MiCA-style, 2026-07-21)
 
 - `snapshot.cost_1k` (binance only so far): itemized ~$1k cost per direction —

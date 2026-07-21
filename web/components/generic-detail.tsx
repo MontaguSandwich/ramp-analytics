@@ -45,10 +45,16 @@ export default function GenericDetail({ product }: { product: Product }) {
         : liqKind === 'otc_minimum'
           ? 'Min ticket'
           : 'Available liquidity';
-  const liqSub =
-    liqKind === 'p2p_offerbook' && s?.liquidity.value.markets_observed
-      ? `up to 100 ads × ${s.liquidity.value.markets_observed} markets`
-      : undefined;
+  // Sub-line states the band and the full-book total it was filtered from, so the headline
+  // never reads as "all the depth there is".
+  const liqSub = (() => {
+    if (liqKind !== 'p2p_offerbook' || !s) return undefined;
+    const v = s.liquidity.value as Extract<typeof s.liquidity.value, { kind: 'p2p_offerbook' }>;
+    if (!v.markets_observed) return undefined;
+    return v.depth_bands_usd
+      ? `within ±5% of mid · ${v.markets_observed} markets · ${fmtUsd(v.total_observed_usd ?? null)} full book`
+      : `up to 100 ads × ${v.markets_observed} markets`;
+  })();
 
   // Marketplace dynamics card: only meaningful when the adapter populates maker-aggregate
   // data (binance's active_makers / finish-rate / merchant share). The "spread fallback"
@@ -173,7 +179,14 @@ export default function GenericDetail({ product }: { product: Product }) {
                   />
                   {hasSplit ? (
                     <DualBarChart
-                      title="Onramp vs Offramp — by fiat"
+                      title="Onramp liquidity vs Offramp demand — by fiat"
+                      // Deliberately NOT "onramp vs offramp liquidity": the onramp side is
+                      // escrowed capital, the offramp side is unbacked maker intent. They
+                      // are different units and must not read as like-for-like.
+                      buyLabel="Onramp liquidity"
+                      sellLabel="Offramp demand"
+                      buyTitle="Escrowed USDT — the venue locks the maker's asset, so this capital is committed."
+                      sellTitle="Unbacked maker buy intent — advertised demand with nothing locked behind it. Not comparable to escrowed liquidity."
                       items={currencies.map((c) => ({
                         key: c.key,
                         label: c.label,

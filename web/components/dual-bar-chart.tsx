@@ -24,11 +24,21 @@ export default function DualBarChart({
   items,
   renderLabel,
   maxRows = 10,
+  buyLabel = 'Onramp',
+  sellLabel = 'Offramp',
+  buyTitle,
+  sellTitle,
 }: {
   title: string;
   items: DualBarItem[];
   renderLabel?: (item: DualBarItem) => ReactNode;
   maxRows?: number;
+  /** Legend text per series. Defaults suit escrowed-vs-escrowed comparisons. */
+  buyLabel?: string;
+  sellLabel?: string;
+  /** Hover definitions for each series — use when the two sides aren't like-for-like. */
+  buyTitle?: string;
+  sellTitle?: string;
 }) {
   const top = items.slice(0, maxRows);
   const maxValue = Math.max(
@@ -41,8 +51,10 @@ export default function DualBarChart({
       <div className="mix-title">
         {title}
         <span className="dual-legend">
-          <span className="dual-legend-swatch dual-legend-swatch-buy" /> Onramp
-          <span className="dual-legend-swatch dual-legend-swatch-sell" /> Offramp
+          <span className="dual-legend-swatch dual-legend-swatch-buy" />
+          <span title={buyTitle} style={buyTitle ? { cursor: 'help' } : undefined}>{buyLabel}</span>
+          <span className="dual-legend-swatch dual-legend-swatch-sell" />
+          <span title={sellTitle} style={sellTitle ? { cursor: 'help' } : undefined}>{sellLabel}</span>
         </span>
       </div>
       <div className="mix-rows">

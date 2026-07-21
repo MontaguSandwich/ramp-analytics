@@ -248,6 +248,12 @@ interface MarketProbe {
    * for the taker); `methods` lists the matched ad's deduped payment identifiers.
    */
   effective_1k_match: { price: number; spread_bps: number; methods: string[] } | null;
+  /**
+   * Escrowed depth priced within ±N% of the FX mid (BUY side; zero for SELL and for
+   * markets with no FX mid). Full-book sums include ads 30%+ from mid that can never
+   * fill — the bands are the fillable subset.
+   */
+  depth_bands: { pct_0_5: number; pct_2: number; pct_5: number };
 }
 
 const EFFECTIVE_SIZE_USD = 1000;
@@ -325,16 +331,28 @@ const ROWS_PER_PAGE = 20;
 // vs. the old top-20 (~14%). The headline $1k spread KPI is unaffected — the cheapest
 // USD ad is always on page 1.
 const MAX_PAGES = 5;
+
+// Headline markets get the ENTIRE book, not a 100-ad slice. Measured 2026-07-21:
+// USD has ~1.4k BUY / ~2.3k SELL ads and EUR ~260 / ~560, and Binance paginates all the
+// way to the last partial page (verified page 71 of USD BUY returns 2 ads — there is no
+// depth cap). `rows` is hard-capped at 20 server-side: rows=50 and rows=100 both return
+// zero ads, so more pages is the only way to go deeper.
+// Cost: ~230 extra sequential pages per full cycle, ~90s of added wall time. Acceptable
+// inside the cron's budget; do NOT extend this set to many fiats without re-measuring.
+const DEEP_COVERAGE_FIATS = new Set(['USD', 'EUR']);
+// Safety ceiling for the deep set so a runaway `total` can't page forever (4000 ads).
+const MAX_PAGES_DEEP = 200;
 // Brief pause between sequential page fetches *within* a market. Pages are sequential so
 // peak concurrency stays at PROBE_CHUNK_SIZE (the across-fiats chunk) — same instantaneous
 // burst as before, just sustained longer — keeping us under Binance's Cloudflare cliff.
 const PROBE_PAGE_DELAY_MS = 150;
 
 /**
- * Fetch up to MAX_PAGES of a single fiat market, adaptively. Page 1 reports `total`
- * (the full-book ad count); we then pull pages 2..min(MAX_PAGES, ceil(total/ROWS_PER_PAGE)),
- * bailing early if a page returns a short result (end of book). Ads are concatenated and
- * deduped by `advNo` — defensive, since ad churn between sequential requests can
+ * Fetch a single fiat market page-by-page, adaptively. Page 1 reports `total` (the
+ * full-book ad count); we then pull pages 2..min(cap, ceil(total/ROWS_PER_PAGE)), bailing
+ * early if a page returns a short result (end of book). The cap is MAX_PAGES_DEEP for
+ * DEEP_COVERAGE_FIATS (full book) and MAX_PAGES for everything else. Ads are concatenated
+ * and deduped by `advNo` — defensive, since ad churn between sequential requests can
  * occasionally repeat one across page boundaries.
  */
 async function fetchMarketPages(
@@ -354,7 +372,12 @@ async function fetchMarketPages(
   };
   push(first.ads);
 
-  const pagesNeeded = Math.min(MAX_PAGES, Math.max(1, Math.ceil(first.total / ROWS_PER_PAGE)));
+  // Deep coverage is BUY-side ONLY. tradeType=SELL returns maker BUY ads, which carry no
+  // escrow — a maker can advertise "I'll buy 1,000,000 USDT" with nothing locked. Paging
+  // the whole SELL book just accumulates unbacked intent (measured: $350.79M for USD vs
+  // $8.05M of real escrowed BUY depth). We cap it at MAX_PAGES and label it "demand".
+  const pageCap = DEEP_COVERAGE_FIATS.has(fiat) && tradeType === 'BUY' ? MAX_PAGES_DEEP : MAX_PAGES;
+  const pagesNeeded = Math.min(pageCap, Math.max(1, Math.ceil(first.total / ROWS_PER_PAGE)));
   // Only keep paging if page 1 was full — a short first page means the book is exhausted.
   if (first.ads.length >= ROWS_PER_PAGE) {
     for (let page = 2; page <= pagesNeeded; page++) {
@@ -456,6 +479,21 @@ async function fetchAllMarkets(
     const n_makers = unique(ads.map((a) => a.advertiser.userNo)).length;
     const fx_mid = fxMids[fiat] ?? null;
 
+    // Fillable-depth bands. BUY only: the SELL side isn't escrowed, so banding it would
+    // just produce a tidier phantom. A BUY ad is fillable within the band when its price
+    // is at most mid*(1+pct) — the taker pays fiat, so cheaper is better.
+    const depth_bands = { pct_0_5: 0, pct_2: 0, pct_5: 0 };
+    if (tradeType === 'BUY' && fx_mid !== null && Number.isFinite(fx_mid) && fx_mid > 0) {
+      for (const ad of ads) {
+        const price = Number(ad.adv.price);
+        const surplus = Number(ad.adv.surplusAmount) || 0;
+        if (!Number.isFinite(price) || price <= 0 || surplus <= 0) continue;
+        if (price <= fx_mid * 1.05) depth_bands.pct_5 += surplus;
+        if (price <= fx_mid * 1.02) depth_bands.pct_2 += surplus;
+        if (price <= fx_mid * 1.005) depth_bands.pct_0_5 += surplus;
+      }
+    }
+
     let best_rate: number | null = null;
     let spread_bps: number | null = null;
     let effective_1k_match: MarketProbe['effective_1k_match'] = null;
@@ -525,6 +563,7 @@ async function fetchAllMarkets(
       effective_spread_1k_bps:
         tradeType === 'BUY' ? (effective_1k_match?.spread_bps ?? null) : null,
       effective_1k_match,
+      depth_bands,
     });
   }
 
@@ -562,6 +601,16 @@ async function snapshot(): Promise<Snapshot> {
   // comparison with other venues that all settle in USD.
   const usdProbe = probes.find((p) => p.fiat === 'USD');
   const effectiveUsd1kBps = usdProbe?.effective_spread_1k_bps ?? null;
+
+  // Fillable-depth bands summed across every BUY market with an FX mid.
+  const depth_bands_usd = probes.reduce(
+    (acc, p) => ({
+      pct_0_5: acc.pct_0_5 + p.depth_bands.pct_0_5,
+      pct_2: acc.pct_2 + p.depth_bands.pct_2,
+      pct_5: acc.pct_5 + p.depth_bands.pct_5,
+    }),
+    { pct_0_5: 0, pct_2: 0, pct_5: 0 },
+  );
 
   // cost_1k decomposition: itemize the $1k single-match into fiat fee / trade fee /
   // spread, per direction, with the assumptions published alongside. The fee legs are
@@ -754,13 +803,18 @@ async function snapshot(): Promise<Snapshot> {
         kind: 'p2p_offerbook',
         top_pairs,
         total_observed_usd,
+        depth_bands_usd,
         markets_observed,
         max_single_trade_usd: max_single_trade_usd > 0 ? max_single_trade_usd : undefined,
       },
       provenance: 'api',
       last_verified: now,
       evidence_url: SEARCH_URL,
-      notes: `USDT escrowed across ${markets_observed} fiat markets (up to 100 ads per market, 5-page adaptive depth).`,
+      notes:
+        `Escrowed USDT across ${markets_observed} fiat markets. Headline = depth priced within ±5% of the FX mid ` +
+        `($${(depth_bands_usd.pct_5 / 1e6).toFixed(2)}M); the full observed book is $${(total_observed_usd / 1e6).toFixed(2)}M ` +
+        `but includes ads priced 30%+ from mid that can never fill. ` +
+        `${[...DEEP_COVERAGE_FIATS].join('/')} are probed to full book depth; other markets up to 100 ads (5-page adaptive).`,
     },
     volume_30d_usd: {
       value: null,

@@ -39,6 +39,14 @@ export type LiquidityValue =
        * older snapshots that only stored `top_pairs`.
        */
       total_observed_usd?: number;
+      /**
+       * Escrowed depth priced within N% of the FX mid, BUY side only (real, escrowed
+       * capital — see the sell-side note on DepthBreakdown). `pct_5` is the headline
+       * "Available USDT" figure: full-book sums include ads priced 30%+ away from mid
+       * that can never be filled, so a band is the honest comparable number. ±5% (not
+       * DefiLlama's ±2%) because P2P spreads run much wider than CEX order books.
+       */
+      depth_bands_usd?: { pct_0_5: number; pct_2: number; pct_5: number };
       /** Number of fiat markets that contributed at least one ad to the sum. */
       markets_observed?: number;
       /** Largest single-trade ceiling across all observed ads (USD). Drives "Max single trade" in PropertiesCard. */
@@ -124,9 +132,16 @@ export interface DepthMixItem {
   /** Total liquidity for this market. For bidirectional venues = buy + sell sum. */
   liquidity_usd: number;
   share_pct: number;
-  /** Per-direction split (optional). When both populated, the UI renders a dual-bar chart
-   *  showing onramp vs offramp depth side-by-side instead of a single combined bar. */
+  /** Per-direction split (optional). When both populated, the UI renders a dual-bar chart.
+   *
+   *  ASYMMETRIC BY NATURE — do not sum these or present them as like-for-like:
+   *  `buy_liquidity_usd` is real ESCROWED capital (Binance locks the maker's USDT on
+   *  sell ads), whereas `sell_liquidity_usd` is unbacked maker BUY *intent* — a maker
+   *  can advertise "I'll buy 1,000,000 USDT" with nothing locked. Measured 2026-07-21
+   *  at full book depth: USD showed $8.05M escrowed vs $350.79M of intent, a 44x
+   *  phantom. The UI labels these "liquidity" and "demand" respectively. */
   buy_liquidity_usd?: number;
+  /** Unbacked maker BUY intent — NOT escrowed. Label as "demand", never "liquidity". */
   sell_liquidity_usd?: number;
   ad_count?: number;
   n_makers?: number;

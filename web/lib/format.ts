@@ -175,9 +175,12 @@ export function snapshotTvlUsd(snap: Snapshot | undefined): number | null {
   const v = snap.liquidity.value;
   if (v.kind === 'onchain_inventory') return v.tvl_usd;
   if (v.kind === 'p2p_offerbook') {
-    // Prefer the broader `total_observed_usd` sum (across every probed market) when the
-    // adapter populated it. Fall back to summing `top_pairs` (top 10) for older snapshots.
+    // Headline = FILLABLE depth: escrowed offers priced within ±5% of the FX mid. Full-book
+    // sums are dominated by ads 30%+ away from mid that no taker will ever hit, so quoting
+    // the raw total overstates what's actually available. Falls back to the raw total, then
+    // to summing `top_pairs`, for snapshots predating the bands.
     return (
+      v.depth_bands_usd?.pct_5 ??
       v.total_observed_usd ??
       v.top_pairs.reduce((a, b) => a + b.sum_offers_usd, 0)
     );
