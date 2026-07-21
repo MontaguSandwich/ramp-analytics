@@ -238,6 +238,12 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
   as a "Regulation" row on PropertiesCard. Binance entries hand-verified 2026-07-21
   (VARA active, ADGM active, EU/EEA: **no MiCA CASP** — services halted 2026-07-01).
 - Overview venues table has a `.csv` export (raw values, bps/USD unrounded).
+- **USD is a single point of failure** for this venue: the headline spread AND both cost
+  legs are anchored to USD/USDT, so when Cloudflare sheds that one probe out of 134 they
+  all go null together (measured 2026-07-21: 2 of 6 cron runs — the cause of the
+  intermittently blank Spread KPI in prod). `fetchAllMarkets` retries the anchor market
+  (`KPI_ANCHOR_FIAT`) up to 3× sequentially *after* the chunked burst finishes. Don't fold
+  this retry back into the burst — the point is to not compete with 133 concurrent calls.
 
 ### Categories page
 

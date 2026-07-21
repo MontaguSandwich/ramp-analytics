@@ -252,6 +252,18 @@ interface MarketProbe {
 
 const EFFECTIVE_SIZE_USD = 1000;
 
+type MarketFetch = { fiat: string; ads: BinanceAd[]; total: number };
+
+// The headline spread KPI *and* the whole cost_1k decomposition are anchored to this one
+// market. When Cloudflare sheds it — 1 probe out of 134 — all three go null at once.
+// Measured on 2026-07-21: 2 of 6 cron runs lost USD, which is why the deployed Spread KPI
+// was intermittently blank. So it gets retried on its own after the burst finishes, when
+// it's no longer competing with 133 concurrent requests for rate-limit budget. Costs at
+// most KPI_ANCHOR_RETRIES extra requests, and only on runs that would otherwise be blank.
+const KPI_ANCHOR_FIAT = 'USD';
+const KPI_ANCHOR_RETRIES = 3;
+const KPI_ANCHOR_RETRY_DELAY_MS = 1200;
+
 // Exit-to-chain reference cost for the cost_1k decomposition. Binance P2P settles to
 // the taker's internal Binance balance (the 'offchain' sentinel) — withdrawing USDT to
 // a self-custodial wallet is a separate optional action whose fee depends on the network
@@ -384,7 +396,7 @@ async function fetchAllMarkets(
   // Fire requests in chunks instead of one big Promise.all to stay under Binance's
   // burst-rate cliff. Each chunk runs in parallel; chunks are sequential with a brief
   // pause between them.
-  const settled: PromiseSettledResult<{ fiat: string; ads: BinanceAd[]; total: number }>[] = [];
+  const settled: PromiseSettledResult<MarketFetch>[] = [];
   for (let i = 0; i < CANDIDATE_FIATS.length; i += PROBE_CHUNK_SIZE) {
     const chunk = CANDIDATE_FIATS.slice(i, i + PROBE_CHUNK_SIZE);
     const chunkResults = await Promise.allSettled(
@@ -396,6 +408,31 @@ async function fetchAllMarkets(
     settled.push(...chunkResults);
     if (i + PROBE_CHUNK_SIZE < CANDIDATE_FIATS.length) {
       await new Promise((resolve) => setTimeout(resolve, PROBE_CHUNK_DELAY_MS));
+    }
+  }
+
+  // Targeted retry for the KPI-anchor market (see KPI_ANCHOR_FIAT). Runs after the storm,
+  // sequentially, so it isn't competing with the chunked burst that likely shed it.
+  const anchorIdx = settled.findIndex(
+    (r) => r.status === 'fulfilled' && r.value.fiat === KPI_ANCHOR_FIAT,
+  );
+  const anchorAds =
+    anchorIdx >= 0 ? (settled[anchorIdx] as PromiseFulfilledResult<MarketFetch>).value.ads : [];
+  if (anchorAds.length === 0) {
+    for (let attempt = 1; attempt <= KPI_ANCHOR_RETRIES; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, KPI_ANCHOR_RETRY_DELAY_MS));
+      try {
+        const retried = await fetchMarketPages(KPI_ANCHOR_FIAT, tradeType);
+        if (retried.ads.length > 0) {
+          const value: MarketFetch = { fiat: KPI_ANCHOR_FIAT, ...retried };
+          if (anchorIdx >= 0) settled[anchorIdx] = { status: 'fulfilled', value };
+          else settled.push({ status: 'fulfilled', value });
+          break;
+        }
+      } catch {
+        // Swallow and retry — an exhausted retry budget just leaves the KPI null,
+        // which is the same outcome as before this retry existed.
+      }
     }
   }
 
