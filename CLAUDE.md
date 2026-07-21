@@ -10,7 +10,10 @@ Neutral, transparent comparison dashboard for crypto on/off-ramp products.
 Brand: **"Payments/ OOI — on/off-ramp dashboard"** (renamed from hip3, commit bd397a8).
 Working dir: this repo. Dev URL: `localhost:3000`.
 
-Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
+Remote: `github.com/MontaguSandwich/ramp-analytics` (**public** — verified 2026-07-21;
+this file previously claimed "private", which had led the build pipeline to treat the
+data-branch PAT as mandatory. No secrets are committed: `.env.local` is gitignored and
+the only `pk_live_` strings in the tree are documentation placeholders).
 
 **Deployed on Vercel** (montagusandwich account — a *different* Vercel account than the
 local CLI login): https://ramp-analytics-git-main-montagusandwichs-projects.vercel.app/
@@ -67,17 +70,32 @@ The site self-updates without local involvement:
    rebuild on Vercel (data-branch pushes themselves never deploy: `web/vercel.json` has
    `git.deploymentEnabled.data: false` + an `ignoreCommand` guard).
 3. **Vercel build** = `bash ../scripts/vercel-build.sh` (Root Directory is `web/`). It
-   restores snapshots/ + charts/ from the data branch via the **GitHub Contents API**
-   using the **`GITHUB_DATA_TOKEN`** Vercel env var (fine-scoped PAT; repo is private).
+   restores snapshots/ + charts/ from the data branch via the **GitHub Contents API**.
    On a complete restore it **skips live probing entirely**; on any restore failure it
-   silently falls back to `npm run snapshot` (live probe, no charts).
+   **fails the build on purpose** (see below).
+
+**The repo is PUBLIC** (verified 2026-07-21 — earlier docs claiming "private" were wrong).
+So `GITHUB_DATA_TOKEN` is an **optimization, not a requirement**: it buys the 5000/hr
+authenticated rate limit instead of 60/hr-per-IP shared across Vercel's build IPs. A
+missing or expired token logs a warning and the build continues unauthenticated. The
+build also reads the `github-authentication-token-expiration` response header and warns
+when the PAT has **<21 days left** — the May→July outage was exactly this expiring silently.
+
+**On restore failure the build exits 1 rather than live-probing.** Vercel keeps the last
+successful deployment serving, so the site shows stale-but-correct data. This is
+deliberate: a live probe from a Vercel IP is *not* graceful degradation — Binance sheds
+hard from cloud IPs, and the fallback measurably shipped worse numbers (70 markets/$29.18M
+with a blank Spread KPI, vs the cron's 84/$36.49M). Stale-but-correct beats fresh-but-wrong.
+**One exception:** if the `data` branch doesn't exist at all (fresh repo), the build
+bootstraps with a live snapshot — otherwise the site could never deploy a first time.
 
 ### Two distinct failure modes — don't conflate them (both hit on 2026-07-21)
 
 **A. Empty sparklines / charts with ~1 day of data.** The restore failed outright and the
-fallback ran. Prime suspect: the fine-grained PAT **expired** (it did, between May 21 and
-July 21, 2026). Fix = mint a new PAT (read-only Contents on this repo) and update
-`GITHUB_DATA_TOKEN` in the Vercel project env. The Vercel project lives under the
+fallback ran. Historically caused by the PAT expiring (it did, between May 21 and July 21,
+2026). **No longer possible**: the token is optional now and a 401 falls through to
+unauthenticated. If you still see this, the build should have *failed* instead — check the
+Vercel build log for `[vercel-build] FAILED`. The Vercel project lives under the
 **montagusandwich** account — the local `vercel` CLI login (`malekky`) has NO access to it.
 
 **B. Everything renders but the numbers are one cron-cycle stale** (and any brand-new
@@ -291,7 +309,7 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - **Node 18 doesn't support `--env-file`.** Scripts import `dotenv/config` explicitly and load `.env.local`.
 - **Don't `git add -A` casually.** Use specific paths or verify with `git status --short` after.
 - **GitHub Actions snapshot cron needs `ZKP2P_ANALYTICS_KEY`** as repo secret. Workflow `.github/workflows/snapshot.yml` runs `*/30 * * * *` (effective ~2–2.5h due to GH throttling). Also ideally `COINGECKO_KEY` + `BASE_RPC_URL`, plus `VERCEL_DEPLOY_HOOK_URL` for the redeploy step.
-- **`GITHUB_DATA_TOKEN` (Vercel env) is a fine-grained PAT and it EXPIRES.** When it does, prod silently degrades to the live-snapshot fallback (empty sparklines/charts). Check the expiry when touching the pipeline; the Vercel project is under the montagusandwich account, not the local CLI login.
+- **`GITHUB_DATA_TOKEN` (Vercel env) is a fine-grained PAT and it EXPIRES** (the current one on **2026-08-20**). This is no longer load-bearing — the repo is public, so the build falls through to unauthenticated on a 401 and logs a warning at <21 days remaining. Rotating it only restores the higher rate limit. The Vercel project is under the montagusandwich account, not the local CLI login.
 - **Data-branch paths have no `data/` prefix** — `snapshots/{id}.json`, `charts/{id}*.json` at the branch root. `vercel-build.sh` maps them into `data/` locally.
 - **Type-mirror duty**: any change to `lib/types.ts` MUST be mirrored in `web/lib/types.ts`. Same for the Ramp fee table (adapter file ↔ aggregator route).
 - **MixBar's field is `amount_usd`** (not `volume_usd`) — direction-agnostic. Callers map `volume_usd` (Composition) or `liquidity_usd` (DepthBreakdown) into it.
