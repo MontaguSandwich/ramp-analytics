@@ -67,17 +67,34 @@ The site self-updates without local involvement:
    rebuild on Vercel (data-branch pushes themselves never deploy: `web/vercel.json` has
    `git.deploymentEnabled.data: false` + an `ignoreCommand` guard).
 3. **Vercel build** = `bash ../scripts/vercel-build.sh` (Root Directory is `web/`). It
-   restores snapshots/ + charts/ from the data branch via raw.githubusercontent.com using
-   the **`GITHUB_DATA_TOKEN`** Vercel env var (fine-scoped PAT; repo is private). On a
-   complete restore it **skips live probing entirely**; on any restore failure it silently
-   falls back to `npm run snapshot` (live probe, no charts).
+   restores snapshots/ + charts/ from the data branch via the **GitHub Contents API**
+   using the **`GITHUB_DATA_TOKEN`** Vercel env var (fine-scoped PAT; repo is private).
+   On a complete restore it **skips live probing entirely**; on any restore failure it
+   silently falls back to `npm run snapshot` (live probe, no charts).
 
-**Failure smell**: if the deployed site shows empty 14d-trend sparklines and zkp2p charts
-with only ~1 day of data while table numbers look fresh → the restore is failing and the
-fallback ran. Prime suspect: the fine-grained PAT **expired** (this happened between May 21
-and July 21, 2026). Fix = mint a new PAT (read-only Contents on this repo) and update
+### Two distinct failure modes — don't conflate them (both hit on 2026-07-21)
+
+**A. Empty sparklines / charts with ~1 day of data.** The restore failed outright and the
+fallback ran. Prime suspect: the fine-grained PAT **expired** (it did, between May 21 and
+July 21, 2026). Fix = mint a new PAT (read-only Contents on this repo) and update
 `GITHUB_DATA_TOKEN` in the Vercel project env. The Vercel project lives under the
 **montagusandwich** account — the local `vercel` CLI login (`malekky`) has NO access to it.
+
+**B. Everything renders but the numbers are one cron-cycle stale** (and any brand-new
+snapshot field is missing entirely). This is the **CDN cache race**, fixed 2026-07-21:
+`raw.githubusercontent.com` serves from a Fastly edge with `cache-control: max-age=300`,
+but `snapshot.yml` fires the Vercel deploy hook only ~4 **seconds** after pushing to the
+data branch. Every build therefore landed inside the 5-minute cache window and restored
+the PREVIOUS cycle's file. Observed: prod served 70 markets/$29.18M with no `cost_1k`
+while the data branch already had 84 markets/$36.49M with it.
+**The fix — keep it this way:** fetch via `https://api.github.com/repos/$REPO/contents/<path>?ref=data`
+with `Accept: application/vnd.github.raw`. The API is not edge-cached and returns fresh
+bytes. **Do not "simplify" this back to raw.githubusercontent.com** — it silently
+reintroduces a one-cycle data lag that looks like nothing is wrong.
+
+Diagnosing which one you have: compare a value on the deployed page against
+`git show origin/data:snapshots/binance_p2p.json`. Exact match with the *previous*
+data-branch commit = mode B. Match with neither = mode A (live fallback).
 
 ## Shared detail-page components (one source of truth)
 
