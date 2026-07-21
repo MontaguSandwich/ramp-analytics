@@ -7,9 +7,14 @@
 ## Project
 
 Neutral, transparent comparison dashboard for crypto on/off-ramp products.
-Local-first MVP. Working dir: this repo. Dev URL: `localhost:3000`.
+Brand: **"Payments/ OOI — on/off-ramp dashboard"** (renamed from hip3, commit bd397a8).
+Working dir: this repo. Dev URL: `localhost:3000`.
 
 Remote: `github.com/MontaguSandwich/ramp-analytics` (private).
+
+**Deployed on Vercel** (montagusandwich account — a *different* Vercel account than the
+local CLI login): https://ramp-analytics-git-main-montagusandwichs-projects.vercel.app/
+See "Production deployment & data pipeline" below.
 
 ## Top-level dashboard tabs
 
@@ -23,12 +28,18 @@ The landing has 3 primary tabs (URL-routed, `MainNav` in `web/components/main-na
 
 `/venues` was removed (the table moved to `/`). The dispatch in `web/app/products/[id]/page.tsx` is unchanged — product detail pages still render under `/products/[id]`.
 
+Header right side has a **Methodology** link → `/methodology`: GitBook-style docs (DefiLlama
+RWA-category style) authored as markdown in `docs/methodology/*.md` (frontmatter title+order),
+loaded by `web/lib/docs.ts`, rendered with react-markdown + remark-gfm, statically generated.
+Pages: Overview / Eligibility & Exclusion / Methodology & Metrics / Definitions & Taxonomy /
+Data sources & per-venue notes. The old "Open data" nav link was removed.
+
 ## Per-product status
 
 | product | adapter | snapshot | history | detail page | orderbook | quote | live rates direction toggle |
 |---|---|---|---|---|---|---|---|
 | zkp2p (Peer) | real | ✓ live | ✓ (90d) | bespoke `Zkp2pDetail` | ✓ | ✓ | n/a (onramp only) |
-| binance_p2p | rich, both BUY+SELL | ✓ live (~14% depth × N markets × 2 dirs) | self-accum log only | `GenericDetail` (full) | ✓ | ✓ (direction-aware) | ✓ |
+| binance_p2p | rich, both BUY+SELL | ✓ live (multi-page adaptive, ≤100 ads/market × 2 dirs, ~42% of all ads) | self-accum log (70+ days since 2026-05-12) | `GenericDetail` (full) | ✓ | ✓ (direction-aware) | ✓ |
 | ramp_network | full Approach B | ✓ live + approx rates | ✗ | `GenericDetail` (no orderbook) | ✗ | ✗ (Approach B in aggregator) | ✓ |
 
 `kraken_otc` was **removed** during the OTC → RTPN category swap. Adapter, YAML, and snapshot deleted. RTPN category exists in the schema with 0 venues tracked — ready for Revolut etc.
@@ -42,6 +53,31 @@ Category enum: `'cex_p2p' | 'ramp' | 'onchain' | 'rtpn'`. `'otc'` is **gone**.
 3. `scripts/history.ts` writes `data/charts/{id}.json` (zkp2p only — others return `[]`).
 4. Next.js 15 frontend in `web/` (App Router). Server components do the filesystem reads via `web/lib/data.ts`. Client components only where interactivity is needed.
 5. Snapshot fields are wrapped: `{ value, provenance, last_verified, evidence_url?, notes? }`. Provenance enum: `'onchain' | 'api' | 'self_reported' | 'manual' | 'unavailable'`. Color dots: green = onchain/api, yellow = self_reported, gray = manual/unavailable. Use `'unavailable'` when a field is structurally not disclosed (UI renders "Not disclosed" + tooltip from `notes`).
+
+## Production deployment & data pipeline (May 19–21 work)
+
+The site self-updates without local involvement:
+
+1. **GitHub Actions cron** (`.github/workflows/snapshot.yml`, `*/30 * * * *` — GH throttling
+   makes the effective cadence ~every 2–2.5h) runs the full snapshot (including the heavy
+   multi-page Binance probe) and commits results to the orphan **`data` branch**.
+   NOTE: paths on the data branch are `snapshots/` and `charts/` at the branch **root** —
+   no `data/` prefix like the working tree.
+2. The workflow then curls **`VERCEL_DEPLOY_HOOK_URL`** (repo secret) to trigger a main
+   rebuild on Vercel (data-branch pushes themselves never deploy: `web/vercel.json` has
+   `git.deploymentEnabled.data: false` + an `ignoreCommand` guard).
+3. **Vercel build** = `bash ../scripts/vercel-build.sh` (Root Directory is `web/`). It
+   restores snapshots/ + charts/ from the data branch via raw.githubusercontent.com using
+   the **`GITHUB_DATA_TOKEN`** Vercel env var (fine-scoped PAT; repo is private). On a
+   complete restore it **skips live probing entirely**; on any restore failure it silently
+   falls back to `npm run snapshot` (live probe, no charts).
+
+**Failure smell**: if the deployed site shows empty 14d-trend sparklines and zkp2p charts
+with only ~1 day of data while table numbers look fresh → the restore is failing and the
+fallback ran. Prime suspect: the fine-grained PAT **expired** (this happened between May 21
+and July 21, 2026). Fix = mint a new PAT (read-only Contents on this repo) and update
+`GITHUB_DATA_TOKEN` in the Vercel project env. The Vercel project lives under the
+**montagusandwich** account — the local `vercel` CLI login (`malekky`) has NO access to it.
 
 ## Shared detail-page components (one source of truth)
 
@@ -150,12 +186,14 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - `snapshot.depth_composition` populates per-fiat with `buy_liquidity_usd` + `sell_liquidity_usd` + combined `liquidity_usd`. The Market mix section renders two cards side-by-side:
   1. **By USDT locked up** (`MixBar`) — sorted by BUY-side depth, share_pct recomputed against BUY-only total
   2. **Onramp vs Offramp** (`DualBarChart`) — sorted by combined depth, shared scale exposes asymmetry per fiat (MWK/HKD/KHR are heavily offramp-skewed)
-- Surface area: 134 candidate fiats × 2 directions × top-20 ads each = ~270 HTTP calls per snapshot. Probed in chunks of 10 with 300ms gap between chunks (`PROBE_CHUNK_SIZE`, `PROBE_CHUNK_DELAY_MS`). Two passes run **sequentially**, not parallel — Cloudflare sheds under burst.
+- Surface area (since d22b2bc, multi-page adaptive): 134 candidate fiats × 2 directions, **up to 5 pages × 20 ads per market** (`MAX_PAGES`, `ROWS_PER_PAGE`) with adaptive stopping — page 1 reports `total`, so most markets finish in 1–2 pages; a short page also stops the loop. Pages are sequential per market with a 150ms pause (`PROBE_PAGE_DELAY_MS`); ads deduped by `advNo`. Across fiats: chunks of 10 with 300ms gap (`PROBE_CHUNK_SIZE`, `PROBE_CHUNK_DELAY_MS`) — peak concurrency unchanged vs the top-20 era. Two direction passes run **sequentially**, not parallel — Cloudflare sheds under burst.
+- Result: total_observed_usd ~$13M → ~$32–37M, ~42% of all ads captured, 66% of markets fully covered. Orderbook view default depth raised 50 → 100 to match.
 
 ### Categories page
 
-- Editorial cards (4 of them — Onchain P2P, CEX P2P, Ramps, Crypto-friendly RTPNs). Vertical stack (`.category-grid` is `display: flex; flex-direction: column`).
-- Card title uses **brand-as-category-proxy** ("ZKP2P", "Binance P2P") not generic ("Onchain P2P"). Per user editorial decision. `CATEGORY_LABEL` map stays generic for the rest of the dashboard.
+- Editorial cards (4 of them). Vertical stack (`.category-grid` is `display: flex; flex-direction: column`).
+- Category labels (renamed in 8fd33be/bd397a8, `CATEGORY_LABEL` is the single source of truth everywhere): **Onchain P2P / CEX P2P / Licensed Ramps / RTPNs**.
+- The earlier brand-as-category-proxy card titles ("ZKP2P", "Binance P2P") were **reverted** in 8fd33be — card titles now match `CATEGORY_LABEL`. The redundant intro paragraph was also removed.
 - Each card has: title + blurb + italic KYC note + venue list + CTA → links to `/?category=X` (the Overview pre-filtered).
 - Disabled state for categories with 0 venues (RTPN currently).
 
@@ -168,8 +206,10 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - Binance orderbook has FX mid + Spread columns (uses `lib/fx.ts`). Sign-flipped for SELL ads.
 - `typedRoutes: false` in `web/next.config.ts` — friction vs benefit for our 3-route surface.
 - `suppressHydrationWarning` on `<html>` in `web/app/layout.tsx` — Peer browser extension injects `data-peer-injected="true"` which triggers React's hydration mismatch otherwise.
-- Categories on the Overview's "Categories breakdown" strip → **removed**. Cheapest $1k onramp callout → **removed** (not neutral; revisit for Aggregator later if wanted).
-- Section order on Overview: editorial intro → 4 hero stats → "Venues" h2 → ProductsView table.
+- Overview category strip: removed, then **brought back** in 8fd33be as "Categories" — 4 cards between hero stats and venues table, each linking `/?category=<slug>`. Licensed Ramps + RTPNs cards show "N/A" liquidity (their figures aren't pooled depth). Cheapest $1k onramp callout stays **removed** (not neutral).
+- Section order on Overview: editorial intro → 4 hero stats → "Categories" strip → "Venues" h2 → ProductsView table.
+- Overview table editorial (bd397a8): "Name" → "Venues" (sub-line dropped); "Best fee" → "Spread (~$1k)"; "Liquidity / TVL" → "Available liquidity"; "14d trend" → "Liquidity: 14d trend"; Data-freshness column removed; expandable "# Methods" column added; Ramp's liquidity gets a dagger tooltip (max-single-trade, not pooled depth). Filters: Direction drops "All", Custody drops "Either", "KYC tolerance" → "KYC requirements", Open-source-only filter removed.
+- Detail-page editorial (459683c): back-link is "← All venues"; the "Market mix" section is titled **"Fiat and Payment Methods stats"** (generic + zkp2p); Proof-of-Reserves badge is not rendered for ramps (not a meaningful signal there).
 
 ### KYC display
 
@@ -189,12 +229,14 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - **Binance burst-rate cliff**: don't fire all 134 fiats in one Promise.all — Cloudflare sheds requests. Chunk 10 in parallel × 300ms inter-chunk pause. Don't probe both directions in parallel either.
 - **Ramp `/onramp/quote/all`** requires a `hostApiKey`. Approach B is the current workaround.
 - **Ramp `/currencies`** returns a top-level array (NOT wrapped in `{ data: ... }`). Inconsistent with other Ramp endpoints.
-- **Don't put charts on non-zkp2p detail pages** — they don't have history data (binance has a self-accum liquidity log; charting is feasible once ~14 days accumulate from 2026-05-12).
+- **Binance has no API-provided history** — only our self-accumulated liquidity log (`charts/binance_p2p_active_liquidity.json` on the data branch, one row per UTC day since 2026-05-12; 70+ days by July 2026). A detail-page chart is now feasible from that log (future goal #5) — but only liquidity, never volume/trades series.
 - **CoinGecko free tier is ~5–15 req/min.** Disk cache at `data/cache/fx.json` (24h TTL, gitignored) is the right approach. `fxMidBatch('USDT', [...fiats], ts)` is the batch entry point. Some exotic fiats (VES, EGP, IRR) return no rate — adapter handles this.
 - **CoinGecko's `SYMBOL_TO_ID`** in `lib/fx.ts` doesn't cover BNB or FDUSD; both return null. Aggregator + orderbook code handles this with "—" fallback.
 - **Node 18 doesn't support `--env-file`.** Scripts import `dotenv/config` explicitly and load `.env.local`.
 - **Don't `git add -A` casually.** Use specific paths or verify with `git status --short` after.
-- **GitHub Actions snapshot cron needs `ZKP2P_ANALYTICS_KEY`** as repo secret. Workflow `.github/workflows/snapshot.yml` runs `*/30 * * * *`. Also ideally `COINGECKO_KEY` + `BASE_RPC_URL`.
+- **GitHub Actions snapshot cron needs `ZKP2P_ANALYTICS_KEY`** as repo secret. Workflow `.github/workflows/snapshot.yml` runs `*/30 * * * *` (effective ~2–2.5h due to GH throttling). Also ideally `COINGECKO_KEY` + `BASE_RPC_URL`, plus `VERCEL_DEPLOY_HOOK_URL` for the redeploy step.
+- **`GITHUB_DATA_TOKEN` (Vercel env) is a fine-grained PAT and it EXPIRES.** When it does, prod silently degrades to the live-snapshot fallback (empty sparklines/charts). Check the expiry when touching the pipeline; the Vercel project is under the montagusandwich account, not the local CLI login.
+- **Data-branch paths have no `data/` prefix** — `snapshots/{id}.json`, `charts/{id}*.json` at the branch root. `vercel-build.sh` maps them into `data/` locally.
 - **Type-mirror duty**: any change to `lib/types.ts` MUST be mirrored in `web/lib/types.ts`. Same for the Ramp fee table (adapter file ↔ aggregator route).
 - **MixBar's field is `amount_usd`** (not `volume_usd`) — direction-agnostic. Callers map `volume_usd` (Composition) or `liquidity_usd` (DepthBreakdown) into it.
 - **`Fragment` shorthand `<>` can't take a `key` prop.** When a map iteration returns multiple sibling elements, use `<Fragment key={...}>` from `react`.
@@ -222,12 +264,14 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 | Schema | `schema/product.schema.json`, `data/products/*.yaml` |
 | FX rates / disk cache | `lib/fx.ts` (`fxMid`, `fxMidBatch`, disk cache at `data/cache/fx.json`) |
 | Cron entry | `scripts/snapshot.ts` (appends to liquidity log) |
-| CI cron | `.github/workflows/snapshot.yml` (every 30 min, needs `ZKP2P_ANALYTICS_KEY` secret) |
+| CI cron | `.github/workflows/snapshot.yml` (every 30 min nominal, needs `ZKP2P_ANALYTICS_KEY` + `VERCEL_DEPLOY_HOOK_URL` secrets) |
+| Vercel build | `scripts/vercel-build.sh` (data-branch restore + fallback), `web/vercel.json` (deploy gating) |
+| Methodology docs | `docs/methodology/*.md`, `web/lib/docs.ts`, `web/app/methodology/` |
 
 ## Workflow commands
 
 ```sh
-npm run snapshot                     # refresh live snapshots (~40s after binance dual-direction)
+npm run snapshot                     # refresh live snapshots (~1 min with multi-page adaptive binance probing)
 npm run history                      # refresh daily history (~10s; zkp2p only produces data)
 npm run backfill:zkp2p-liquidity     # one-time historical TVL backfill via Envio (~30s)
 npm run validate                     # AJV-validate product YAMLs
@@ -262,13 +306,11 @@ For Binance / Ramp endpoints, just use `curl` directly — both are public and a
 
 These were discussed and shelved with deliberate trade-offs noted. When revisiting, **start by re-reading the relevant section here**, not the original discussion (which may have been less developed):
 
-### 1. Multi-page binance probing (~14% → ~80% coverage)
-- Current: top-20 ads per market × 134 markets × 2 directions = ~270 calls. ~14% of full book.
-- Sweet spot: **5 pages × adaptive stopping** (stop early when `total ≤ pages × 20`). Most markets have <500 ads; only ~25% need >2 pages.
-- Cost: snapshot wall time ~70s → ~3 min.
-- Benefit: "Available USDT" KPI currently understated ~7x ($12.94M observed → likely $80-100M actual). Maker aggregates also gain accuracy.
-- Risk: Cloudflare rate-limit cliff. Tighten chunking if hitting it.
-- Headline `$1k effective spread` KPI **does not change** — the cheapest USD ad always qualifies in top-20.
+### 1. ~~Multi-page binance probing~~ — SHIPPED 2026-05-21 (d22b2bc)
+- Landed exactly as scoped: 5 pages × adaptive stopping via `total`, dedupe by `advNo`,
+  sequential pages per market (150ms pause), unchanged peak concurrency.
+- Observed: ~$13M → ~$32–37M total_observed_usd, ~42% of ads, 66% of markets fully covered.
+- See "Binance — offramp + maker aggregates + Market mix" for the live description.
 
 ### 2. Aggregator — visual polish + extensions
 - Replace styled `<select>` elements with **custom dropdowns** matching the reference picker (zkp2p's "Select currency & platform" modal — flags in dropdown rows, platform logos, status badges).
@@ -285,9 +327,10 @@ These were discussed and shelved with deliberate trade-offs noted. When revisiti
 - **Recommended phase 1**: ship Option A first (the consumer-friendly "Spreads" page). Data is already in snapshots. ~2-3h.
 - Option B (dual-orderbook side-by-side comparator) only after Option A validates pro-curious audience exists. ~10h+.
 
-### 5. Binance liquidity sparkline
-- Self-accumulating log started 2026-05-12. Becomes visually meaningful around 2026-05-26 (~14 days).
-- Same charting infrastructure as zkp2p (`web/components/protocol-charts.tsx`) — hand-rolled SVG, no chart lib.
+### 5. Binance liquidity chart on the detail page
+- Self-accumulating log started 2026-05-12; **70+ days available as of 2026-07-21** — no longer blocked on data.
+- The Overview table's 14d-trend sparkline already consumes this log via `loadHistory` — it renders as soon as the Vercel data restore works (see pipeline section; the expired-PAT incident hid it).
+- Remaining work: a liquidity chart on the binance `GenericDetail` page, reusing zkp2p's charting infrastructure (`web/components/protocol-charts.tsx`) — hand-rolled SVG, no chart lib. Liquidity series only (no volume/trades history exists for binance).
 
 ### 6. Future RTPN product (Revolut etc.)
 - Category slot exists with 0 venues. Add a YAML at `data/products/revolut.yaml` with `category: 'rtpn'`. Adapter pattern: likely a stub initially (Revolut has no public quote API for their crypto buy/sell flow).
