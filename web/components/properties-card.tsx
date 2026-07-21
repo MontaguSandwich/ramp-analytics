@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { CATEGORY_LABEL, fmtPct, fmtUsd, fmtUsdSigned } from '@/lib/format';
+import { CATEGORY_LABEL, costLegRows, fmtPct, fmtUsd, fmtUsdSigned } from '@/lib/format';
 import type { CostLeg1k, ProductYaml, Snapshot } from '@/lib/types';
 
 type PricingLayer = NonNullable<NonNullable<ProductYaml['pricing']>['layers']>[number];
@@ -77,8 +77,12 @@ export default function PropertiesCard({ yaml: y, snapshot: s }: { yaml: Product
             <dd className="mono">{fmtPct(spreadBps)}</dd>
           </>
         ) : null}
-        {s?.cost_1k?.value.onramp ? <CostLegRow label="$1k onramp cost" leg={s.cost_1k.value.onramp} /> : null}
-        {s?.cost_1k?.value.offramp ? <CostLegRow label="$1k offramp cost" leg={s.cost_1k.value.offramp} /> : null}
+        {s?.cost_1k?.value.onramp ? (
+          <CostLegRow label="$1k onramp cost" leg={s.cost_1k.value.onramp} />
+        ) : null}
+        {s?.cost_1k?.value.offramp ? (
+          <CostLegRow label="$1k offramp cost" leg={s.cost_1k.value.offramp} />
+        ) : null}
         {deepest ? (
           <>
             <dt>Deepest pair</dt>
@@ -142,15 +146,24 @@ function CostLegRow({ label, leg }: { label: string; leg: CostLeg1k }) {
     .join('\n');
   return (
     <Fragment>
-      <dt>{label}</dt>
-      <dd className="mono" title={assumptions} style={{ cursor: 'help' }}>
-        {fmtUsdSigned(leg.total_usd)} <span className="muted">({fmtPct(leg.total_bps)})</span>
-        <div className="muted" style={{ fontSize: 11 }}>
-          {fmtUsdSigned(leg.fiat_fee_usd)} fiat + {fmtUsdSigned(leg.trade_fee_usd)} trade +{' '}
-          {fmtUsdSigned(leg.spread_usd)} spread
-          {leg.transfer_out_usd != null
-            ? ` · +${fmtUsdSigned(leg.transfer_out_usd)} exit to chain (optional)`
-            : ''}
+      <dt title={assumptions} style={{ cursor: 'help' }}>
+        {label}
+      </dt>
+      <dd>
+        <div className="cost-breakdown">
+          {costLegRows(leg).map((r) => (
+            <div className="cost-breakdown-row" key={r.label}>
+              <span className="muted">{r.label}</span>
+              <span className="mono">{fmtUsdSigned(r.usd)}</span>
+            </div>
+          ))}
+          <div className="cost-breakdown-row cost-breakdown-total">
+            <span>Total</span>
+            <span className="mono">
+              {fmtUsdSigned(leg.total_usd)}{' '}
+              <span className="muted">({fmtPct(leg.total_bps)})</span>
+            </span>
+          </div>
         </div>
       </dd>
     </Fragment>

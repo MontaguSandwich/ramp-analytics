@@ -621,18 +621,23 @@ async function snapshot(): Promise<Snapshot> {
   const costLeg = (probe: MarketProbe | undefined, direction: 'buy' | 'sell'): CostLeg1k | null => {
     const m = probe?.effective_1k_match;
     if (!m || probe?.fx_mid == null) return null;
-    const spread_usd = (EFFECTIVE_SIZE_USD * m.spread_bps) / 10_000;
-    const trade_fee_usd = TAKER_FLAT_FEE.usdt; // USDT ≈ $1, flat per trade order
-    const total_usd = trade_fee_usd + spread_usd;
+    const maker_spread_usd = (EFFECTIVE_SIZE_USD * m.spread_bps) / 10_000;
+    const venue_fee_usd = TAKER_FLAT_FEE.usdt; // USDT ≈ $1, flat per trade order
+    // Buy = withdraw USDT to your own wallet. Sell = deposit from it, which the venue
+    // doesn't charge for (chain gas goes to the network, not Binance).
+    const withdrawal_fee_usd = direction === 'buy' ? USDT_WITHDRAWAL.fee_usdt : 0;
+    const payment_method_fee_usd = 0;
+    const total_usd =
+      payment_method_fee_usd + venue_fee_usd + maker_spread_usd + withdrawal_fee_usd;
     return {
       direction,
       notional_usd: EFFECTIVE_SIZE_USD,
-      fiat_fee_usd: 0,
-      trade_fee_usd,
-      spread_usd,
+      payment_method_fee_usd,
+      venue_fee_usd,
+      maker_spread_usd,
+      withdrawal_fee_usd,
       total_usd,
       total_bps: (total_usd / EFFECTIVE_SIZE_USD) * 10_000,
-      transfer_out_usd: direction === 'buy' ? USDT_WITHDRAWAL.fee_usdt : null,
       assumptions: {
         market: 'USD/USDT',
         match_rule:
@@ -642,14 +647,16 @@ async function snapshot(): Promise<Snapshot> {
         matched_price: m.price,
         fx_mid: probe.fx_mid,
         payment_methods: m.methods.slice(0, 4).join(', ') || null,
-        fiat_fee: 'P2P payment methods carry no venue fiat fee',
-        trade_fee: `flat taker fee per trade order on USDT pairs, ${TAKER_FLAT_FEE.range_note} since 2025-09-22 — we assume ${TAKER_FLAT_FEE.usdt} USDT; the per-fiat maker fee is embedded in the quoted price`,
-        trade_fee_source: TAKER_FLAT_FEE.source,
-        transfer_out:
+        payment_method_fee:
+          'assumed 0 — on P2P the fiat moves bank-to-bank between taker and maker and the venue never touches it. Card/e-wallet rails can carry a third-party fee we cannot observe per-ad.',
+        venue_fee: `flat taker fee per trade order on USDT pairs, ${TAKER_FLAT_FEE.range_note} since 2025-09-22 — we assume ${TAKER_FLAT_FEE.usdt} USDT. The per-fiat MAKER fee is not itemized: it is embedded in the quoted price and therefore already inside the maker spread.`,
+        venue_fee_source: TAKER_FLAT_FEE.source,
+        maker_spread: 'matched ad price vs the FX mid — the maker sets the price, the venue does not quote it. Negative means the book prices under mid, paying the taker.',
+        withdrawal_fee:
           direction === 'buy'
-            ? `USDT withdrawal to ${USDT_WITHDRAWAL.network} (${USDT_WITHDRAWAL.fee_usdt} USDT; ${USDT_WITHDRAWAL.range_note}; checked ${USDT_WITHDRAWAL.checked}) — optional exit to self-custody, excluded from total`
-            : 'depositing USDT from chain costs network gas only; the venue charges nothing — excluded from total',
-        transfer_out_source: direction === 'buy' ? USDT_WITHDRAWAL.source : null,
+            ? `USDT withdrawal to ${USDT_WITHDRAWAL.network} (${USDT_WITHDRAWAL.fee_usdt} USDT; ${USDT_WITHDRAWAL.range_note}; checked ${USDT_WITHDRAWAL.checked}) — the quoted journey ends in your own wallet, so this is included in the total.`
+            : '0 — the venue charges nothing to receive a deposit. Chain gas to send USDT in is paid to the network, not the venue, and varies by chain.',
+        withdrawal_fee_source: direction === 'buy' ? USDT_WITHDRAWAL.source : null,
       },
     };
   };

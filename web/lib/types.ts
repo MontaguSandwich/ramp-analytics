@@ -231,16 +231,30 @@ export interface NetworkHealth {
 export interface CostLeg1k {
   direction: 'buy' | 'sell';
   notional_usd: number;
-  /** Venue fee on the fiat payment leg (0 when the payment method carries none). */
-  fiat_fee_usd: number;
-  /** Taker-facing trade fee (0 on venues where only the maker pays). */
-  trade_fee_usd: number;
-  /** Cost vs FX mid of the matched fill at this notional. */
-  spread_usd: number;
+  /**
+   * Cost of moving the FIAT leg — the deposit/withdrawal rail itself (SEPA, wire, card).
+   * On P2P this is usually 0: fiat moves bank-to-bank between taker and maker and the
+   * venue never touches it. Non-zero rails (card, some e-wallets) belong here.
+   */
+  payment_method_fee_usd: number;
+  /** Taker-facing fee the VENUE charges on top of the maker's price. */
+  venue_fee_usd: number;
+  /**
+   * Cost of the price itself vs the FX mid — on a P2P book the price is maker-set, so
+   * this is the maker's markup rather than a venue quote. Can be negative (P2P books
+   * frequently price under mid, which pays the taker).
+   */
+  maker_spread_usd: number;
+  /**
+   * Cost of moving the CRYPTO leg. Buy = withdrawing to your own wallet; sell = depositing
+   * from it (0, since venues charge nothing to receive — chain gas is paid to the network,
+   * not the venue). INCLUDED in total_usd: the quoted journey is bank balance → own wallet,
+   * mirroring how a CEX route is costed end-to-end.
+   */
+  withdrawal_fee_usd: number;
+  /** payment_method_fee + venue_fee + maker_spread + withdrawal_fee. */
   total_usd: number;
   total_bps: number;
-  /** Optional exit-to-chain (buy) / entry-from-chain (sell) cost — NOT in total_usd. */
-  transfer_out_usd?: number | null;
   /** Published assumptions behind the numbers (market, match rule, fee sources…). */
   assumptions: Record<string, string | number | null>;
 }

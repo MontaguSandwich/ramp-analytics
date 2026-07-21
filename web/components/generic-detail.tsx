@@ -8,6 +8,7 @@ import {
   snapshotTvlUsd,
   spreadKpiSub,
   cost1kTooltip,
+  fmtUsdSigned,
 } from '@/lib/format';
 import type { Product, ProductYaml, Snapshot } from '@/lib/types';
 import { FiatChip, KycBadges } from './chips';
@@ -62,6 +63,9 @@ export default function GenericDetail({ product }: { product: Product }) {
   // is in Coverage. Hide for ramp/kraken/future single-vendor venues.
   const showMarketplaceDynamics = s?.network_health?.value?.active_makers != null;
 
+  const onrampCost = s?.cost_1k?.value.onramp ?? null;
+  const offrampCost = s?.cost_1k?.value.offramp ?? null;
+
   return (
     <>
       {y.description ? (
@@ -86,15 +90,30 @@ export default function GenericDetail({ product }: { product: Product }) {
           ts={s?.volume_30d_usd.last_verified}
           notes={s?.volume_30d_usd.notes}
         />
-        <Kpi
-          label="Spread (~$1k)"
-          value={fmtPct(s?.observed_spread_bps.value ?? null)}
-          provenance={s?.observed_spread_bps.provenance}
-          ts={s?.observed_spread_bps.last_verified}
-          notes={s?.observed_spread_bps.notes}
-          sub={s ? spreadKpiSub(s.observed_spread_bps) : undefined}
-          tooltip={s?.cost_1k?.value ? cost1kTooltip(s.cost_1k.value) : undefined}
-        />
+        {/* When the adapter publishes a cost decomposition, the headline is the ALL-IN $1k
+            cost (fiat rail + venue fee + maker spread + moving crypto out), not the bare
+            spread — the spread is only one of the four components. Venues without a
+            decomposition still show the spread, clearly labelled as such. */}
+        {onrampCost ? (
+          <Kpi
+            label="$1k onramp cost"
+            value={fmtPct(onrampCost.total_bps)}
+            provenance={s?.cost_1k?.provenance}
+            ts={s?.cost_1k?.last_verified}
+            notes={s?.cost_1k?.notes}
+            sub={`${fmtUsdSigned(onrampCost.total_usd)} all-in · ${offrampCost ? `offramp ${fmtPct(offrampCost.total_bps)}` : 'USD/USDT'}`}
+            tooltip={cost1kTooltip(s!.cost_1k!.value)}
+          />
+        ) : (
+          <Kpi
+            label="Spread (~$1k)"
+            value={fmtPct(s?.observed_spread_bps.value ?? null)}
+            provenance={s?.observed_spread_bps.provenance}
+            ts={s?.observed_spread_bps.last_verified}
+            notes={s?.observed_spread_bps.notes}
+            sub={s ? spreadKpiSub(s.observed_spread_bps) : undefined}
+          />
+        )}
         <Kpi
           label="KYC requirement"
           value={<KycBadges pii={y.pii_floor} />}

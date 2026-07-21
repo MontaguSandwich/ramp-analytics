@@ -43,19 +43,20 @@ The effective spread on a **~$1,000 trade** in the venue's deepest USD market, m
 
 The spread is a glance metric. The real cost of any transaction depends on payment method, fiat, asset, and amount — open a venue's live rates table for the per-row detail.
 
-### Cost of $1k (itemized)
+### $1k onramp / offramp cost
 
-Where a venue supports it, the single spread number is decomposed into an itemized **cost of a ~$1,000 trade**, computed per direction (onramp and offramp) and published with its assumptions:
+Where a venue supports it, the headline metric is not a bare spread but the **all-in cost of a ~$1,000 trade**, computed per direction and published with its assumptions. A spread is only one of four things you pay, and on some venues it is not even the largest.
 
-> **fiat fee + trade fee + spread = total**
+The four components follow the journey in order — move fiat in, pay the venue, pay the maker's price, move crypto out:
 
-- **Fiat fee** — any venue fee charged on the fiat payment leg (0 where the payment method carries none).
-- **Trade fee** — the taker-facing trade fee. This is not always zero where folklore says it is: Binance P2P charges a **flat taker fee per trade order** on USDT pairs in ~97 fiat markets — introduced at 0.05 USDT in March 2024 and adjusted to **0.06–0.08 USDT** from September 2025 (we assume the midpoint; both announcements are linked in the snapshot's assumptions). Maker fees are *not* itemized — they are embedded in the maker's quoted price and therefore already inside the spread component.
-- **Spread** — the cost vs the FX mid of the actual matched fill at the $1k notional. The onramp leg uses the same single-match rule as the headline spread; the **offramp leg uses the median of the top-5 qualifying ads**, because the best-paying SELL ads are routinely premium outliers on reversible payment methods (chargeback-risk pricing) that would make off-ramping look like free money. Can be negative: P2P books frequently price below mid.
+> **payment method fee + venue fee + maker spread + withdrawal = total**
 
-**Transfer to self-custody is a separate, optional line, excluded from the total.** CEX-P2P venues settle to the taker's internal venue balance (off-chain). Withdrawing to a wallet is a distinct action whose fee depends entirely on the network chosen (on Binance, from 0.01 USDT on BEP20 to 1.5 USDT on TRC20 at the time of checking). Baking one network's fee into the headline would assert an intent the venue doesn't require — so we surface it as "+ exit to chain (optional)" instead.
+- **Payment method fee** — the cost of the fiat rail itself (SEPA, wire, card). On a P2P venue this is normally zero: the fiat moves bank-to-bank between taker and maker and the venue never touches it. Card and some e-wallet rails do carry third-party fees, which we cannot observe per-ad and therefore state as an assumption rather than invent.
+- **Venue fee** — what the venue charges on top of the maker's price. Not always zero where folklore says it is: Binance P2P charges a **flat taker fee per trade order** on USDT pairs in ~97 fiat markets — introduced at 0.05 USDT in March 2024 and raised to **0.06–0.08 USDT** in September 2025 (we assume the midpoint; both announcements are linked in the snapshot). Maker fees are *not* itemized here — they are embedded in the quoted price and so already sit inside the maker spread.
+- **Maker spread** — the matched fill's price against the FX mid. On a P2P book the price is set by the counterparty, not quoted by the venue, which is why it is labelled *maker* spread. It can be negative: P2P books frequently price under mid, which pays the taker. The onramp leg uses the best-priced qualifying ad; the **offramp leg uses the median of the top-5 qualifying ads**, because the best-paying sell ads are routinely premium outliers on reversible payment methods (chargeback-risk pricing) that would make off-ramping look like free money.
+- **Withdrawal** — moving the crypto to your own wallet, quoted at the cheapest mainstream network. **This is included in the total**, because the journey being priced ends with the asset in your custody, not sitting on the venue's ledger — the same end-to-end basis a CEX route is costed on. On the offramp leg the mirror image is a deposit, which costs nothing at the venue (chain gas is paid to the network, and varies).
 
-Every leg's assumptions (matched price, FX mid, payment methods of the matched ad, fee sources with URLs, withdrawal schedule and check date) are stored in the snapshot and shown in the UI tooltip. If an assumption isn't published, the number doesn't ship.
+Every leg's assumptions — matched price, FX mid, the payment methods of the matched ad, fee sources with URLs, the withdrawal schedule and when it was last checked — are stored in the snapshot and shown on hover. If an assumption isn't published, the number doesn't ship.
 
 ### 30-day volume
 

@@ -256,12 +256,19 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 
 ### cost_1k decomposition (DefiLlama-MiCA-style, 2026-07-21)
 
-- `snapshot.cost_1k` (binance only so far): itemized ~$1k cost per direction —
-  `fiat_fee + trade_fee + spread = total`, with every assumption published in
-  `assumptions` (matched price, FX mid, matched ad's methods, fee source URLs).
-- **Exit-to-chain is a separate optional line, EXCLUDED from total** (user decision):
-  CEX-P2P settles off-chain; baking a withdrawal fee into the headline would assert
-  intent. Quoted at the cheapest mainstream network (BEP20 0.01 USDT), range in note.
+- `snapshot.cost_1k` (binance only so far): itemized ~$1k cost per direction, in
+  journey order — `payment_method_fee + venue_fee + maker_spread + withdrawal = total`,
+  with every assumption published in `assumptions` (matched price, FX mid, matched ad's
+  methods, fee source URLs).
+- **Withdrawal IS included in the total** (user decision 2026-07-21, reversing the
+  earlier same-day call to exclude it): the journey being priced ends with the asset in
+  the user's own wallet, matching how a CEX route is costed end-to-end. Quoted at the
+  cheapest mainstream network (BEP20 0.01 USDT), range published in the assumption. The
+  offramp mirror is a deposit, which costs 0 at the venue (chain gas → the network).
+- **The KPI is "$1k onramp cost", not "Spread"** — the spread is one of four components.
+  Venues with no `cost_1k` still show "Spread (~$1k)"; extending the decomposition to
+  zkp2p and ramp is what unlocks DefiLlama-style onramp/offramp cost COLUMNS on the
+  Overview table (today that column is still the spread).
 - **Binance taker fee is NOT zero**: flat fee per trade order on USDT pairs in ~97
   fiat markets (incl. USD/EUR/GBP) — 0.05 USDT from 2024-03-19, **adjusted to
   0.06–0.08 USDT from 2025-09-22** (midpoint 0.07 assumed; source URLs in

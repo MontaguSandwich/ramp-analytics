@@ -86,27 +86,45 @@ export function fmtUsdSigned(n: number): string {
   return n < 0 ? `−$${abs}` : `$${abs}`;
 }
 
-/** One cost_1k leg as a compact equation string, e.g. "$0 fiat + $0 trade + −$1.20 spread = −$1.20 (−0.12%)". */
+/**
+ * The four components of a $1k cost leg, in the order they occur along the journey:
+ * move fiat in → pay the venue → pay the maker's price → move crypto out.
+ * Shared by the KPI tooltip and the Properties card so the wording can't drift.
+ */
+export function costLegRows(leg: CostLeg1k): Array<{ label: string; usd: number }> {
+  return [
+    { label: 'Payment method fee', usd: leg.payment_method_fee_usd },
+    { label: 'Venue fee', usd: leg.venue_fee_usd },
+    { label: 'Maker spread vs mid', usd: leg.maker_spread_usd },
+    {
+      label: leg.direction === 'buy' ? 'Withdrawal to your wallet' : 'Deposit from your wallet',
+      usd: leg.withdrawal_fee_usd,
+    },
+  ];
+}
+
+/** One leg as a compact equation, e.g. "$0.00 + $0.07 + −$1.00 + $0.01 = −$0.92 (−0.09%)". */
 export function costLegLine(leg: CostLeg1k): string {
-  return `${fmtUsdSigned(leg.fiat_fee_usd)} fiat fee + ${fmtUsdSigned(leg.trade_fee_usd)} trade fee + ${fmtUsdSigned(leg.spread_usd)} spread = ${fmtUsdSigned(leg.total_usd)} (${fmtPct(leg.total_bps)})`;
+  const parts = costLegRows(leg).map((r) => fmtUsdSigned(r.usd)).join(' + ');
+  return `${parts} = ${fmtUsdSigned(leg.total_usd)} (${fmtPct(leg.total_bps)})`;
 }
 
 /**
- * Multi-line tooltip for the Spread KPI when a cost_1k decomposition is present:
- * both legs itemized plus the optional exit-to-chain line. Plain text (title attr).
+ * Multi-line tooltip for the $1k cost KPI — an itemized receipt for both directions,
+ * in the style of a venue-cost breakdown. Plain text (title attr).
  */
 export function cost1kTooltip(c: Cost1k): string {
-  const lines: string[] = [];
-  if (c.onramp) {
-    lines.push(`Onramp $1k: ${costLegLine(c.onramp)}`);
-    if (c.onramp.transfer_out_usd != null) {
-      lines.push(
-        `  + optional exit to chain: ~${fmtUsdSigned(c.onramp.transfer_out_usd)} (not in total)`,
-      );
-    }
-  }
-  if (c.offramp) lines.push(`Offramp $1k: ${costLegLine(c.offramp)}`);
-  return lines.join('\n');
+  const leg = (label: string, l: CostLeg1k) => {
+    const rows = costLegRows(l).map((r) => `  ${r.label.padEnd(26)} ${fmtUsdSigned(r.usd)}`);
+    return [
+      `${label} — $${l.notional_usd.toLocaleString()} notional`,
+      ...rows,
+      `  ${'Total'.padEnd(26)} ${fmtUsdSigned(l.total_usd)} (${fmtPct(l.total_bps)})`,
+    ].join('\n');
+  };
+  return [c.onramp ? leg('Onramp', c.onramp) : '', c.offramp ? leg('Offramp', c.offramp) : '']
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /**
