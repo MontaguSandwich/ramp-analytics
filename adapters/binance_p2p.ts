@@ -268,13 +268,16 @@ const USDT_WITHDRAWAL = {
   checked: '2026-07-21',
 };
 
-// Flat taker fee on USDT pairs in ~97 fiat markets (incl. USD) since 2024-03-19 —
-// 0.05 USDT per trade order. The widely-repeated "takers pay nothing on P2P" is stale.
+// Flat taker fee on USDT pairs in ~97 fiat markets (incl. USD): introduced 2024-03-19
+// at 0.05 USDT per trade order, ADJUSTED to 0.06–0.08 USDT from 2025-09-22 (rollout
+// completed Dec 2025; per-market value inside the range is not published — we assume
+// the midpoint). The widely-repeated "takers pay nothing on P2P" is stale folklore.
 // Maker fees (separate, per-fiat schedule) stay embedded in the quoted price.
 const TAKER_FLAT_FEE = {
-  usdt: 0.05,
+  usdt: 0.07,
+  range_note: '0.06–0.08 USDT depending on market (midpoint assumed)',
   source:
-    'https://www.binance.com/en/support/announcement/detail/cde0427260394f17b7d0d69c56b8657f',
+    'https://www.binance.com/en/support/announcement/detail/70c92ace9acb45529cd4541195248c91',
 };
 
 /**
@@ -435,6 +438,13 @@ async function fetchAllMarkets(
             ? Number(a.adv.price) - Number(b.adv.price)
             : Number(b.adv.price) - Number(a.adv.price),
         );
+        // BUY takes the single best-priced qualifying ad (escrow requirement already
+        // filters bait). SELL takes the MEDIAN of the top-5 qualifying ads: the
+        // best-paying SELL ads are routinely premium outliers on reversible payment
+        // methods (Zelle chargeback-risk pricing) and would make the offramp leg
+        // look like free money.
+        const qualifying: BinanceAd[] = [];
+        const wanted = tradeType === 'BUY' ? 1 : 5;
         for (const ad of sorted) {
           const price = Number(ad.adv.price);
           if (!Number.isFinite(price) || price <= 0) continue;
@@ -443,17 +453,24 @@ async function fetchAllMarkets(
           const surplus = Number(ad.adv.surplusAmount);
           if (targetLocal < minTx || targetLocal > maxTx) continue;
           if (!Number.isFinite(surplus) || surplus < EFFECTIVE_SIZE_USD) continue;
+          qualifying.push(ad);
+          if (qualifying.length >= wanted) break;
+        }
+        // Median element (floor(n/2) of the best-first sort = the actual middle ad,
+        // rounding toward the conservative side on even counts).
+        const picked = qualifying[Math.floor(qualifying.length / 2)] ?? qualifying[0];
+        if (picked) {
+          const price = Number(picked.adv.price);
           const raw = ((price - fx_mid) / fx_mid) * 10_000;
           effective_1k_match = {
             price,
             spread_bps: tradeType === 'BUY' ? raw : -raw,
             methods: unique(
-              (ad.adv.tradeMethods ?? [])
+              (picked.adv.tradeMethods ?? [])
                 .map((m) => m.identifier ?? m.tradeMethodName)
                 .filter((m): m is string => Boolean(m)),
             ),
           };
-          break;
         }
       }
     }
@@ -532,12 +549,15 @@ async function snapshot(): Promise<Snapshot> {
       transfer_out_usd: direction === 'buy' ? USDT_WITHDRAWAL.fee_usdt : null,
       assumptions: {
         market: 'USD/USDT',
-        match_rule: `best-priced ad accepting a $${EFFECTIVE_SIZE_USD} single tx with ≥$${EFFECTIVE_SIZE_USD} USDT-side capacity`,
+        match_rule:
+          direction === 'buy'
+            ? `best-priced ad accepting a $${EFFECTIVE_SIZE_USD} single tx with ≥$${EFFECTIVE_SIZE_USD} USDT-side capacity`
+            : `median of the top-5 best-paying qualifying ads (outlier-resistant: best SELL prices are often reversible-payment risk premiums)`,
         matched_price: m.price,
         fx_mid: probe.fx_mid,
         payment_methods: m.methods.slice(0, 4).join(', ') || null,
         fiat_fee: 'P2P payment methods carry no venue fiat fee',
-        trade_fee: `flat ${TAKER_FLAT_FEE.usdt} USDT taker fee per trade order on USDT pairs (since 2024-03-19); the per-fiat maker fee is embedded in the quoted price`,
+        trade_fee: `flat taker fee per trade order on USDT pairs, ${TAKER_FLAT_FEE.range_note} since 2025-09-22 — we assume ${TAKER_FLAT_FEE.usdt} USDT; the per-fiat maker fee is embedded in the quoted price`,
         trade_fee_source: TAKER_FLAT_FEE.source,
         transfer_out:
           direction === 'buy'

@@ -197,15 +197,18 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - **Exit-to-chain is a separate optional line, EXCLUDED from total** (user decision):
   CEX-P2P settles off-chain; baking a withdrawal fee into the headline would assert
   intent. Quoted at the cheapest mainstream network (BEP20 0.01 USDT), range in note.
-- **Binance taker fee is NOT zero**: flat 0.05 USDT per trade order on USDT pairs in
-  ~97 fiat markets since 2024-03-19 (source URL in `TAKER_FLAT_FEE`). "Takers pay
-  nothing on P2P" is stale folklore — don't reintroduce it.
+- **Binance taker fee is NOT zero**: flat fee per trade order on USDT pairs in ~97
+  fiat markets (incl. USD/EUR/GBP) — 0.05 USDT from 2024-03-19, **adjusted to
+  0.06–0.08 USDT from 2025-09-22** (midpoint 0.07 assumed; source URLs in
+  `TAKER_FLAT_FEE`). "Takers pay nothing on P2P" is stale folklore — third-party fee
+  pages still claim 0% in 2026; Binance's own announcements are the authority.
 - UI: Spread KPI hover tooltip (`cost1kTooltip` in `web/lib/format.ts`) + itemized
   rows on the Venue Properties card (`CostLegRow`). KPI strip stays 4 cards.
-- The SELL-side $1k match reuses the BUY match rule (best-priced qualifying ad).
-  Known caveat: SELL best-price can surface premium outliers (e.g. Zelle ads paying
-  8% over mid — classic reversible-payment risk premium); revisit match rule if this
-  misleads.
+- Match rules differ by direction (user decision 2026-07-21): BUY = single
+  best-priced qualifying ad (escrow filter suffices); SELL = **median of the top-5
+  qualifying ads** — best-paying SELL ads are routinely premium outliers on
+  reversible payment methods (Zelle at +8% over mid) and made the offramp leg look
+  like free money.
 - YAML `licenses[]` extended with optional `authority/status/since/note` → rendered
   as a "Regulation" row on PropertiesCard. Binance entries hand-verified 2026-07-21
   (VARA active, ADGM active, EU/EEA: **no MiCA CASP** — services halted 2026-07-01).
