@@ -118,9 +118,17 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - `yaml.pricing.layers` is a `('maker_quote'|'venue_quote'|'venue_fee')[]` array rendered as pills in PropertiesCard. **Replaces** the freeform `spread_method` for display.
 - Per-product mapping:
   - zkp2p: `[maker_quote]`
-  - binance: `[maker_quote]` (venue fee is charged to the maker, not a separate taker-facing layer)
+  - binance: `[maker_quote, venue_fee]`
   - ramp: `[venue_quote, venue_fee]`
+- **Binance `venue_fee` history — settled, don't flip again**: removed 2026-05-20
+  (293e249) on the belief that only makers pay, **restored 2026-07-21** once the
+  taker fee was verified against Binance's own announcements (flat 0.06–0.08 USDT
+  per trade order on USDT pairs, ~97 fiat markets incl. USD/EUR/GBP). The taker
+  pays a separately-itemized venue charge on top of the maker's price, which is
+  exactly the layer definition. Reverting again requires new evidence that the fee
+  was withdrawn — third-party "0% taker" pages do not count.
 - "Venue fee" = venue takes a separately-itemized commission on top of a maker-set price. Kraken (had `venue_quote` only) doesn't get "Venue fee" because its spread is intrinsic to the quote, not a separate layer.
+- Pills carry hover definitions (`PRICING_LAYER_TITLE` in `properties-card.tsx`) — a "Venue fee" pill on a venue widely believed to be fee-free needs to explain itself. Amounts stay in the itemized $1k cost rows, not the pill.
 - CSS: `.tag.tag-maker-quote` (blue), `.tag.tag-venue-quote` (purple), `.tag.tag-venue-fee` (amber).
 
 ### Settlement assets vs chains

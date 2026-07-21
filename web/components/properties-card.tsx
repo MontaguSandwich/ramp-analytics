@@ -9,6 +9,15 @@ const PRICING_LAYER_LABEL: Record<PricingLayer, string> = {
   venue_fee: 'Venue fee',
 };
 
+// Hover definitions — a "Venue fee" pill on a venue widely believed to be fee-free
+// needs to say what it means. Layer semantics, not per-venue amounts (those live in
+// the itemized $1k cost rows below).
+const PRICING_LAYER_TITLE: Record<PricingLayer, string> = {
+  maker_quote: 'The price is set by the counterparty (a maker posting an ad), not by the venue.',
+  venue_quote: 'The venue itself quotes the price you trade against.',
+  venue_fee: 'The venue charges a separately-itemized fee on top of the quoted price.',
+};
+
 /**
  * Venue Properties info card — the cross-product venue fact sheet: category,
  * direction, pricing model, launch year, live spread + depth posture, audits.
@@ -47,7 +56,11 @@ export default function PropertiesCard({ yaml: y, snapshot: s }: { yaml: Product
           {y.pricing?.layers?.length ? (
             <div className="pricing-pills">
               {y.pricing.layers.map((l) => (
-                <span key={l} className={`tag tag-${l.replace(/_/g, '-')}`}>
+                <span
+                  key={l}
+                  className={`tag tag-${l.replace(/_/g, '-')}`}
+                  title={PRICING_LAYER_TITLE[l]}
+                >
                   {PRICING_LAYER_LABEL[l] ?? l}
                 </span>
               ))}

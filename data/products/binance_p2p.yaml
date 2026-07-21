@@ -72,7 +72,12 @@ pii_floor: id
 pricing:
   spread_method: marketmaker_quote
   pricing_endpoint: https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search
-  layers: [maker_quote]
+  # venue_fee restored 2026-07-21 (reverses the 2026-05-20 removal): the taker DOES
+  # pay a separately-itemized venue charge on top of the maker's quoted price — a flat
+  # 0.06-0.08 USDT per trade order on USDT pairs in ~97 fiat markets (0.05 from
+  # 2024-03-19, adjusted 2025-09-22). The May removal assumed takers paid nothing.
+  # See snapshot.cost_1k assumptions for the sourced per-leg breakdown.
+  layers: [maker_quote, venue_fee]
 
 settlement_time:
   value: { p2p_local: 15min-2h }
