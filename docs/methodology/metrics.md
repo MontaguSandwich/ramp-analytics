@@ -39,6 +39,20 @@ The effective spread on a **~$1,000 trade** in the venue's deepest USD market, m
 
 The spread is a glance metric. The real cost of any transaction depends on payment method, fiat, asset, and amount — open a venue's live rates table for the per-row detail.
 
+### Cost of $1k (itemized)
+
+Where a venue supports it, the single spread number is decomposed into an itemized **cost of a ~$1,000 trade**, computed per direction (onramp and offramp) and published with its assumptions:
+
+> **fiat fee + trade fee + spread = total**
+
+- **Fiat fee** — any venue fee charged on the fiat payment leg (0 where the payment method carries none).
+- **Trade fee** — the taker-facing trade fee. This is not always zero where folklore says it is: Binance P2P charges a **flat 0.05 USDT taker fee** per trade order on USDT pairs in ~97 fiat markets (since 2024-03-19, per Binance's own announcement). Maker fees are *not* itemized — they are embedded in the maker's quoted price and therefore already inside the spread component.
+- **Spread** — the cost vs the FX mid of the actual matched fill at the $1k notional (same match rule as the headline spread). Can be negative: P2P books frequently price below mid.
+
+**Transfer to self-custody is a separate, optional line, excluded from the total.** CEX-P2P venues settle to the taker's internal venue balance (off-chain). Withdrawing to a wallet is a distinct action whose fee depends entirely on the network chosen (on Binance, from 0.01 USDT on BEP20 to 1.5 USDT on TRC20 at the time of checking). Baking one network's fee into the headline would assert an intent the venue doesn't require — so we surface it as "+ exit to chain (optional)" instead.
+
+Every leg's assumptions (matched price, FX mid, payment methods of the matched ad, fee sources with URLs, withdrawal schedule and check date) are stored in the snapshot and shown in the UI tooltip. If an assumption isn't published, the number doesn't ship.
+
 ### 30-day volume
 
 Trailing 30-day traded volume in USD, **where the venue publishes it**. Many venues do not, in which case the field is blank rather than estimated.

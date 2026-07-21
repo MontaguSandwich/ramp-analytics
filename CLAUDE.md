@@ -189,6 +189,28 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - Surface area (since d22b2bc, multi-page adaptive): 134 candidate fiats × 2 directions, **up to 5 pages × 20 ads per market** (`MAX_PAGES`, `ROWS_PER_PAGE`) with adaptive stopping — page 1 reports `total`, so most markets finish in 1–2 pages; a short page also stops the loop. Pages are sequential per market with a 150ms pause (`PROBE_PAGE_DELAY_MS`); ads deduped by `advNo`. Across fiats: chunks of 10 with 300ms gap (`PROBE_CHUNK_SIZE`, `PROBE_CHUNK_DELAY_MS`) — peak concurrency unchanged vs the top-20 era. Two direction passes run **sequentially**, not parallel — Cloudflare sheds under burst.
 - Result: total_observed_usd ~$13M → ~$32–37M, ~42% of all ads captured, 66% of markets fully covered. Orderbook view default depth raised 50 → 100 to match.
 
+### cost_1k decomposition (DefiLlama-MiCA-style, 2026-07-21)
+
+- `snapshot.cost_1k` (binance only so far): itemized ~$1k cost per direction —
+  `fiat_fee + trade_fee + spread = total`, with every assumption published in
+  `assumptions` (matched price, FX mid, matched ad's methods, fee source URLs).
+- **Exit-to-chain is a separate optional line, EXCLUDED from total** (user decision):
+  CEX-P2P settles off-chain; baking a withdrawal fee into the headline would assert
+  intent. Quoted at the cheapest mainstream network (BEP20 0.01 USDT), range in note.
+- **Binance taker fee is NOT zero**: flat 0.05 USDT per trade order on USDT pairs in
+  ~97 fiat markets since 2024-03-19 (source URL in `TAKER_FLAT_FEE`). "Takers pay
+  nothing on P2P" is stale folklore — don't reintroduce it.
+- UI: Spread KPI hover tooltip (`cost1kTooltip` in `web/lib/format.ts`) + itemized
+  rows on the Venue Properties card (`CostLegRow`). KPI strip stays 4 cards.
+- The SELL-side $1k match reuses the BUY match rule (best-priced qualifying ad).
+  Known caveat: SELL best-price can surface premium outliers (e.g. Zelle ads paying
+  8% over mid — classic reversible-payment risk premium); revisit match rule if this
+  misleads.
+- YAML `licenses[]` extended with optional `authority/status/since/note` → rendered
+  as a "Regulation" row on PropertiesCard. Binance entries hand-verified 2026-07-21
+  (VARA active, ADGM active, EU/EEA: **no MiCA CASP** — services halted 2026-07-01).
+- Overview venues table has a `.csv` export (raw values, bps/USD unrounded).
+
 ### Categories page
 
 - Editorial cards (4 of them). Vertical stack (`.category-grid` is `display: flex; flex-direction: column`).

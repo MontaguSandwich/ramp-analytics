@@ -206,6 +206,13 @@ export default function ProductsView({
               Clear
             </button>
           ) : null}
+          <button
+            className="clear-btn"
+            onClick={() => downloadCsv(filtered)}
+            title="Download the currently filtered venues as CSV"
+          >
+            .csv
+          </button>
         </div>
       </div>
 
@@ -409,4 +416,46 @@ function Chip({
       {children}
     </button>
   );
+}
+
+/**
+ * Download the (filtered) venues table as CSV. Raw values, not display strings —
+ * spreads in bps, dollar figures unrounded — so the export is analysis-ready.
+ * Mirrors the coverage-over-YAML preference used by the table rows.
+ */
+function downloadCsv(products: Product[]) {
+  const esc = (v: string | number | null | undefined) => {
+    if (v == null) return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const header = [
+    'venue', 'category', 'direction', 'n_fiats', 'n_methods', 'kyc_floor', 'custody',
+    'spread_1k_bps', 'volume_30d_usd', 'available_liquidity_usd', 'liquidity_is_max_single_trade',
+  ];
+  const rows = products.map((p) => {
+    const cov = p.snapshot?.coverage?.value;
+    const fiatList = cov?.fiats?.length ? cov.fiats : p.yaml.fiats;
+    const methodList = cov?.platforms?.length ? cov.platforms : p.yaml.payment_methods ?? [];
+    return [
+      esc(p.yaml.name),
+      esc(p.yaml.category),
+      esc(p.yaml.direction),
+      fiatList.length,
+      methodList.length,
+      esc(p.yaml.pii_floor),
+      esc(p.yaml.delivery_custody),
+      esc(p.snapshot?.observed_spread_bps.value ?? null),
+      esc(p.snapshot?.volume_30d_usd.value ?? null),
+      esc(snapshotTvlUsd(p.snapshot) ?? null),
+      p.snapshot?.liquidity.value.kind === 'ramp_capacity' ? 'true' : 'false',
+    ].join(',');
+  });
+  const blob = new Blob([[header.join(','), ...rows].join('\n')], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `venues-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }

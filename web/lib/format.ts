@@ -1,4 +1,4 @@
-import type { Provenance, Snapshot } from './types';
+import type { Cost1k, CostLeg1k, Provenance, Snapshot } from './types';
 
 /**
  * UI labels for the `Category` enum. The raw enum values are slugs (e.g. `cex_p2p`);
@@ -78,6 +78,35 @@ export function fmtFiat(value: number, fiat: string): string {
 export function fmtPct(bps: number | null | undefined): string {
   if (bps == null) return '—';
   return `${(bps / 100).toFixed(2)}%`;
+}
+
+/** "$1.23" / "−$1.23" with cents — for cost_1k component lines (signed, small values). */
+export function fmtUsdSigned(n: number): string {
+  const abs = Math.abs(n).toFixed(2);
+  return n < 0 ? `−$${abs}` : `$${abs}`;
+}
+
+/** One cost_1k leg as a compact equation string, e.g. "$0 fiat + $0 trade + −$1.20 spread = −$1.20 (−0.12%)". */
+export function costLegLine(leg: CostLeg1k): string {
+  return `${fmtUsdSigned(leg.fiat_fee_usd)} fiat fee + ${fmtUsdSigned(leg.trade_fee_usd)} trade fee + ${fmtUsdSigned(leg.spread_usd)} spread = ${fmtUsdSigned(leg.total_usd)} (${fmtPct(leg.total_bps)})`;
+}
+
+/**
+ * Multi-line tooltip for the Spread KPI when a cost_1k decomposition is present:
+ * both legs itemized plus the optional exit-to-chain line. Plain text (title attr).
+ */
+export function cost1kTooltip(c: Cost1k): string {
+  const lines: string[] = [];
+  if (c.onramp) {
+    lines.push(`Onramp $1k: ${costLegLine(c.onramp)}`);
+    if (c.onramp.transfer_out_usd != null) {
+      lines.push(
+        `  + optional exit to chain: ~${fmtUsdSigned(c.onramp.transfer_out_usd)} (not in total)`,
+      );
+    }
+  }
+  if (c.offramp) lines.push(`Offramp $1k: ${costLegLine(c.offramp)}`);
+  return lines.join('\n');
 }
 
 /**

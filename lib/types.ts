@@ -198,6 +198,41 @@ export interface NetworkHealth {
   merchant_share_pct?: number;
 }
 
+/**
+ * Decomposed all-in cost of a ~$1k trade — one leg per direction. Instead of a
+ * single opaque spread number, each leg itemizes where the money goes, with the
+ * assumptions published alongside (DefiLlama-MiCA-style methodology).
+ *
+ * Sign convention matches spread_bps: negative = favorable for the taker
+ * (P2P books often price under FX mid, so totals CAN be negative).
+ *
+ * `total_usd` = fiat_fee + trade_fee + spread. It deliberately EXCLUDES
+ * `transfer_out_usd`: for off-chain-settled venues the headline total reflects
+ * what the venue itself delivers (a balance on its ledger); moving to a
+ * self-custodial wallet is a separate optional action, surfaced as its own line.
+ */
+export interface CostLeg1k {
+  direction: 'buy' | 'sell';
+  notional_usd: number;
+  /** Venue fee on the fiat payment leg (0 when the payment method carries none). */
+  fiat_fee_usd: number;
+  /** Taker-facing trade fee (0 on venues where only the maker pays). */
+  trade_fee_usd: number;
+  /** Cost vs FX mid of the matched fill at this notional. */
+  spread_usd: number;
+  total_usd: number;
+  total_bps: number;
+  /** Optional exit-to-chain (buy) / entry-from-chain (sell) cost — NOT in total_usd. */
+  transfer_out_usd?: number | null;
+  /** Published assumptions behind the numbers (market, match rule, fee sources…). */
+  assumptions: Record<string, string | number | null>;
+}
+
+export interface Cost1k {
+  onramp: CostLeg1k | null;
+  offramp: CostLeg1k | null;
+}
+
 export interface Snapshot {
   liquidity: Wrapped<LiquidityValue>;
   volume_30d_usd: Wrapped<number | null>;
@@ -217,6 +252,8 @@ export interface Snapshot {
   depth_composition?: Wrapped<DepthBreakdown>;
   markets?: Wrapped<Market[]>;
   network_health?: Wrapped<NetworkHealth>;
+  /** Itemized ~$1k trade cost per direction with published assumptions. */
+  cost_1k?: Wrapped<Cost1k>;
   capabilities?: Capabilities;
 }
 

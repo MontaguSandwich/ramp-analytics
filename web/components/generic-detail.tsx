@@ -7,6 +7,7 @@ import {
   provenanceLabel,
   snapshotTvlUsd,
   spreadKpiSub,
+  cost1kTooltip,
 } from '@/lib/format';
 import type { Product, ProductYaml, Snapshot } from '@/lib/types';
 import { FiatChip, KycBadges } from './chips';
@@ -86,6 +87,7 @@ export default function GenericDetail({ product }: { product: Product }) {
           ts={s?.observed_spread_bps.last_verified}
           notes={s?.observed_spread_bps.notes}
           sub={s ? spreadKpiSub(s.observed_spread_bps) : undefined}
+          tooltip={s?.cost_1k?.value ? cost1kTooltip(s.cost_1k.value) : undefined}
         />
         <Kpi
           label="KYC requirement"
@@ -299,9 +301,11 @@ interface KpiProps {
   ts?: number;
   notes?: string;
   sub?: string;
+  /** Hover tooltip on the value itself (multi-line ok) — e.g. the cost_1k breakdown. */
+  tooltip?: string;
 }
 
-function Kpi({ label, value, provenance, ts, notes, sub }: KpiProps) {
+function Kpi({ label, value, provenance, ts, notes, sub, tooltip }: KpiProps) {
   // When the underlying data is structurally undisclosed by the product
   // (provenance: 'unavailable'), render a "Not disclosed" label instead of "—".
   // The reason lives in `notes` and is already surfaced via the dot tooltip.
@@ -325,9 +329,11 @@ function Kpi({ label, value, provenance, ts, notes, sub }: KpiProps) {
       {isUnavailable ? (
         <div className="kpi-value-na" title={notes}>Not disclosed</div>
       ) : isRichValue ? (
-        <div className="kpi-value-rich">{value}</div>
+        <div className="kpi-value-rich" title={tooltip}>{value}</div>
       ) : (
-        <div className="kpi-value mono">{value}</div>
+        <div className="kpi-value mono" title={tooltip} style={tooltip ? { cursor: 'help' } : undefined}>
+          {value}
+        </div>
       )}
       {/* Suppress sub (e.g. "n=0 · sample") when the field is unavailable — it's noise then. */}
       {sub && !isUnavailable ? <div className="kpi-sub">{sub}</div> : null}

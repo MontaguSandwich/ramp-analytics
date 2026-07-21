@@ -5,6 +5,7 @@ import type {
   QuoteResponse,
   DailyPoint,
   Market,
+  CostLeg1k,
 } from '../lib/types.ts';
 import { fxMid, fxMidBatch } from '../lib/fx.ts';
 import { sum, unique } from '../lib/stats.ts';
@@ -238,11 +239,43 @@ interface MarketProbe {
    * the cheapest ad whose min/max single-tx window accepts $1k-equivalent in local fiat
    * AND has enough USDT escrowed to cover it. Null if no ad in the top-20 qualifies.
    * CEX P2P is single-match (one trade = one maker), not CLOB-walk.
+   * BUY-side only (drives the headline KPI); SELL probes carry it via effective_1k_match.
    */
   effective_spread_1k_bps: number | null;
+  /**
+   * The $1k single-match itself (both directions) — feeds the cost_1k decomposition.
+   * spread_bps is sign-normalized like MarketProbe.spread_bps (negative = favorable
+   * for the taker); `methods` lists the matched ad's deduped payment identifiers.
+   */
+  effective_1k_match: { price: number; spread_bps: number; methods: string[] } | null;
 }
 
 const EFFECTIVE_SIZE_USD = 1000;
+
+// Exit-to-chain reference cost for the cost_1k decomposition. Binance P2P settles to
+// the taker's internal Binance balance (the 'offchain' sentinel) — withdrawing USDT to
+// a self-custodial wallet is a separate optional action whose fee depends on the network
+// chosen, so it is surfaced as its own line and EXCLUDED from the headline total. We
+// quote the cheapest mainstream network from Binance's published schedule; the range
+// note in assumptions covers the common alternatives (TRC20 1.5 / ERC20 0.4 as checked).
+// Hand-checked values (manual provenance) via the authless endpoint
+// bapi/capital/v1/public/capital/getNetworkCoinAll — re-verify when touching this.
+const USDT_WITHDRAWAL = {
+  network: 'BNB Smart Chain (BEP20)',
+  fee_usdt: 0.01,
+  range_note: 'network-dependent: 0.01 (BEP20) to 1.5 (TRC20) USDT; ERC20 0.4, Solana 0.3',
+  source: 'https://www.binance.com/en/fee/cryptoFee',
+  checked: '2026-07-21',
+};
+
+// Flat taker fee on USDT pairs in ~97 fiat markets (incl. USD) since 2024-03-19 —
+// 0.05 USDT per trade order. The widely-repeated "takers pay nothing on P2P" is stale.
+// Maker fees (separate, per-fiat schedule) stay embedded in the quoted price.
+const TAKER_FLAT_FEE = {
+  usdt: 0.05,
+  source:
+    'https://www.binance.com/en/support/announcement/detail/cde0427260394f17b7d0d69c56b8657f',
+};
 
 /**
  * Probe every CANDIDATE_FIAT against USDT in parallel, compute per-market metrics, and
@@ -385,32 +418,42 @@ async function fetchAllMarkets(
 
     let best_rate: number | null = null;
     let spread_bps: number | null = null;
-    let effective_spread_1k_bps: number | null = null;
+    let effective_1k_match: MarketProbe['effective_1k_match'] = null;
     if (prices.length > 0) {
       best_rate = tradeType === 'BUY' ? Math.min(...prices) : Math.max(...prices);
       if (fx_mid !== null && Number.isFinite(fx_mid) && fx_mid > 0) {
         const rawSpread = ((best_rate - fx_mid) / fx_mid) * 10_000;
         spread_bps = tradeType === 'BUY' ? rawSpread : -rawSpread;
 
-        // Effective spread for a $1k single-match trade — computed for BUY only (drives
-        // the cross-venue headline KPI). SELL-side equivalent could mirror with a
-        // descending-price sort; skipped here since KPI stays onramp-anchored.
-        if (tradeType === 'BUY') {
-          const targetLocal = EFFECTIVE_SIZE_USD * fx_mid;
-          const sorted = [...ads].sort(
-            (a, b) => Number(a.adv.price) - Number(b.adv.price),
-          );
-          for (const ad of sorted) {
-            const price = Number(ad.adv.price);
-            if (!Number.isFinite(price) || price <= 0) continue;
-            const minTx = Number(ad.adv.minSingleTransAmount);
-            const maxTx = Number(ad.adv.maxSingleTransAmount);
-            const surplus = Number(ad.adv.surplusAmount);
-            if (targetLocal < minTx || targetLocal > maxTx) continue;
-            if (!Number.isFinite(surplus) || surplus < EFFECTIVE_SIZE_USD) continue;
-            effective_spread_1k_bps = ((price - fx_mid) / fx_mid) * 10_000;
-            break;
-          }
+        // $1k single-match: the best-priced ad (cheapest for BUY, best-paying for
+        // SELL) whose single-tx window accepts $1k-equivalent AND has ≥$1k of
+        // USDT-side capacity. BUY drives the cross-venue headline KPI; both
+        // directions feed the cost_1k decomposition.
+        const targetLocal = EFFECTIVE_SIZE_USD * fx_mid;
+        const sorted = [...ads].sort((a, b) =>
+          tradeType === 'BUY'
+            ? Number(a.adv.price) - Number(b.adv.price)
+            : Number(b.adv.price) - Number(a.adv.price),
+        );
+        for (const ad of sorted) {
+          const price = Number(ad.adv.price);
+          if (!Number.isFinite(price) || price <= 0) continue;
+          const minTx = Number(ad.adv.minSingleTransAmount);
+          const maxTx = Number(ad.adv.maxSingleTransAmount);
+          const surplus = Number(ad.adv.surplusAmount);
+          if (targetLocal < minTx || targetLocal > maxTx) continue;
+          if (!Number.isFinite(surplus) || surplus < EFFECTIVE_SIZE_USD) continue;
+          const raw = ((price - fx_mid) / fx_mid) * 10_000;
+          effective_1k_match = {
+            price,
+            spread_bps: tradeType === 'BUY' ? raw : -raw,
+            methods: unique(
+              (ad.adv.tradeMethods ?? [])
+                .map((m) => m.identifier ?? m.tradeMethodName)
+                .filter((m): m is string => Boolean(m)),
+            ),
+          };
+          break;
         }
       }
     }
@@ -424,7 +467,10 @@ async function fetchAllMarkets(
       spread_bps,
       fx_mid,
       n_makers,
-      effective_spread_1k_bps,
+      // BUY normalization is the identity, so the headline KPI value is unchanged.
+      effective_spread_1k_bps:
+        tradeType === 'BUY' ? (effective_1k_match?.spread_bps ?? null) : null,
+      effective_1k_match,
     });
   }
 
@@ -462,6 +508,45 @@ async function snapshot(): Promise<Snapshot> {
   // comparison with other venues that all settle in USD.
   const usdProbe = probes.find((p) => p.fiat === 'USD');
   const effectiveUsd1kBps = usdProbe?.effective_spread_1k_bps ?? null;
+
+  // cost_1k decomposition: itemize the $1k single-match into fiat fee / trade fee /
+  // spread, per direction, with the assumptions published alongside. The fee legs are
+  // NOT all zero: takers pay a flat 0.05 USDT per USDT-pair trade order (since
+  // 2024-03-19; see TAKER_FLAT_FEE.source) — the point of the decomposition is making
+  // exactly this kind of buried cost legible and cross-venue comparable.
+  const usdSellProbe = sellProbes.find((p) => p.fiat === 'USD');
+  const costLeg = (probe: MarketProbe | undefined, direction: 'buy' | 'sell'): CostLeg1k | null => {
+    const m = probe?.effective_1k_match;
+    if (!m || probe?.fx_mid == null) return null;
+    const spread_usd = (EFFECTIVE_SIZE_USD * m.spread_bps) / 10_000;
+    const trade_fee_usd = TAKER_FLAT_FEE.usdt; // USDT ≈ $1, flat per trade order
+    const total_usd = trade_fee_usd + spread_usd;
+    return {
+      direction,
+      notional_usd: EFFECTIVE_SIZE_USD,
+      fiat_fee_usd: 0,
+      trade_fee_usd,
+      spread_usd,
+      total_usd,
+      total_bps: (total_usd / EFFECTIVE_SIZE_USD) * 10_000,
+      transfer_out_usd: direction === 'buy' ? USDT_WITHDRAWAL.fee_usdt : null,
+      assumptions: {
+        market: 'USD/USDT',
+        match_rule: `best-priced ad accepting a $${EFFECTIVE_SIZE_USD} single tx with ≥$${EFFECTIVE_SIZE_USD} USDT-side capacity`,
+        matched_price: m.price,
+        fx_mid: probe.fx_mid,
+        payment_methods: m.methods.slice(0, 4).join(', ') || null,
+        fiat_fee: 'P2P payment methods carry no venue fiat fee',
+        trade_fee: `flat ${TAKER_FLAT_FEE.usdt} USDT taker fee per trade order on USDT pairs (since 2024-03-19); the per-fiat maker fee is embedded in the quoted price`,
+        trade_fee_source: TAKER_FLAT_FEE.source,
+        transfer_out:
+          direction === 'buy'
+            ? `USDT withdrawal to ${USDT_WITHDRAWAL.network} (${USDT_WITHDRAWAL.fee_usdt} USDT; ${USDT_WITHDRAWAL.range_note}; checked ${USDT_WITHDRAWAL.checked}) — optional exit to self-custody, excluded from total`
+            : 'depositing USDT from chain costs network gas only; the venue charges nothing — excluded from total',
+        transfer_out_source: direction === 'buy' ? USDT_WITHDRAWAL.source : null,
+      },
+    };
+  };
 
   // Derive: max single-trade ceiling across every observed ad. For each ad it's
   // min(maxSingleTransAmount_in_USD, surplus_USDT) — the bigger of (maker cap, escrow
@@ -639,6 +724,14 @@ async function snapshot(): Promise<Snapshot> {
         effectiveUsd1kBps == null
           ? 'No USD market ad in the top-20 accepts a $1k single-match trade with enough escrowed USDT.'
           : undefined,
+    },
+    cost_1k: {
+      value: { onramp: costLeg(usdProbe, 'buy'), offramp: costLeg(usdSellProbe, 'sell') },
+      provenance: 'api',
+      last_verified: now,
+      evidence_url: SEARCH_URL,
+      notes:
+        'Spread legs are live $1k single-match quotes vs the CoinGecko FX mid; the optional exit-to-chain line uses Binance’s published withdrawal schedule (hand-checked).',
     },
     fee_snapshot: { ts: now, sample_rows, provenance: 'api' },
     // Both subpages backed by routes under web/app/api/binance_p2p/{orderbook,quote}/route.ts.

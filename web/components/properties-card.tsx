@@ -1,5 +1,6 @@
-import { CATEGORY_LABEL, fmtPct, fmtUsd } from '@/lib/format';
-import type { ProductYaml, Snapshot } from '@/lib/types';
+import { Fragment } from 'react';
+import { CATEGORY_LABEL, fmtPct, fmtUsd, fmtUsdSigned } from '@/lib/format';
+import type { CostLeg1k, ProductYaml, Snapshot } from '@/lib/types';
 
 type PricingLayer = NonNullable<NonNullable<ProductYaml['pricing']>['layers']>[number];
 const PRICING_LAYER_LABEL: Record<PricingLayer, string> = {
@@ -63,6 +64,8 @@ export default function PropertiesCard({ yaml: y, snapshot: s }: { yaml: Product
             <dd className="mono">{fmtPct(spreadBps)}</dd>
           </>
         ) : null}
+        {s?.cost_1k?.value.onramp ? <CostLegRow label="$1k onramp cost" leg={s.cost_1k.value.onramp} /> : null}
+        {s?.cost_1k?.value.offramp ? <CostLegRow label="$1k offramp cost" leg={s.cost_1k.value.offramp} /> : null}
         {deepest ? (
           <>
             <dt>Deepest pair</dt>
@@ -87,8 +90,57 @@ export default function PropertiesCard({ yaml: y, snapshot: s }: { yaml: Product
             <dd>{y.audits.map((a) => `${a.firm} (${a.date})`).join('; ')}</dd>
           </>
         ) : null}
+        {y.licenses?.length ? (
+          <>
+            <dt>Regulation</dt>
+            <dd>
+              {y.licenses.map((l, i) => {
+                const line = `${l.jurisdiction} — ${l.type}${l.status ? ` (${l.status}${l.since ? `, ${l.since}` : ''})` : l.since ? ` (${l.since})` : ''}`;
+                return (
+                  <div key={i} title={l.note}>
+                    {l.url ? (
+                      <a href={l.url} target="_blank" rel="noreferrer">
+                        {line}
+                      </a>
+                    ) : (
+                      line
+                    )}
+                    {l.authority ? <span className="muted"> · {l.authority}</span> : null}
+                  </div>
+                );
+              })}
+            </dd>
+          </>
+        ) : null}
       </dl>
     </div>
+  );
+}
+
+/**
+ * Itemized ~$1k cost row: total (bps) headline, component equation as the sub-line,
+ * full assumptions in the hover tooltip. The optional exit-to-chain line renders
+ * separately and is excluded from the total (off-chain-settlement decision).
+ */
+function CostLegRow({ label, leg }: { label: string; leg: CostLeg1k }) {
+  const assumptions = Object.entries(leg.assumptions)
+    .filter(([, v]) => v != null && v !== '')
+    .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v}`)
+    .join('\n');
+  return (
+    <Fragment>
+      <dt>{label}</dt>
+      <dd className="mono" title={assumptions} style={{ cursor: 'help' }}>
+        {fmtUsdSigned(leg.total_usd)} <span className="muted">({fmtPct(leg.total_bps)})</span>
+        <div className="muted" style={{ fontSize: 11 }}>
+          {fmtUsdSigned(leg.fiat_fee_usd)} fiat + {fmtUsdSigned(leg.trade_fee_usd)} trade +{' '}
+          {fmtUsdSigned(leg.spread_usd)} spread
+          {leg.transfer_out_usd != null
+            ? ` · +${fmtUsdSigned(leg.transfer_out_usd)} exit to chain (optional)`
+            : ''}
+        </div>
+      </dd>
+    </Fragment>
   );
 }
 
