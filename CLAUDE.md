@@ -505,11 +505,31 @@ These were discussed and shelved with deliberate trade-offs noted. When revisiti
   auth-walled market data) — candidate for the community attestation pipeline, and would
   need a category decision (it's a CEX orderbook, not P2P/ramp/RTPN).
 
-### 7. Community attestation pipeline (design in COMMUNITY_DATA.md)
-- Session 2026-07-22 design decisions (user-locked): both data classes (published facts +
-  observed quotes) from day one; GitHub-PR submission rail; **zkTLS (Reclaim) as launch
-  differentiator**; observations live in this repo. Provider #1 target: Revolut in-app
-  quote screen (the execution-time rate markup no public source has) + Revolut X tickers.
-- Evidence tiers: 0 = claim + public URL, 1 = redacted artifact hash, 2 = zkTLS proof
-  against a version-pinned provider template. Templates are the carefully-reviewed artifact;
-  observations against approved templates verify mechanically in CI.
+### 7. Community attestation pipeline — **designed, see `COMMUNITY_DATA.md`**
+- Read that doc before touching this; only the headlines are repeated here.
+- User-locked 2026-07-22: both data classes (published facts + observed quotes) from day
+  one; GitHub-PR submission rail; zkTLS as launch differentiator; observations in this repo
+  under `data/community/`. Evidence tiers 0 (public URL) / 1 (artifact hash) / 2 (zkTLS).
+- **Revised the same day by a 104-agent research pass (13 confirmed, 12 refuted):**
+  - **Provider #1 is NO LONGER the Revolut in-app quote screen.** Reclaim attests
+    intercepted HTTP **response bytes**, not rendered DOM — a client-computed fee is
+    unattestable at any extension quality, and the in-app flow is mobile-only anyway. New
+    selection criterion: *pick by whether the value lands in a JSON response body on a
+    desktop-browser-reachable authenticated surface*, not by which venue is interesting.
+  - **Revolut X is the better candidate** and our own probes support it: web app + JSON
+    API (`/api/crypto-exchange/tickers`) + session auth (401 unauthenticated) + absent from
+    CoinGecko. BLOCKING: nobody has inspected an *authenticated* session; a 401 proves an
+    API exists, not that it returns what we need. Cheapest next action in the project.
+  - **Reclaim's attestor can forge proofs** (their own security FAQ — adverse-interest
+    source). Self-host it: forgery then sits with the operator the reader already trusts,
+    collapsing to the existing assumption. But do NOT market it as "trustless".
+  - **`verifyProof` does NOT validate provider params** (URL/method/selectors) against
+    expected values — that is integrator code. Skip it and CI accepts a correctly-signed
+    proof of the WRONG URL, which is the primary attack for a crowdsourced submitter.
+  - Custom Reclaim providers are **inactive by default** pending manual Reclaim review —
+    a third-party human gate on the critical path.
+  - TLSNotary is alpha ("do not use in production"); Opacity is mobile-only (ruled out);
+    Primus/PADO is the hedge (MPC mode counters client-side tampering); zkp2p partner
+    usability is an OPEN question — both research claims collapsed, ask them directly.
+- Recommended phasing: tiers 0–1 first (no cryptography, most of the user-visible value),
+  then tier 2 on one provider end-to-end to learn the activation-gate cost.
