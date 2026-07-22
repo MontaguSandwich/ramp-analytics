@@ -1,0 +1,108 @@
+{
+  "liquidity": {
+    "value": {
+      "kind": "ramp_capacity",
+      "fiat": {}
+    },
+    "provenance": "unavailable",
+    "last_verified": 1784720739704,
+    "notes": "Revolut does not disclose in-app crypto liquidity, internal order flow, or per-trade capacity. Exchange limits are per-account and plan-dependent."
+  },
+  "volume_30d_usd": {
+    "value": null,
+    "provenance": "unavailable",
+    "last_verified": 1784720739704,
+    "notes": "Revolut does not publish in-app crypto trading volume."
+  },
+  "observed_spread_bps": {
+    "value": 0,
+    "provenance": "self_reported",
+    "spread_aggregation": "effective_at_size",
+    "sample_size": 1,
+    "period": "usd_$1k_published_fee_schedule",
+    "last_verified": 1784720739704,
+    "evidence_url": "https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/",
+    "notes": "Published terms: USD↔USDC (and USDT on the UK schedule) convert 1:1 with no spread and no exchange fee — the $1k stablecoin onramp leg is free before withdrawal. Non-stablecoin trades pay the plan/volume-tiered fee (Standard 1.49% at $1k) plus an execution-time rate markup that is NOT publicly observable — attestation target."
+  },
+  "fee_snapshot": {
+    "ts": 1784720739704,
+    "sample_rows": [
+      {
+        "fiat": "USD",
+        "asset": "USDC",
+        "payment_method": "balance (any plan)",
+        "effective_rate_bps": 0
+      },
+      {
+        "fiat": "USD",
+        "asset": "BTC",
+        "payment_method": "balance (Standard/Plus)",
+        "effective_rate_bps": 149
+      },
+      {
+        "fiat": "USD",
+        "asset": "BTC",
+        "payment_method": "balance (Premium/Metal)",
+        "effective_rate_bps": 99
+      },
+      {
+        "fiat": "USD",
+        "asset": "BTC",
+        "payment_method": "balance (Ultra)",
+        "effective_rate_bps": 49
+      }
+    ],
+    "provenance": "self_reported"
+  },
+  "cost_1k": {
+    "value": {
+      "onramp": {
+        "direction": "buy",
+        "notional_usd": 1000,
+        "payment_method_fee_usd": 0,
+        "venue_fee_usd": 0,
+        "maker_spread_usd": 0,
+        "withdrawal_fee_usd": 4.0101912326525815,
+        "total_usd": 4.0101912326525815,
+        "total_bps": 40.10191232652582,
+        "assumptions": {
+          "market": "USD balance → USDC → external wallet",
+          "plan": "any (stablecoin exemption applies to all plans)",
+          "exchange_fee": "0 — fiat↔stablecoin exchanges exempt from % and minimum fees",
+          "rate": "USDC/USD converts 1:1, no spread (depeg and abuse carve-outs apply)",
+          "fair_usage": "Standard: crypto exchanges count toward the £1,000/mo exchange allowance; beyond it a 1% fair-usage fee applies. $1k fits a fresh allowance.",
+          "withdrawal_service_fee": "3 GBP-equivalent (non-cheap-network asset class)",
+          "network_fee": "variable, quoted in-app at withdrawal, passed through — excluded here (attestation target)",
+          "usdt_note": "USDT/USD 1:1 also published (UK schedule); EEA USDT availability is restricted post-MiCA — USDC used as the anchor",
+          "fee_source": "https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/"
+        }
+      },
+      "offramp": {
+        "direction": "sell",
+        "notional_usd": 1000,
+        "payment_method_fee_usd": 0,
+        "venue_fee_usd": 0,
+        "maker_spread_usd": 0,
+        "withdrawal_fee_usd": 0,
+        "total_usd": 0,
+        "total_bps": 0,
+        "assumptions": {
+          "market": "external wallet → USDC → USD balance",
+          "deposit_fee": "0 — \"We do not charge any fees for deposits\"",
+          "rate": "USDC/USD converts 1:1, no spread (depeg and abuse carve-outs apply)",
+          "fair_usage": "same fair-usage allowance caveat as the onramp leg (Standard/Plus)",
+          "offboarding_note": "getting USD out of Revolut to a bank is a fiat transfer priced by the account plan, not the crypto product",
+          "fee_source": "https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/"
+        }
+      }
+    },
+    "provenance": "self_reported",
+    "last_verified": 1784720739704,
+    "evidence_url": "https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/",
+    "notes": "Derived from the published fee schedule (venue-reported, not independently observed). The tiered exchange-fee structure is replaced by flat fees on 2026-08-10 (Standard/Plus 1.49%, Premium/Metal 0.99%) — stablecoin exemption unchanged."
+  },
+  "capabilities": {
+    "orderbook": false,
+    "quote": false
+  }
+}
