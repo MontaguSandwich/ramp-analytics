@@ -137,18 +137,34 @@ The research couldn't answer the Revolut questions, but this session's live prob
 | Surface | Browser-reachable | JSON API | Auth | Verdict |
 |---|---|---|---|---|
 | `ramp.revolut.com` (Ramp) | Yes | Yes, itemized fees | **None** | Already scraped directly — attestation adds nothing |
-| `exchange.revolut.com` (Revolut X) | **Yes** | **Yes** (`/api/crypto-exchange/tickers`) | **Session (401)** | **Best candidate** |
+| `exchange.revolut.com` (Revolut X) | Yes | Yes | **Public via MiCA** | **RESOLVED — no attestation needed, see below** |
 | In-app retail crypto | No (mobile) | Unknown | Session | Deferred — see NO-GO above |
 
-Revolut X hits every criterion: a real web app, JSON endpoints, behind session auth — which
-is precisely the condition under which attestation earns its keep. Its published fees are
-**0% maker / 0.09% taker**, a genuinely different product from the in-app 1.49%, and its
-volume/orderbook are not on CoinGecko, so there is no non-attested substitute.
+### Revolut X is settled: the data is public (2026-07-22, later the same day)
 
-**Unverified and blocking**: nobody has inspected an *authenticated* Revolut X session. A
-401 proves an API exists, not that its responses contain what we want. Someone with an
-account must open devtools and confirm the shape before any build. That is the single
-cheapest next action in this whole document.
+Revolut X was briefly the leading attestation candidate on the theory that its market data
+was session-gated — `/api/crypto-exchange/tickers` returns 401, and it is absent from
+CoinGecko. **That theory was wrong.** MiCA obliges licensed trading platforms to publish
+pre-trade and post-trade transparency data, and Revolut publishes it **unauthenticated**:
+
+- `transparency/config` → 527 symbols
+- `transparency/order-books?symbol=X&timestamp=<ISO8601>` → order book CSV (5 levels/side)
+- `transparency/trades` → every executed trade since 00:00 UTC
+
+So Revolut X needs no attestation, no login and no ToS argument. Full write-up, values and
+a reference collector: `~/Desktop/offchain/defillama/scoping/revolut-x-mica/`.
+
+**The generalizable lesson — this is the second time it has paid off today:** when a
+question is about a specific reachable system, *probe it* rather than research it. Desk
+research produced zero surviving claims about Revolut's surfaces; ten minutes of curl
+produced the endpoints, the schema and the numbers. The regulatory angle is worth
+remembering too — **compliance obligations create public data**, so before assuming a
+venue's data is locked away, check whether its regulator forces it into the open.
+
+**Consequence for this pipeline**: provider #1 is once again unassigned. The selection
+criterion stands, but it now needs a target that is genuinely gated *and* returns the value
+in a JSON response body. Apply the criterion venue by venue rather than reaching for the
+most interesting name — that error has now been made twice.
 
 ### 3. The trust model has to be stated honestly
 
@@ -246,8 +262,10 @@ revisit zkp2p partnership.
 
 ## Open questions
 
-1. **Does Revolut X return fees/quotes in a JSON body on an authenticated web session?**
-   Blocking for provider #1. Answerable in ten minutes by anyone with an account.
+1. ~~Does Revolut X return fees/quotes in a JSON body on an authenticated web session?~~
+   **ANSWERED 2026-07-22 — moot.** Its market data is public via the MiCA transparency
+   feed, so Revolut X leaves the attestation roadmap entirely. Provider #1 is unassigned;
+   apply the selection criterion to the next venue.
 2. What does Reclaim's manual provider-activation actually cost in time, and do they
    activate providers targeting regulated financial apps? Only knowable by asking them.
 3. Is zkp2p's attestation infra usable by partners? They are already a tracked venue —
