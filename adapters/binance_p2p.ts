@@ -225,6 +225,8 @@ async function fetchTradeMethodsByFiat(): Promise<TradeMethodsCoverage> {
  */
 interface MarketProbe {
   fiat: string;
+  /** Stablecoin this probe covers. One probe per (fiat, asset) pair. */
+  asset: ProbeAsset;
   ads: BinanceAd[];
   /** Binance's reported full-book ad count for these filters. */
   total: number;
@@ -258,7 +260,7 @@ interface MarketProbe {
 
 const EFFECTIVE_SIZE_USD = 1000;
 
-type MarketFetch = { fiat: string; ads: BinanceAd[]; total: number };
+type MarketFetch = { fiat: string; asset: ProbeAsset; ads: BinanceAd[]; total: number };
 
 // The headline spread KPI *and* the whole cost_1k decomposition are anchored to this one
 // market. When Cloudflare sheds it — 1 probe out of 134 — all three go null at once.
@@ -339,6 +341,21 @@ const MAX_PAGES = 5;
 // zero ads, so more pages is the only way to go deeper.
 // Cost: ~230 extra sequential pages per full cycle, ~90s of added wall time. Acceptable
 // inside the cron's budget; do NOT extend this set to many fiats without re-measuring.
+/**
+ * Stablecoins counted toward venue liquidity. USDT is the global default; USDC matters
+ * disproportionately in the EEA because Binance delisted USDT for EEA users in March
+ * 2025 under MiCA, pushing European liquidity into USDC. Measured 2026-07-21 within the
+ * ±5% band: USDC adds only ~3% on top of USDT in USD, but **~38% in EUR** — so a
+ * USDT-only figure understated European depth by roughly a quarter.
+ *
+ * Stablecoins only, deliberately: both are ≈$1, so `surplusAmount` sums directly into USD
+ * without FX conversion. BTC/ETH/BNB would need price conversion and are a different
+ * question ("what can I buy") than the one this KPI answers ("how much dollar-liquidity
+ * is escrowed here").
+ */
+const PROBE_ASSETS = ['USDT', 'USDC'] as const;
+type ProbeAsset = (typeof PROBE_ASSETS)[number];
+
 const DEEP_COVERAGE_FIATS = new Set(['USD', 'EUR']);
 // Safety ceiling for the deep set so a runaway `total` can't page forever (4000 ads).
 const MAX_PAGES_DEEP = 200;
@@ -357,9 +374,10 @@ const PROBE_PAGE_DELAY_MS = 150;
  */
 async function fetchMarketPages(
   fiat: string,
+  asset: ProbeAsset,
   tradeType: 'BUY' | 'SELL',
 ): Promise<{ ads: BinanceAd[]; total: number }> {
-  const first = await search({ fiat, asset: 'USDT', tradeType, rows: ROWS_PER_PAGE, page: 1 });
+  const first = await search({ fiat, asset, tradeType, rows: ROWS_PER_PAGE, page: 1 });
   const seen = new Set<string>();
   const ads: BinanceAd[] = [];
   const push = (batch: BinanceAd[]) => {
@@ -376,13 +394,14 @@ async function fetchMarketPages(
   // escrow — a maker can advertise "I'll buy 1,000,000 USDT" with nothing locked. Paging
   // the whole SELL book just accumulates unbacked intent (measured: $350.79M for USD vs
   // $8.05M of real escrowed BUY depth). We cap it at MAX_PAGES and label it "demand".
-  const pageCap = DEEP_COVERAGE_FIATS.has(fiat) && tradeType === 'BUY' ? MAX_PAGES_DEEP : MAX_PAGES;
+  const pageCap =
+    DEEP_COVERAGE_FIATS.has(fiat) && tradeType === 'BUY' ? MAX_PAGES_DEEP : MAX_PAGES;
   const pagesNeeded = Math.min(pageCap, Math.max(1, Math.ceil(first.total / ROWS_PER_PAGE)));
   // Only keep paging if page 1 was full — a short first page means the book is exhausted.
   if (first.ads.length >= ROWS_PER_PAGE) {
     for (let page = 2; page <= pagesNeeded; page++) {
       await new Promise((r) => setTimeout(r, PROBE_PAGE_DELAY_MS));
-      const next = await search({ fiat, asset: 'USDT', tradeType, rows: ROWS_PER_PAGE, page });
+      const next = await search({ fiat, asset, tradeType, rows: ROWS_PER_PAGE, page });
       push(next.ads);
       if (next.ads.length < ROWS_PER_PAGE) break; // reached end of book
     }
@@ -392,7 +411,8 @@ async function fetchMarketPages(
 
 async function fetchAllMarkets(
   now: number,
-  fxMids: Record<string, number>,
+  /** FX mids keyed by asset then fiat — USDT and USDC don't trade at identical mids. */
+  fxMidsByAsset: Record<ProbeAsset, Record<string, number>>,
   tradeType: 'BUY' | 'SELL',
 ): Promise<{
   probes: MarketProbe[];
@@ -419,35 +439,49 @@ async function fetchAllMarkets(
   // Fire requests in chunks instead of one big Promise.all to stay under Binance's
   // burst-rate cliff. Each chunk runs in parallel; chunks are sequential with a brief
   // pause between them.
+  // One unit of work per (fiat, asset) pair — 134 fiats × 2 stablecoins. Chunk size and
+  // inter-chunk pause are unchanged, so peak concurrency against Cloudflare is identical;
+  // the sweep just runs about twice as long.
+  const units: Array<{ fiat: string; asset: ProbeAsset }> = [];
+  for (const fiat of CANDIDATE_FIATS) {
+    for (const asset of PROBE_ASSETS) units.push({ fiat, asset });
+  }
+
   const settled: PromiseSettledResult<MarketFetch>[] = [];
-  for (let i = 0; i < CANDIDATE_FIATS.length; i += PROBE_CHUNK_SIZE) {
-    const chunk = CANDIDATE_FIATS.slice(i, i + PROBE_CHUNK_SIZE);
+  for (let i = 0; i < units.length; i += PROBE_CHUNK_SIZE) {
+    const chunk = units.slice(i, i + PROBE_CHUNK_SIZE);
     const chunkResults = await Promise.allSettled(
-      chunk.map(async (fiat) => {
-        const result = await fetchMarketPages(fiat, tradeType);
-        return { fiat, ...result };
+      chunk.map(async ({ fiat, asset }) => {
+        const result = await fetchMarketPages(fiat, asset, tradeType);
+        return { fiat, asset, ...result };
       }),
     );
     settled.push(...chunkResults);
-    if (i + PROBE_CHUNK_SIZE < CANDIDATE_FIATS.length) {
+    if (i + PROBE_CHUNK_SIZE < units.length) {
       await new Promise((resolve) => setTimeout(resolve, PROBE_CHUNK_DELAY_MS));
     }
   }
 
   // Targeted retry for the KPI-anchor market (see KPI_ANCHOR_FIAT). Runs after the storm,
   // sequentially, so it isn't competing with the chunked burst that likely shed it.
-  const anchorIdx = settled.findIndex(
-    (r) => r.status === 'fulfilled' && r.value.fiat === KPI_ANCHOR_FIAT,
-  );
-  const anchorAds =
-    anchorIdx >= 0 ? (settled[anchorIdx] as PromiseFulfilledResult<MarketFetch>).value.ads : [];
-  if (anchorAds.length === 0) {
+  // Retried per asset: the headline cost now picks the best across stablecoins, so losing
+  // either USD book degrades it.
+  for (const asset of PROBE_ASSETS) {
+    const anchorIdx = settled.findIndex(
+      (r) =>
+        r.status === 'fulfilled' &&
+        r.value.fiat === KPI_ANCHOR_FIAT &&
+        r.value.asset === asset,
+    );
+    const anchorAds =
+      anchorIdx >= 0 ? (settled[anchorIdx] as PromiseFulfilledResult<MarketFetch>).value.ads : [];
+    if (anchorAds.length > 0) continue;
     for (let attempt = 1; attempt <= KPI_ANCHOR_RETRIES; attempt++) {
       await new Promise((resolve) => setTimeout(resolve, KPI_ANCHOR_RETRY_DELAY_MS));
       try {
-        const retried = await fetchMarketPages(KPI_ANCHOR_FIAT, tradeType);
+        const retried = await fetchMarketPages(KPI_ANCHOR_FIAT, asset, tradeType);
         if (retried.ads.length > 0) {
-          const value: MarketFetch = { fiat: KPI_ANCHOR_FIAT, ...retried };
+          const value: MarketFetch = { fiat: KPI_ANCHOR_FIAT, asset, ...retried };
           if (anchorIdx >= 0) settled[anchorIdx] = { status: 'fulfilled', value };
           else settled.push({ status: 'fulfilled', value });
           break;
@@ -461,23 +495,25 @@ async function fetchAllMarkets(
 
   const probes: MarketProbe[] = [];
   let total_observed_usd = 0;
-  let markets_observed = 0;
+  const fiatsWithDepth = new Set<string>();
 
   for (const r of settled) {
     if (r.status !== 'fulfilled') continue;
-    const { fiat, ads, total } = r.value;
+    const { fiat, asset, ads, total } = r.value;
     if (!ads.length) continue;
 
     const surplus_sum = sum(ads.map((a) => Number(a.adv.surplusAmount) || 0));
     total_observed_usd += surplus_sum;
-    markets_observed += 1;
+    // Counted per FIAT, not per (fiat, asset): "N markets" means N currencies reachable,
+    // and probing a second stablecoin doesn't double the number of markets a user can use.
+    fiatsWithDepth.add(fiat);
 
     const prices = ads
       .map((a) => Number(a.adv.price))
       .filter((p) => Number.isFinite(p) && p > 0);
 
     const n_makers = unique(ads.map((a) => a.advertiser.userNo)).length;
-    const fx_mid = fxMids[fiat] ?? null;
+    const fx_mid = fxMidsByAsset[asset]?.[fiat] ?? null;
 
     // Fillable-depth bands. BUY only: the SELL side isn't escrowed, so banding it would
     // just produce a tidier phantom. A BUY ad is fillable within the band when its price
@@ -552,6 +588,7 @@ async function fetchAllMarkets(
 
     probes.push({
       fiat,
+      asset,
       ads,
       total,
       surplus_sum,
@@ -567,7 +604,7 @@ async function fetchAllMarkets(
     });
   }
 
-  return { probes, total_observed_usd, markets_observed };
+  return { probes, total_observed_usd, markets_observed: fiatsWithDepth.size };
 }
 
 async function snapshot(): Promise<Snapshot> {
@@ -578,10 +615,17 @@ async function snapshot(): Promise<Snapshot> {
   // We need fxMids before fetchAllMarkets so per-market spreads can be computed in
   // the same loop. (Set COINGECKO_KEY in .env.local for the demo tier if rate limits
   // become an issue when CANDIDATE_FIATS grows further.)
-  const [fxMids, coverageData] = await Promise.all([
+  // One batch per stablecoin: USDT and USDC don't trade at identical mids, and a spread
+  // measured against the wrong asset's mid is silently wrong by a few bps.
+  const [fxMidsUsdt, fxMidsUsdc, coverageData] = await Promise.all([
     fxMidBatch('USDT', [...CANDIDATE_FIATS], now),
+    fxMidBatch('USDC', [...CANDIDATE_FIATS], now),
     fetchTradeMethodsByFiat(),
   ]);
+  const fxMidsByAsset: Record<ProbeAsset, Record<string, number>> = {
+    USDT: fxMidsUsdt,
+    USDC: fxMidsUsdc,
+  };
 
   // STAGE 2: unified market probe — one adv/search call per CANDIDATE_FIAT against
   // USDT, both directions. BUY first (taker-buys = onramp) drives liquidity, headline
@@ -591,15 +635,25 @@ async function snapshot(): Promise<Snapshot> {
   // Sequential rather than parallel because Binance's Cloudflare sheds requests when
   // we fire too many adv/search calls at once. Two passes of 134 fiats × chunked-10 =
   // ~60s total snapshot time (was ~30s with BUY-only). Cron budget allows it.
-  const buyResult = await fetchAllMarkets(now, fxMids, 'BUY');
-  const sellResult = await fetchAllMarkets(now, fxMids, 'SELL');
+  const buyResult = await fetchAllMarkets(now, fxMidsByAsset, 'BUY');
+  const sellResult = await fetchAllMarkets(now, fxMidsByAsset, 'SELL');
   const { probes, total_observed_usd, markets_observed } = buyResult;
   const sellProbes = sellResult.probes;
 
-  // Headline observed_spread_bps: effective spread for a $1k single-match trade in the
-  // USD market. Picked over a cross-market median because it gives an apples-to-apples
-  // comparison with other venues that all settle in USD.
-  const usdProbe = probes.find((p) => p.fiat === 'USD');
+  // Headline: cheapest qualifying $1k fill across the USD stablecoin books. A taker
+  // onramping $1k wants a dollar-stablecoin, not a specific ticker, so quoting the
+  // better of USD/USDT and USD/USDC is what they'd actually pay. The winning asset is
+  // published in the cost assumptions so the number stays traceable.
+  const bestUsdProbe = (list: MarketProbe[]): MarketProbe | undefined =>
+    list
+      .filter((p) => p.fiat === 'USD' && p.effective_1k_match !== null)
+      // Lower spread_bps = cheaper for the taker, in both directions (sign normalized).
+      .sort(
+        (a, b) =>
+          (a.effective_1k_match as NonNullable<MarketProbe['effective_1k_match']>).spread_bps -
+          (b.effective_1k_match as NonNullable<MarketProbe['effective_1k_match']>).spread_bps,
+      )[0];
+  const usdProbe = bestUsdProbe(probes);
   const effectiveUsd1kBps = usdProbe?.effective_spread_1k_bps ?? null;
 
   // Fillable-depth bands summed across every BUY market with an FX mid.
@@ -617,7 +671,7 @@ async function snapshot(): Promise<Snapshot> {
   // NOT all zero: takers pay a flat 0.05 USDT per USDT-pair trade order (since
   // 2024-03-19; see TAKER_FLAT_FEE.source) — the point of the decomposition is making
   // exactly this kind of buried cost legible and cross-venue comparable.
-  const usdSellProbe = sellProbes.find((p) => p.fiat === 'USD');
+  const usdSellProbe = bestUsdProbe(sellProbes);
   const costLeg = (probe: MarketProbe | undefined, direction: 'buy' | 'sell'): CostLeg1k | null => {
     const m = probe?.effective_1k_match;
     if (!m || probe?.fx_mid == null) return null;
@@ -639,7 +693,8 @@ async function snapshot(): Promise<Snapshot> {
       total_usd,
       total_bps: (total_usd / EFFECTIVE_SIZE_USD) * 10_000,
       assumptions: {
-        market: 'USD/USDT',
+        market: `USD/${probe.asset}`,
+        asset_selection: `cheapest qualifying fill across ${PROBE_ASSETS.join(' and ')}; ${probe.asset} won this cycle`,
         match_rule:
           direction === 'buy'
             ? `best-priced ad accepting a $${EFFECTIVE_SIZE_USD} single tx with ≥$${EFFECTIVE_SIZE_USD} USDT-side capacity`
@@ -712,7 +767,7 @@ async function snapshot(): Promise<Snapshot> {
   // Derive: top_pairs (top 10 by USDT depth, for KPI breakdown / drill-in).
   const sortedByDepth = [...probes].sort((a, b) => b.surplus_sum - a.surplus_sum);
   const top_pairs = sortedByDepth.slice(0, 10).map((p) => ({
-    pair: `USDT/${p.fiat}`,
+    pair: `${p.asset}/${p.fiat}`,
     sum_offers_usd: p.surplus_sum,
     n_makers: p.n_makers,
   }));
@@ -723,8 +778,10 @@ async function snapshot(): Promise<Snapshot> {
   //
   // Total combined depth across all fiats and both directions — used as the share_pct
   // denominator so values are comparable as "% of total venue liquidity."
+  // Per-fiat rollups ACCUMULATE across stablecoins — one row per currency in the mix
+  // chart, summing its USDT and USDC books.
   const sellByFiat = new Map<string, number>();
-  for (const p of sellProbes) sellByFiat.set(p.fiat, p.surplus_sum);
+  for (const p of sellProbes) sellByFiat.set(p.fiat, (sellByFiat.get(p.fiat) ?? 0) + p.surplus_sum);
   const total_combined_depth =
     total_observed_usd + sellProbes.reduce((acc, p) => acc + p.surplus_sum, 0);
 
@@ -733,12 +790,20 @@ async function snapshot(): Promise<Snapshot> {
     ...probes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
     ...sellProbes.filter((p) => p.surplus_sum > 0).map((p) => p.fiat),
   ]);
-  const buyByFiat = new Map<string, (typeof probes)[number]>();
-  for (const p of probes) buyByFiat.set(p.fiat, p);
+  const buyByFiat = new Map<string, { depth: number; ads: number; makers: Set<string> }>();
+  for (const p of probes) {
+    const cur = buyByFiat.get(p.fiat) ?? { depth: 0, ads: 0, makers: new Set<string>() };
+    cur.depth += p.surplus_sum;
+    cur.ads += p.total;
+    // Deduped across assets: a maker quoting both USDT and USDC is one maker.
+    for (const ad of p.ads) cur.makers.add(ad.advertiser.userNo);
+    buyByFiat.set(p.fiat, cur);
+  }
 
   const depth_currencies = [...fiatsSeen]
     .map((fiat) => {
-      const buy = buyByFiat.get(fiat)?.surplus_sum ?? 0;
+      const agg = buyByFiat.get(fiat);
+      const buy = agg?.depth ?? 0;
       const sell = sellByFiat.get(fiat) ?? 0;
       const combined = buy + sell;
       return {
@@ -748,8 +813,8 @@ async function snapshot(): Promise<Snapshot> {
         share_pct: total_combined_depth > 0 ? (combined / total_combined_depth) * 100 : 0,
         buy_liquidity_usd: buy,
         sell_liquidity_usd: sell,
-        ad_count: buyByFiat.get(fiat)?.total ?? 0,
-        n_makers: buyByFiat.get(fiat)?.n_makers ?? 0,
+        ad_count: agg?.ads ?? 0,
+        n_makers: agg?.makers.size ?? 0,
       };
     })
     .sort((a, b) => b.liquidity_usd - a.liquidity_usd);
@@ -763,6 +828,7 @@ async function snapshot(): Promise<Snapshot> {
   );
   const marketsBuyTop10: Market[] = withFxBuy.slice(0, 10).map((p) => ({
     currency: p.fiat,
+    asset: p.asset,
     platform: 'binance_p2p',
     direction: 'buy',
     best_rate: p.best_rate as number,
@@ -778,6 +844,7 @@ async function snapshot(): Promise<Snapshot> {
   );
   const marketsSellTop10: Market[] = withFxSell.slice(0, 10).map((p) => ({
     currency: p.fiat,
+    asset: p.asset,
     platform: 'binance_p2p',
     direction: 'sell',
     best_rate: p.best_rate as number,
@@ -811,6 +878,7 @@ async function snapshot(): Promise<Snapshot> {
         top_pairs,
         total_observed_usd,
         depth_bands_usd,
+        assets_counted: [...PROBE_ASSETS],
         markets_observed,
         max_single_trade_usd: max_single_trade_usd > 0 ? max_single_trade_usd : undefined,
       },

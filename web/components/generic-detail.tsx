@@ -40,7 +40,7 @@ export default function GenericDetail({ product }: { product: Product }) {
   const liqKind = s?.liquidity.value.kind;
   const liqLabel =
     liqKind === 'p2p_offerbook'
-      ? 'Available USDT'
+      ? 'Available stablecoins'
       : liqKind === 'ramp_capacity'
         ? 'Max single trade'
         : liqKind === 'otc_minimum'
@@ -52,8 +52,14 @@ export default function GenericDetail({ product }: { product: Product }) {
     if (liqKind !== 'p2p_offerbook' || !s) return undefined;
     const v = s.liquidity.value as Extract<typeof s.liquidity.value, { kind: 'p2p_offerbook' }>;
     if (!v.markets_observed) return undefined;
+    // Which stablecoins the figure actually covers. Read from the adapter's explicit
+    // `assets_counted`, NOT inferred from `top_pairs` — those are only the deepest 10
+    // markets, so when one asset's books dominate the ranking the other vanishes from
+    // the label while still being counted in the number.
+    const assets = v.assets_counted ?? [];
+    const assetPrefix = assets.length ? `${[...assets].sort().join(' + ')} · ` : '';
     return v.depth_bands_usd
-      ? `within ±5% of mid · ${v.markets_observed} markets · ${fmtUsd(v.total_observed_usd ?? null)} full book`
+      ? `${assetPrefix}within ±5% of mid · ${v.markets_observed} markets · ${fmtUsd(v.total_observed_usd ?? null)} full book`
       : `up to 100 ads × ${v.markets_observed} markets`;
   })();
 

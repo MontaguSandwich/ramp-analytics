@@ -313,6 +313,31 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - Cost: snapshot wall time ~60s → ~130s. Don't add fiats to `DEEP_COVERAGE_FIATS` without
   re-measuring — each one is `ceil(total/20)` sequential pages.
 
+### USDT + USDC (both stablecoins counted, 2026-07-22)
+
+- `PROBE_ASSETS = ['USDT','USDC']`; one probe unit per **(fiat, asset)** pair. Chunk size
+  and pause unchanged, so peak Cloudflare concurrency is identical — the sweep just runs
+  longer (snapshot ~130s → ~166s).
+- **Why USDC matters and isn't uniform**: Binance delisted USDT for EEA users in March
+  2025 under MiCA, so European liquidity migrated to USDC. Measured within the ±5% band:
+  USDC adds only **~3% in USD** but **~38% in EUR**. Live effect on EUR onramp depth:
+  $1.66M → $2.73M (+64%). A USDT-only figure understates Europe by roughly a quarter.
+- **Stablecoins only** — both ≈$1, so `surplusAmount` sums into USD with no FX step.
+  BTC/ETH would need price conversion and answer a different question.
+- Separate `fxMidBatch` per asset: USDT and USDC don't share a mid, and using the wrong
+  one silently skews the spread by a few bps.
+- `markets_observed` counts **distinct fiats**, not (fiat, asset) pairs — a second
+  stablecoin doesn't double how many currencies a user can reach.
+- Cost/spread anchor = **cheapest qualifying $1k fill across both USD books**, with the
+  winning asset published in `assumptions.asset_selection`. The USD-anchor retry runs
+  per asset.
+- Per-fiat rollups accumulate across assets, makers deduped (one maker quoting both is
+  one maker). `top_pairs` labels are `{ASSET}/{FIAT}`; `Market.asset` drives a new Asset
+  column in Live rates (row keys include asset — a currency can now appear twice).
+- KPI is **"Available stablecoins"**, sub-line names the set from
+  `liquidity.assets_counted` — an EXPLICIT field, never inferred from `top_pairs` (those
+  are the deepest 10 only, so the label would drop USDC while still counting it).
+
 ### cost_1k decomposition (DefiLlama-MiCA-style, 2026-07-21)
 
 - `snapshot.cost_1k` (binance only so far): itemized ~$1k cost per direction, in

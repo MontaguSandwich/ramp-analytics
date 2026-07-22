@@ -31,6 +31,9 @@ export default function LiveRatesTable({
   const hasOrderbookTab = snapshot.capabilities?.orderbook === true;
 
   const isP2p = kind === 'p2p_offerbook';
+  // Binance probes several stablecoin books per fiat, so one currency can appear twice
+  // (USDT and USDC) with materially different depth. Show which book each row is.
+  const hasAsset = markets.some((m) => m.asset);
   const isRamp = kind === 'ramp_capacity';
 
   const { hasBuy, hasSell } = useMemo(() => {
@@ -59,7 +62,14 @@ export default function LiveRatesTable({
   // Per-kind labels. Subtitle gets a direction qualifier when the toggle is visible.
   // For ramps the reference asset varies by venue (USDC for Ramp Network's Approach B,
   // ETH for Revolut Ramp's live quotes) — read it off the fee sample rather than assuming.
-  const asset = isRamp ? (snapshot.fee_snapshot.sample_rows[0]?.asset ?? 'USDC') : 'USDT';
+  // P2P venues can quote several stablecoin books; derive the set from the rows rather
+  // than hardcoding 'USDT', which stopped being true once USDC was probed too.
+  const p2pAssets = [...new Set(markets.map((m) => m.asset).filter(Boolean))].sort();
+  const asset = isRamp
+    ? (snapshot.fee_snapshot.sample_rows[0]?.asset ?? 'USDC')
+    : p2pAssets.length
+      ? p2pAssets.join(' + ')
+      : 'USDT';
   // Ramps split by how the rows were priced: provenance 'api' = live venue quotes,
   // anything else = Approach-B style approximation. Copy must not overclaim either way.
   const isLiveQuotedRamp = isRamp && provenance === 'api';
@@ -117,6 +127,7 @@ export default function LiveRatesTable({
           <thead>
             <tr>
               <th>Currency</th>
+              {hasAsset ? <th>Asset</th> : null}
               {isRamp ? <th>Method</th> : null}
               <th className="col-num">Best rate</th>
               <th className="col-num">Spread</th>
@@ -127,10 +138,13 @@ export default function LiveRatesTable({
           </thead>
           <tbody>
             {filtered.map((m) => (
-              <tr key={`${m.currency}-${m.direction ?? 'buy'}`}>
+              <tr key={`${m.currency}-${m.asset ?? ''}-${m.direction ?? 'buy'}`}>
                 <td>
                   <FiatChip code={m.currency} />
                 </td>
+                {hasAsset ? (
+                  <td className="mono">{m.asset ?? <span className="na">—</span>}</td>
+                ) : null}
                 {isRamp ? <td className="mono">{m.platform}</td> : null}
                 <td className="col-num mono">{m.best_rate.toFixed(4)}</td>
                 <td

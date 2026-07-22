@@ -47,6 +47,12 @@ export type LiquidityValue =
        * DefiLlama's ±2%) because P2P spreads run much wider than CEX order books.
        */
       depth_bands_usd?: { pct_0_5: number; pct_2: number; pct_5: number };
+      /**
+       * Assets summed into these figures (e.g. ['USDC','USDT']). Explicit rather than
+       * inferred from `top_pairs`, which only holds the deepest 10 markets and would
+       * under-report the set whenever one asset's books dominate the ranking.
+       */
+      assets_counted?: string[];
       /** Number of fiat markets that contributed at least one ad to the sum. */
       markets_observed?: number;
       /** Largest single-trade ceiling across all observed ads (USD). Drives "Max single trade" in PropertiesCard. */
@@ -171,6 +177,12 @@ export interface Market {
    * doesn't currently populate it; binance_p2p does.
    */
   n_makers?: number;
+  /**
+   * Stablecoin this row's book is denominated in (e.g. 'USDT', 'USDC'). Optional for
+   * venues that quote a single asset; binance_p2p populates it because it probes both,
+   * and the same fiat can have materially different depth per stablecoin.
+   */
+  asset?: string;
   /**
    * Direction this row represents from the taker's perspective. 'buy' = taker pays fiat,
    * receives crypto (onramp). 'sell' = taker sends crypto, receives fiat (offramp).
