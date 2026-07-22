@@ -125,9 +125,33 @@ else
   done
 
   echo "[vercel-build] Restoring snapshots from data branch (cron-generated)..."
+  # Established venues: a missing snapshot here is a real failure and fails the build.
   for id in zkp2p binance_p2p ramp_network; do
     if code=$(fetch "snapshots/$id.json" "data/snapshots/$id.json"); then
       echo "[vercel-build]   restored snapshots/$id.json"
+    else
+      echo "[vercel-build]   FAILED snapshots/$id.json (HTTP $code)"
+      RESTORE_OK=0
+    fi
+  done
+
+  # TRANSITIONAL (added 2026-07-22 with the two Revolut venues): these adapters ship in
+  # the same commit that first deploys them, so on the FIRST build their snapshots don't
+  # exist on the data branch yet — the cron hasn't run since the adapters landed. Treating
+  # that 404 as fatal would make the venues undeployable (build fails → old deployment
+  # without them keeps serving → cron never gets a chance to matter). So a 404 is tolerated
+  # here and the venue simply renders without live data until the next cron cycle
+  # (~2-2.5h). ANY OTHER status is still fatal.
+  #
+  # TIGHTEN THIS: once the cron has committed snapshots/revolut.json and
+  # snapshots/revolut_ramp.json to the data branch (verify with
+  # `git show origin/data:snapshots/revolut.json`), move these two ids into the loop above
+  # so a later disappearance is caught instead of silently degrading.
+  for id in revolut_ramp revolut; do
+    if code=$(fetch "snapshots/$id.json" "data/snapshots/$id.json"); then
+      echo "[vercel-build]   restored snapshots/$id.json"
+    elif [ "$code" = "404" ]; then
+      echo "[vercel-build]   absent (new venue, tolerated until first cron): snapshots/$id.json"
     else
       echo "[vercel-build]   FAILED snapshots/$id.json (HTTP $code)"
       RESTORE_OK=0
