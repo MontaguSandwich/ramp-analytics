@@ -226,7 +226,6 @@ export default function Zkp2pDetail({ product, history }: Props) {
                   title={`${provenanceLabel(s.network_health.provenance)} · ${fmtRelTime(s.network_health.last_verified)}`}
                   style={{
                     background: provenanceColor(s.network_health.provenance),
-                    marginLeft: 6,
                   }}
                 />
               ) : null}
@@ -252,7 +251,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
         <section className="section">
           <h2>
             Live rates{' '}
-            <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+            <span className="h2-sub">
               · {marketsByCurrency.length} active currencies
             </span>
           </h2>
@@ -261,10 +260,10 @@ export default function Zkp2pDetail({ product, history }: Props) {
               <thead>
                 <tr>
                   <th>Currency</th>
-                  <th>Best rate</th>
-                  <th>Best spread</th>
-                  <th>Liquidity</th>
-                  <th>Deposits</th>
+                  <th className="col-num">Best rate</th>
+                  <th className="col-num">Best spread</th>
+                  <th className="col-num">Liquidity</th>
+                  <th className="col-num">Deposits</th>
                   <th>Platforms</th>
                 </tr>
               </thead>
@@ -274,22 +273,22 @@ export default function Zkp2pDetail({ product, history }: Props) {
                     <td>
                       <FiatChip code={m.currency} flag={cov?.fiat_flags?.[m.currency]} />
                     </td>
-                    <td className="mono">{m.best_rate.toFixed(4)}</td>
+                    <td className="col-num mono">{m.best_rate.toFixed(4)}</td>
                     <td
-                      className="mono"
-                      style={{ color: spreadColor(m.best_spread_bps), fontWeight: 500 }}
+                      className="col-num mono spread-val"
+                      style={{ '--spread-color': spreadColor(m.best_spread_bps) } as React.CSSProperties}
                     >
                       {fmtSpreadPct(m.best_spread_bps)}
                     </td>
-                    <td className="mono">{fmtUsd(m.total_liquidity_usd)}</td>
-                    <td className="mono">{m.deposit_count}</td>
+                    <td className="col-num mono">{fmtUsd(m.total_liquidity_usd)}</td>
+                    <td className="col-num mono">{m.deposit_count}</td>
                     <td>
                       <div className="platform-row">
                         {[...m.platforms].slice(0, 6).map((p) => (
                           <PlatformChip key={p} name={p} compact />
                         ))}
                         {m.platforms.size > 6 ? (
-                          <span className="muted" style={{ fontSize: 11 }}>+{m.platforms.size - 6}</span>
+                          <span className="platform-more">+{m.platforms.size - 6}</span>
                         ) : null}
                       </div>
                     </td>
@@ -298,9 +297,9 @@ export default function Zkp2pDetail({ product, history }: Props) {
               </tbody>
             </table>
           </div>
-          <div className="muted" style={{ fontSize: 11, margin: '8px 4px' }}>
+          <div className="table-footer">
             One row per currency · sorted by best (most-favorable) spread.{' '}
-            <Link href={`/products/${y.id}/orderbook`} className="cta-link" style={{ marginLeft: 8, padding: '2px 8px', fontSize: 11 }}>
+            <Link href={`/products/${y.id}/orderbook`} className="cta-link cta-link-sm table-footer-cta">
               Live orderbook →
             </Link>
           </div>
@@ -313,7 +312,7 @@ export default function Zkp2pDetail({ product, history }: Props) {
         <section className="section">
           <h2>
             Fiat and Payment Methods stats{' '}
-            <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {composition.period}</span>
+            <span className="h2-sub">· {composition.period}</span>
           </h2>
           <div className="composition-grid">
             <MixBar

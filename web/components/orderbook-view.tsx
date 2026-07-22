@@ -324,12 +324,11 @@ export default function OrderbookView() {
         <div className="orderbook-control">
           <label className="filter-label">Min size (USD)</label>
           <input
-            className="orderbook-input"
+            className="orderbook-input orderbook-input-narrow"
             type="number"
             min="0"
             value={minSize}
             onChange={(e) => setMinSize(e.target.value)}
-            style={{ minWidth: 100 }}
           />
         </div>
         <div className="orderbook-control">
@@ -346,7 +345,7 @@ export default function OrderbookView() {
             ))}
           </select>
         </div>
-        <div className="orderbook-control" style={{ alignSelf: 'flex-end' }}>
+        <div className="orderbook-control">
           <button
             className="clear-btn"
             type="button"
@@ -363,7 +362,7 @@ export default function OrderbookView() {
       </div>
 
       {error ? (
-        <div className="no-results" style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}>
+        <div className="no-results is-error">
           {error}
         </div>
       ) : null}
@@ -375,7 +374,7 @@ export default function OrderbookView() {
             <div className="orderbook-stat-value mono">
               {fmtUsd(data.stats.total_liquidity_usd)}
               {localFiatLiquidity != null ? (
-                <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                <div className="orderbook-stat-sub">
                   ≈ {fmtFiat(localFiatLiquidity, currency)}
                 </div>
               ) : null}
@@ -390,12 +389,12 @@ export default function OrderbookView() {
             <div className="orderbook-stat-value mono">
               {sortedLevels.length}
               {totalLevelsInMeta > sortedLevels.length ? (
-                <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>
+                <span className="orderbook-stat-sub">
                   {' '}
                   of {totalLevelsInMeta}
                 </span>
               ) : null}
-              <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+              <span className="orderbook-stat-sub">
                 {' '}levels
               </span>
             </div>
@@ -415,12 +414,12 @@ export default function OrderbookView() {
             <thead>
               <tr>
                 <th>Currency</th>
-                <th>Rate</th>
-                <th>FX mid</th>
-                <th>Spread</th>
-                <th>Liquidity</th>
-                <th>Limits</th>
-                <th>Deposits</th>
+                <th className="col-num">Rate</th>
+                <th className="col-num">FX mid</th>
+                <th className="col-num">Spread</th>
+                <th className="col-num">Liquidity</th>
+                <th className="col-num">Limits</th>
+                <th className="col-num">Deposits</th>
                 <th>Platforms</th>
                 <th>Pricing</th>
               </tr>
@@ -431,18 +430,21 @@ export default function OrderbookView() {
                   <td>
                     <span className="tag">{l.currency}</span>
                   </td>
-                  <td className="mono">{fmtRate(l.rate)}</td>
-                  <td className="mono muted">{fmtRate(l.fx_mid_rate)}</td>
-                  <td className="mono" style={{ color: spreadColor(l.spread_bps), fontWeight: 500 }}>
+                  <td className="col-num mono">{fmtRate(l.rate)}</td>
+                  <td className="col-num mono muted">{fmtRate(l.fx_mid_rate)}</td>
+                  <td
+                    className="col-num mono spread-val"
+                    style={{ '--spread-color': spreadColor(l.spread_bps) } as React.CSSProperties}
+                  >
                     {fmtSpreadPct(l.spread_bps)}
                   </td>
-                  <td className="mono">{fmtUsd(l.total_liquidity_usd)}</td>
-                  <td className="mono muted" style={{ fontSize: 12 }}>
+                  <td className="col-num mono">{fmtUsd(l.total_liquidity_usd)}</td>
+                  <td className="col-num mono cell-dim">
                     {l.intent_min_usd != null && l.intent_max_usd != null
                       ? `${fmtUsd(l.intent_min_usd)} – ${fmtUsd(l.intent_max_usd)}`
                       : '—'}
                   </td>
-                  <td className="mono">{l.deposit_count}</td>
+                  <td className="col-num mono">{l.deposit_count}</td>
                   <td>
                     <div className="fiats-list">
                       {l.platforms.slice(0, 3).map((p) => (
@@ -455,7 +457,7 @@ export default function OrderbookView() {
                       ) : null}
                     </div>
                   </td>
-                  <td className="mono muted" style={{ fontSize: 11 }}>
+                  <td className="mono cell-dim">
                     {pricingModeLabel(l.pricing_mode)}
                   </td>
                 </tr>
@@ -465,7 +467,7 @@ export default function OrderbookView() {
         </div>
       )}
 
-      <div className="muted" style={{ fontSize: 11, margin: '12px 4px' }}>
+      <div className="table-footer">
         Source: Peerlytics /orderbook · auto-refreshes every 30s · upstream cache 30s · taker view (buying USDC)
       </div>
     </>

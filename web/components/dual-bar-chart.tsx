@@ -52,9 +52,9 @@ export default function DualBarChart({
         {title}
         <span className="dual-legend">
           <span className="dual-legend-swatch dual-legend-swatch-buy" />
-          <span title={buyTitle} style={buyTitle ? { cursor: 'help' } : undefined}>{buyLabel}</span>
+          <span title={buyTitle} className={buyTitle ? 'tip' : undefined}>{buyLabel}</span>
           <span className="dual-legend-swatch dual-legend-swatch-sell" />
-          <span title={sellTitle} style={sellTitle ? { cursor: 'help' } : undefined}>{sellLabel}</span>
+          <span title={sellTitle} className={sellTitle ? 'tip' : undefined}>{sellLabel}</span>
         </span>
       </div>
       <div className="mix-rows">

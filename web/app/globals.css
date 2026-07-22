@@ -1,35 +1,113 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Design tokens — DefiLlama-dark scale. Single source of truth: every rule in
+   this file consumes these variables; no raw hex values in component styles.
+   Dark theme only (values observed from defillama.com, recreated by hand).
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --bg: #0b0d10;
-  --bg-elev: #14171c;
-  --border: #1f242b;
-  --border-strong: #2b323b;
-  --fg: #e8eaed;
-  --fg-dim: #99a0aa;
-  --fg-mute: #5f6873;
-  --accent: #6ee7b7;
-  --prov-good: #4ade80;
-  --prov-mid: #facc15;
-  --prov-low: #6b7280;
-  --warn: #f87171;
-  --code-bg: #0f1216;
-}
+  color-scheme: dark;
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #ffffff;
-    --bg-elev: #f6f7f9;
-    --border: #e3e7ec;
-    --border-strong: #cdd3da;
-    --fg: #0b0d10;
-    --fg-dim: #4b5563;
-    --fg-mute: #6b7280;
-    --accent: #047857;
-    --prov-good: #059669;
-    --prov-mid: #b45309;
-    --prov-low: #6b7280;
-    --warn: #b91c1c;
-    --code-bg: #f1f3f6;
-  }
+  /* Surfaces */
+  --bg: #090b0c; /* page background */
+  --bg-elev: #131516; /* cards, table wrap, inputs */
+  --bg-overlay: #181a1b; /* popovers, dropdown panels */
+  --bg-raise: #1c1f22; /* hovered / raised elements */
+  --code-bg: #101314;
+
+  /* Hairline borders (white-alpha scale) + row interaction tints */
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --row-hover: rgba(255, 255, 255, 0.03);
+
+  /* Text */
+  --fg: #ffffff; /* primary */
+  --fg-dim: #c6c6c6; /* secondary */
+  --fg-mute: #878787; /* tertiary — labels, captions */
+  --fg-disabled: #5c6370; /* placeholders, "—", disabled */
+
+  /* Brand + links */
+  --brand: #1f67d2; /* header bar, primary buttons, active fills */
+  --brand-hover: #1a58b4;
+  --on-brand: #ffffff; /* text/icons sitting on --brand or --accent fills */
+  --accent: #4b86db; /* links, focus, active text accents */
+  --accent-bright: #7aa5e8; /* link hover */
+  --accent-tint: rgba(75, 134, 219, 0.12); /* selected-row / active-bg tint */
+
+  /* Semantic — green favorable/onramp, red unfavorable, amber offramp series.
+     Provenance dots keep their traffic-light semantics via the prov-* aliases. */
+  --green: #3fb68b;
+  --red: #e24a42;
+  --amber: #ff8e2b;
+  --yellow: #facc15;
+  --gray: #6b7280;
+  --prov-good: var(--green);
+  --prov-mid: var(--yellow);
+  --prov-low: var(--gray);
+  --warn: var(--red);
+
+  /* Category accents (editorial taxonomy colors — restyled, not re-mapped) */
+  --cat-onchain: var(--green);
+  --cat-cex_p2p: var(--yellow);
+  --cat-ramp: #60a5fa;
+  --cat-rtpn: #c084fc;
+
+  /* Pricing-layer accents */
+  --price-maker-quote: #60a5fa;
+  --price-venue-quote: #a78bfa;
+  --price-venue-fee: var(--amber);
+
+  /* KYC badge dot colors */
+  --kyc-wallet: var(--green);
+  --kyc-email: var(--amber);
+  --kyc-id: var(--red);
+
+  /* Chart series — liquidity / volume / trades */
+  --chart-1: var(--accent);
+  --chart-2: var(--green);
+  --chart-3: #c084fc;
+
+  /* Type */
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-base: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 28px;
+  --fs-4xl: 32px;
+
+  /* Spacing — 4px scale */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Radii */
+  --r-sm: 6px; /* small controls */
+  --r-md: 8px;
+  --r-lg: 12px; /* cards, table wrap */
+  --r-full: 999px; /* pills */
+
+  /* Elevation */
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.45);
+
+  /* Motion — opacity/color only, ≤150ms */
+  --ease: 120ms ease;
+
+  /* Chrome height (56px blue bar + tab row) — sticky offsets for table
+     headers and the docs sidebar so they park beneath the site chrome. */
+  --chrome-h: 97px;
 }
 
 * {
@@ -42,11 +120,11 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
-    sans-serif;
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
   line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -58,77 +136,184 @@ a:hover {
   color: var(--accent);
 }
 
+/* Monospace is reserved for genuinely code-like content (raw-data paths,
+   contract addresses, API routes). Everywhere else numerals use Inter with
+   tabular figures via the `.mono` utility — the class name is kept so call
+   sites stay stable; its meaning is now "aligned numeric", not "monospaced". */
 code,
 pre,
+.code {
+  font-family: var(--font-mono);
+}
+
 .mono {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* ── Base interaction layer ────────────────────────────────────────────────
+   Every interactive element gets a visible hover AND :focus-visible state;
+   transitions stay ≤150ms and opacity/color-only (see token --ease). */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: rgba(31, 103, 210, 0.35);
+}
+
+/* Thin, quiet scrollbars (table horizontal scroll lives inside the card) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent;
+}
+
+/* Data-fill width animations opt out under reduced-motion. */
+@media (prefers-reduced-motion: reduce) {
+  .mix-bar,
+  .dual-bar-fill {
+    transition: none;
+  }
+}
+
+/* Native dropdown options on the dark theme */
+option {
+  background: var(--bg-elev);
+  color: var(--fg);
+}
+
+/* ── Shared utilities ─────────────────────────────────────────────────────── */
+
+/* Numeric table column — DefiLlama grammar: numbers right-aligned. */
+.col-num {
+  text-align: right;
+}
+
+/* Absent-value dash / disabled text. */
+.na {
+  color: var(--fg-disabled);
+}
+
+/* De-emphasized context span inside an h2 (period, sample notes). */
+.h2-sub {
+  font-weight: 400;
+  font-size: var(--fs-md);
+  color: var(--fg-mute);
+}
+
+/* Quiet note directly under a table (sources, footnotes). */
+.table-footer {
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
+  margin: var(--sp-2) var(--sp-1);
+}
+
+.table-footer-line {
+  margin-top: var(--sp-1);
+}
+
+/* Small CTA inlined at the end of a table footer note. */
+.table-footer-cta {
+  margin-left: var(--sp-2);
+  vertical-align: -1px;
+}
+
+/* Spread value whose color is set per-cell via the --spread-color inline var
+   (dynamic: sign + magnitude come from data). */
+.spread-val {
+  color: var(--spread-color, var(--fg));
+  font-weight: 500;
+}
+
+/* Inline table sparkline — quiet thin line, right-aligned in numeric column. */
+.sparkline {
+  display: block;
+  margin-left: auto;
 }
 
 .container {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 var(--sp-6);
 }
 
+/* ── Chrome ────────────────────────────────────────────────────────────────
+   Sticky header: solid brand-blue bar (wordmark + Methodology) on top,
+   quiet tab row on the page background underneath. */
 .header {
-  border-bottom: 1px solid var(--border);
-  padding: 16px 0;
   position: sticky;
   top: 0;
-  background: var(--bg);
-  z-index: 10;
+  z-index: 50;
+}
+
+.header-bar {
+  background: var(--brand);
 }
 
 .header-inner {
   display: flex;
   align-items: center;
   gap: 24px;
+  height: 56px;
 }
 
 .brand {
-  font-weight: 600;
-  font-size: 16px;
+  font-weight: 700;
+  font-size: var(--fs-lg);
   letter-spacing: -0.01em;
+  color: var(--on-brand);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: opacity var(--ease);
+}
+
+.brand:hover {
+  color: var(--on-brand);
+  opacity: 0.85;
 }
 
 .brand small {
-  color: var(--fg-mute);
+  color: rgba(255, 255, 255, 0.72);
   font-weight: 400;
-  margin-left: 8px;
+  font-size: var(--fs-sm);
 }
 
 .nav {
   display: flex;
   gap: 16px;
   margin-left: auto;
-  color: var(--fg-dim);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .nav a {
-  color: inherit;
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
+  transition: color var(--ease);
 }
 .nav a:hover {
-  color: var(--fg);
+  color: var(--on-brand);
 }
 
-/* Primary section tabs sitting under the header brand. Active tab gets a bottom
-   border accent matching the brand color; inactive tabs are muted text. */
+/* Primary section tabs under the blue bar — quiet text tabs with a blue
+   active underline, not buttons. */
+.header-tabs {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
 .main-nav {
   display: flex;
-  gap: 6px;
-  margin-top: 12px;
-  padding-top: 4px;
+  gap: 4px;
 }
 .main-nav-tab {
-  padding: 8px 14px;
-  font-size: 13px;
+  padding: 10px 12px;
+  font-size: var(--fs-base);
   font-weight: 500;
   color: var(--fg-mute);
-  border-radius: 6px 6px 0 0;
   border-bottom: 2px solid transparent;
-  margin-bottom: -1px; /* overlap the header border */
-  transition: color 120ms ease, border-color 120ms ease;
+  margin-bottom: -1px; /* overlap the tabs-row border */
+  transition: color var(--ease), border-color var(--ease);
 }
 .main-nav-tab:hover {
   color: var(--fg);
@@ -136,7 +321,6 @@ pre,
 .main-nav-tab.is-active {
   color: var(--fg);
   border-bottom-color: var(--accent);
-  background: var(--bg-elev);
 }
 
 /* Editorial intro block at the top of section pages (Venues, Categories, Aggregator). */
@@ -160,52 +344,16 @@ pre,
 }
 .hero-intro h1 {
   margin: 0 0 12px;
-  font-size: 28px;
+  font-size: var(--fs-3xl);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 .hero-intro p {
   margin: 0;
-  font-size: 15px;
+  font-size: var(--fs-base);
   line-height: 1.55;
   max-width: 720px;
-  color: var(--fg);
-}
-
-/* Highlight callout for the "cheapest right now" headline. */
-.highlight-card {
-  border: 1px solid var(--accent);
-  background: var(--bg-elev);
-  border-radius: 10px;
-  padding: 16px 18px;
-  margin: 24px 0;
-}
-.highlight-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-mute);
-  font-weight: 600;
-  margin-bottom: 8px;
-}
-.highlight-body {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  font-size: 20px;
-  font-weight: 600;
-}
-.highlight-venue {
-  text-decoration: underline;
-  text-decoration-color: var(--accent);
-}
-.highlight-spread {
-  color: var(--prov-good);
-  font-family: var(--font-mono, monospace);
-}
-.highlight-sub {
-  margin-top: 8px;
-  font-size: 11px;
+  color: var(--fg-dim);
 }
 
 /* Categories strip on the Overview tab — compact horizontal nav between hero and venues. */
@@ -225,17 +373,22 @@ pre,
   flex-direction: column;
   gap: 6px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
   background: var(--bg-elev);
-  transition: border-color 120ms ease;
+  transition: border-color var(--ease), background var(--ease);
 }
 .category-strip-item:hover {
-  border-color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--bg-raise);
 }
 .category-strip-item .mono {
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 600;
+}
+.category-strip-item .strip-sub {
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
 }
 
 /* Categories tab — vertical stack of editorial cards, one per category. */
@@ -250,13 +403,14 @@ pre,
   flex-direction: column;
   gap: 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px 20px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
   background: var(--bg-elev);
-  transition: border-color 120ms ease;
+  transition: border-color var(--ease);
 }
 .category-card:hover {
-  border-color: var(--accent);
+  border-color: var(--border-strong);
+  background: var(--bg-raise);
 }
 .category-card-head {
   display: flex;
@@ -270,34 +424,34 @@ pre,
   letter-spacing: -0.01em;
 }
 /* Title takes the category accent color. Mirrors the cat-* tag palette. */
-.category-card-title.cat-onchain { color: var(--prov-good); }
-.category-card-title.cat-cex_p2p { color: var(--prov-mid); }
-.category-card-title.cat-ramp { color: #60a5fa; }
-.category-card-title.cat-rtpn { color: #c084fc; }
+.category-card-title.cat-onchain { color: var(--cat-onchain); }
+.category-card-title.cat-cex_p2p { color: var(--cat-cex_p2p); }
+.category-card-title.cat-ramp { color: var(--cat-ramp); }
+.category-card-title.cat-rtpn { color: var(--cat-rtpn); }
 .category-card-count {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--fg-mute);
 }
 .category-card-blurb {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.5;
   color: var(--fg);
 }
 .category-card-kyc {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--fg-mute);
   font-style: italic;
 }
 .category-card-venues {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--fg-mute);
   font-weight: 500;
 }
 .category-card-cta {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--accent);
   font-weight: 500;
   margin-top: auto;
@@ -312,57 +466,6 @@ pre,
   border-color: var(--border);
 }
 
-/* Venue cards on the Overview tab — compact summary linking into each detail page. */
-.venue-card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-top: 8px;
-}
-@media (max-width: 720px) {
-  .venue-card-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.venue-card {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px 18px;
-  background: var(--bg-elev);
-  transition: border-color 120ms ease;
-}
-.venue-card:hover {
-  border-color: var(--accent);
-}
-.venue-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.venue-card-name {
-  font-weight: 600;
-  font-size: 15px;
-}
-.venue-card-grid-stats {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-.venue-card-label {
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-mute);
-}
-.venue-card-value {
-  font-size: 13px;
-  font-weight: 600;
-  margin-top: 2px;
-}
-
 /* ── Aggregator widget ───────────────────────────────────────────────────────
    Form on top (direction toggle + fiat/asset/method selectors + amount), results
    table below. Designed to evolve into a richer picker UI per the zkp2p-inspired
@@ -373,8 +476,8 @@ pre,
 .aggregator-form {
   border: 1px solid var(--border);
   background: var(--bg-elev);
-  border-radius: 10px;
-  padding: 20px 22px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-5);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -385,7 +488,7 @@ pre,
   padding: 2px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   align-self: flex-start;
 }
 .aggregator-dir-btn {
@@ -393,16 +496,20 @@ pre,
   border: 0;
   background: transparent;
   color: var(--fg-mute);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
-  padding: 6px 18px;
+  font-family: inherit;
+  height: 30px;
+  padding: 0 18px;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--ease), color var(--ease);
 }
-.aggregator-dir-btn:hover { color: var(--fg); }
+.aggregator-dir-btn:hover {
+  color: var(--fg);
+}
 .aggregator-dir-btn.is-active {
-  background: var(--bg-elev);
+  background: var(--bg-raise);
   color: var(--fg);
 }
 .aggregator-fields {
@@ -418,13 +525,7 @@ pre,
   flex-direction: column;
   gap: 4px;
 }
-.aggregator-field-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-mute);
-  font-weight: 600;
-}
+
 .aggregator-amount-row {
   display: flex;
   gap: 6px;
@@ -432,121 +533,100 @@ pre,
 .aggregator-input,
 .aggregator-select {
   appearance: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   background: var(--bg);
   color: var(--fg);
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 14px;
+  border-radius: var(--r-sm);
+  height: 40px;
+  padding: 0 12px;
+  font-size: var(--fs-base);
   font-family: inherit;
   width: 100%;
+  transition: border-color var(--ease);
 }
-.aggregator-fiat-select { max-width: 110px; }
+.aggregator-fiat-select {
+  max-width: 110px;
+}
+.aggregator-input:hover,
+.aggregator-select:hover {
+  border-color: var(--fg-mute);
+}
 .aggregator-input:focus,
 .aggregator-select:focus {
-  outline: none;
   border-color: var(--accent);
 }
 .aggregator-submit {
   appearance: none;
-  border: 0;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 14px;
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: var(--fs-base);
   font-weight: 600;
-  padding: 10px 16px;
-  border-radius: 6px;
+  font-family: inherit;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: var(--r-sm);
   cursor: pointer;
   align-self: flex-start;
-  transition: opacity 120ms ease;
+  transition: background var(--ease), border-color var(--ease);
 }
-.aggregator-submit:hover { opacity: 0.9; }
+.aggregator-submit:hover {
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+}
 .aggregator-submit:disabled {
   opacity: 0.5;
   cursor: default;
 }
+.aggregator-submit:disabled:hover {
+  background: var(--brand);
+  border-color: var(--brand);
+}
 .aggregator-error {
   color: var(--warn);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 /* Results */
 .aggregator-results {
   margin-top: 24px;
 }
-.aggregator-best {
-  border: 1px solid var(--accent);
-  background: var(--bg-elev);
-  border-radius: 8px;
-  padding: 14px 18px;
-  margin: 12px 0;
-}
-.aggregator-best-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--fg-mute);
+.aggregator-results h2 {
+  font-size: var(--fs-lg);
   font-weight: 600;
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+.aggregator-best {
+  border: 1px solid color-mix(in srgb, var(--green) 40%, transparent);
+  background: color-mix(in srgb, var(--green) 6%, transparent);
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
+  margin: 12px 0;
 }
 .aggregator-best-body {
   display: flex;
   align-items: center;
   gap: 14px;
   margin-top: 6px;
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
 }
 .aggregator-best-value {
-  color: var(--prov-good);
+  color: var(--green);
+  font-variant-numeric: tabular-nums;
 }
 .aggregator-empty {
-  padding: 16px;
+  padding: var(--sp-4);
   text-align: center;
   color: var(--fg-mute);
   background: var(--bg-elev);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 13px;
+  border-radius: var(--r-lg);
+  font-size: var(--fs-md);
 }
 .aggregator-row-na {
   opacity: 0.55;
-}
-.aggregator-source {
-  font-size: 11px;
-  font-weight: 500;
-}
-.aggregator-source-live { color: var(--prov-good); }
-.aggregator-source-approximated { color: var(--prov-mid); }
-.aggregator-source-unavailable { color: var(--fg-mute); }
-
-/* Legacy aggregator placeholder card (now unused but kept for forward-compat). */
-.placeholder-card {
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-  padding: 24px;
-  background: var(--bg-elev);
-  text-align: center;
-  margin: 24px 0;
-}
-.placeholder-card h2 {
-  margin: 8px 0 12px;
-  font-size: 18px;
-}
-.placeholder-card p {
-  margin: 6px auto;
-  max-width: 500px;
-  font-size: 14px;
-}
-.placeholder-badge {
-  display: inline-block;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  border-radius: 4px;
-  padding: 2px 8px;
 }
 
 /* Venues table — clickable fiat count + expand-to-flags row. */
@@ -555,18 +635,20 @@ pre,
   border: 0;
   background: transparent;
   color: var(--fg);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  margin: -2px -6px; /* keep the cell's right alignment while enlarging the hit area */
+  border-radius: var(--r-sm);
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: background 120ms ease;
+  font-variant-numeric: tabular-nums;
+  transition: background var(--ease);
 }
 .fiats-count-btn:hover:not(:disabled) {
-  background: var(--bg-elev);
+  background: var(--bg-raise);
 }
 .fiats-count-btn:disabled {
   cursor: default;
@@ -577,55 +659,61 @@ pre,
   color: var(--fg-mute);
 }
 .fiats-expand-row {
-  background: var(--bg-elev);
+  background: var(--bg);
+}
+.fiats-expand-row td {
+  height: auto;
+  padding: 12px 16px;
 }
 .fiats-expand-content {
   display: flex;
   align-items: flex-start;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 8px 4px;
+}
+.fiats-expand-label {
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
+  margin-right: var(--sp-2);
 }
 
+/* Hero stats — flat cards: hairline border, small uppercase secondary label,
+   large 600-weight tabular value, quiet sub-line. No glows, no gradients. */
 .stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
-  padding: 24px 0;
-  border-bottom: 1px solid var(--border);
+  gap: 12px;
+  padding: 0;
+  margin: 24px 0;
+  border-bottom: none;
+}
+
+@media (max-width: 900px) {
+  .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .stat {
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.stat-label {
-  font-size: 12px;
-  color: var(--fg-mute);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg-elev);
+  padding: var(--sp-4);
 }
 
 .stat-value {
-  font-size: 22px;
+  font-size: var(--fs-2xl);
   font-weight: 600;
   letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
 }
 
 .stat-sub {
-  font-size: 12px;
-  color: var(--fg-dim);
-}
-
-.section-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  font-size: var(--fs-sm);
   color: var(--fg-mute);
-  margin: 32px 0 12px;
-  font-weight: 600;
 }
 
 .filters {
@@ -633,19 +721,14 @@ pre,
   flex-wrap: wrap;
   gap: 12px 16px;
   align-items: center;
-  padding: 12px 14px;
+  padding: 12px 16px;
   margin-bottom: 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   background: var(--bg-elev);
 }
 
 .filter-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-mute);
-  font-weight: 600;
   margin-right: 6px;
 }
 
@@ -660,20 +743,23 @@ pre,
   gap: 4px;
 }
 
+/* Filter pills — controls, not display chips: one consistent 32px height with
+   the selects and buttons in the row. Active = brand-blue tint + blue text. */
 .chip {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
+  border-radius: var(--r-full);
   background: transparent;
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 500;
   cursor: pointer;
   font-family: inherit;
-  line-height: 1.4;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  line-height: 1;
+  transition: background var(--ease), color var(--ease), border-color var(--ease);
 }
 
 .chip:hover {
@@ -681,15 +767,11 @@ pre,
   color: var(--fg);
 }
 
-.chip-active {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
-}
-
+.chip-active,
 .chip-active:hover {
-  background: var(--fg);
-  color: var(--bg);
+  background: var(--accent-tint);
+  color: var(--accent-bright);
+  border-color: var(--accent);
 }
 
 .filter-select-group {
@@ -699,14 +781,16 @@ pre,
 }
 
 .filter-select {
-  padding: 4px 8px;
+  height: 32px;
+  padding: 0 28px 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   color: var(--fg);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: inherit;
   cursor: pointer;
+  transition: border-color var(--ease);
 }
 
 .filter-select:hover {
@@ -721,71 +805,129 @@ pre,
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
-.clear-btn,
-.link-btn {
-  padding: 4px 10px;
+.clear-btn {
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: var(--fg-dim);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: inherit;
   cursor: pointer;
+  transition: color var(--ease), border-color var(--ease);
 }
 
-.clear-btn:hover,
-.link-btn:hover {
+.clear-btn:hover {
   border-color: var(--fg-mute);
   color: var(--fg);
 }
 
+/* Text-link button (e.g. "Clear filters" inside the empty state). */
 .link-btn {
   border: none;
-  text-decoration: underline;
+  background: none;
+  color: var(--accent);
   padding: 0;
   margin-left: 4px;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--accent-bright);
+  text-decoration: underline;
+}
+
+/* Shared select chevron — native <select> elements get a quiet hand-drawn
+   arrow (appearance:none already applied per-control). */
+select.filter-select,
+select.aggregator-select,
+select.orderbook-input {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23878787' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px; /* chevron space */
 }
 
 .no-results {
   border: 1px dashed var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   padding: 32px;
   text-align: center;
   color: var(--fg-mute);
 }
 
+.no-results.is-error {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+/* ── Table base — the table is the hero. DefiLlama grammar: dense 44px rows,
+   11px uppercase secondary header, hairline separators, subtle row hover,
+   sticky header, horizontal scroll contained inside the card. */
 .table-wrap {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: var(--r-lg);
+  overflow-x: auto;
   background: var(--bg-elev);
+}
+
+/* At ≥1280px viewport every table fits the container (1232px content box)
+   without scrolling. `clip` (unlike auto/hidden) does not create a scroll
+   container, so the sticky header engages against the viewport on long tables.
+   Below that, horizontal scroll stays contained inside the card. */
+@media (min-width: 1280px) {
+  .table-wrap {
+    overflow-x: clip;
+  }
 }
 
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 thead th {
+  position: sticky;
+  top: var(--chrome-h);
+  z-index: 1;
   text-align: left;
   font-weight: 500;
   color: var(--fg-mute);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
   background: var(--bg-elev);
+  white-space: nowrap;
+  /* inset shadow instead of border: borders under border-collapse don't stick
+     with the header when it goes sticky */
+  box-shadow: inset 0 -1px 0 0 var(--border);
 }
 
 tbody td {
-  padding: 12px;
-  border-bottom: 1px solid var(--border);
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-subtle);
   vertical-align: middle;
+}
+
+/* Comfortable edge gutters inside the card */
+thead th:first-child,
+tbody td:first-child {
+  padding-left: var(--sp-4);
+}
+thead th:last-child,
+tbody td:last-child {
+  padding-right: var(--sp-4);
 }
 
 tbody tr:last-child td {
@@ -793,55 +935,105 @@ tbody tr:last-child td {
 }
 
 tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--row-hover);
 }
 
-@media (prefers-color-scheme: light) {
-  tbody tr:hover {
-    background: rgba(0, 0, 0, 0.02);
-  }
-}
-
+/* ── Chip system ───────────────────────────────────────────────────────────
+   ONE display-chip geometry — 22px tall, 6px radius, 11px/500 — with color
+   variants only. Covers category, direction, pricing-layer, KYC, provenance,
+   source, and chain chips. Interactive filter pills are `.chip` (controls,
+   32px) — a different role, deliberately a different size. */
 .tag {
-  display: inline-block;
-  padding: 2px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
-  font-size: 11px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 1;
   color: var(--fg-dim);
   background: transparent;
   white-space: nowrap;
 }
 
 .tag.cat-onchain {
-  border-color: rgba(110, 231, 183, 0.3);
-  color: var(--prov-good);
+  color: var(--cat-onchain);
+  border-color: color-mix(in srgb, var(--cat-onchain) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-onchain) 8%, transparent);
 }
 .tag.cat-cex_p2p {
-  border-color: rgba(250, 204, 21, 0.3);
-  color: var(--prov-mid);
+  color: var(--cat-cex_p2p);
+  border-color: color-mix(in srgb, var(--cat-cex_p2p) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-cex_p2p) 8%, transparent);
 }
 .tag.cat-ramp {
-  border-color: rgba(96, 165, 250, 0.3);
-  color: #60a5fa;
+  color: var(--cat-ramp);
+  border-color: color-mix(in srgb, var(--cat-ramp) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-ramp) 8%, transparent);
 }
 .tag.cat-rtpn {
-  border-color: rgba(168, 85, 247, 0.3);
-  color: #c084fc;
+  color: var(--cat-rtpn);
+  border-color: color-mix(in srgb, var(--cat-rtpn) 35%, transparent);
+  background: color-mix(in srgb, var(--cat-rtpn) 8%, transparent);
 }
 
 /* Direction pills — semantically distinct from category colors.
    Onramp (fiat → crypto): green, "money flowing in".
    Offramp (crypto → fiat): amber, "money flowing out". */
 .tag.tag-onramp {
-  border-color: rgba(52, 211, 153, 0.35);
-  color: #34d399;
-  background: rgba(52, 211, 153, 0.06);
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, transparent);
 }
 .tag.tag-offramp {
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.06);
+  color: var(--amber);
+  border-color: color-mix(in srgb, var(--amber) 35%, transparent);
+  background: color-mix(in srgb, var(--amber) 8%, transparent);
+}
+
+/* Pricing-layer pills — answer "where does the price come from / who profits?"
+   Maker quote (peer sets it): blue.
+   Venue quote (venue sets it, spread intrinsic): purple.
+   Venue fee (venue takes a separate commission on top): amber — cost signal. */
+.tag.tag-maker-quote {
+  color: var(--price-maker-quote);
+  border-color: color-mix(in srgb, var(--price-maker-quote) 35%, transparent);
+  background: color-mix(in srgb, var(--price-maker-quote) 8%, transparent);
+}
+.tag.tag-venue-quote {
+  color: var(--price-venue-quote);
+  border-color: color-mix(in srgb, var(--price-venue-quote) 35%, transparent);
+  background: color-mix(in srgb, var(--price-venue-quote) 8%, transparent);
+}
+.tag.tag-venue-fee {
+  color: var(--price-venue-fee);
+  border-color: color-mix(in srgb, var(--price-venue-fee) 35%, transparent);
+  background: color-mix(in srgb, var(--price-venue-fee) 8%, transparent);
+}
+
+/* Quote-source pills (aggregator results): live / approximated / unavailable. */
+.tag.tag-source-live {
+  color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 35%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, transparent);
+}
+.tag.tag-source-approximated {
+  color: var(--yellow);
+  border-color: color-mix(in srgb, var(--yellow) 35%, transparent);
+  background: color-mix(in srgb, var(--yellow) 8%, transparent);
+}
+.tag.tag-source-unavailable {
+  color: var(--fg-mute);
+}
+
+/* Extra-small tag for dense grid cells (payment methods in comparison rows). */
+.tag.tag-xs {
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
 }
 
 .direction-pills,
@@ -851,6 +1043,13 @@ tbody tr:hover {
   flex-wrap: wrap;
 }
 
+/* Inside a 44px table row the two direction pills must never wrap to a second
+   line (wrap would double the row height). Pricing pills live on cards, where
+   wrapping is fine. */
+.direction-pills {
+  flex-wrap: nowrap;
+}
+
 /* Onramp/Offramp toggle in the Live rates section header — segmented control,
    compact enough to inline with the h2. */
 .direction-toggle {
@@ -858,9 +1057,9 @@ tbody tr:hover {
   margin-left: 12px;
   gap: 2px;
   padding: 2px;
-  background: var(--bg-elev);
+  background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   vertical-align: middle;
 }
 .direction-toggle-btn {
@@ -868,61 +1067,103 @@ tbody tr:hover {
   border: 0;
   background: transparent;
   color: var(--fg-mute);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 500;
-  padding: 3px 10px;
+  font-family: inherit;
+  padding: 4px 10px;
   border-radius: 4px;
   cursor: pointer;
-  transition: background 120ms ease, color 120ms ease;
+  transition: background var(--ease), color var(--ease);
 }
 .direction-toggle-btn:hover {
   color: var(--fg);
 }
 .direction-toggle-btn.is-active {
-  background: var(--bg);
+  background: var(--bg-raise);
   color: var(--fg);
 }
 
-/* Pricing-layer pills — answer "where does the price come from / who profits?"
-   Maker quote (peer sets it): blue.
-   Venue quote (venue sets it, spread intrinsic): purple.
-   Venue fee (venue takes a separate commission on top): amber — cost signal. */
-.tag.tag-maker-quote {
-  border-color: rgba(96, 165, 250, 0.35);
-  color: #60a5fa;
-  background: rgba(96, 165, 250, 0.06);
-}
-.tag.tag-venue-quote {
-  border-color: rgba(167, 139, 250, 0.35);
-  color: #a78bfa;
-  background: rgba(167, 139, 250, 0.06);
-}
-.tag.tag-venue-fee {
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
-  background: rgba(245, 158, 11, 0.06);
-}
-
+/* Provenance dot — color comes from inline style (data-driven). */
 .dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
   vertical-align: middle;
+  flex-shrink: 0;
 }
 
-.dot-good {
-  background: var(--prov-good);
+/* Dot trailing an info-card title or section heading gets automatic spacing. */
+.info-title .dot {
+  margin-left: 6px;
 }
-.dot-mid {
-  background: var(--prov-mid);
+.section h2 .dot {
+  margin-left: 2px;
 }
-.dot-low {
-  background: var(--prov-low);
+
+/* ── Micro-label — ONE label style for card titles, KPI labels, filter labels,
+      stat labels: 11px / uppercase / secondary / 600. */
+.kpi-label,
+.stat-label,
+.info-title,
+.mix-title,
+.chart-title,
+.quote-comparison-title,
+.aggregator-best-label,
+.aggregator-field-label,
+.orderbook-stat-label,
+.filter-label {
+  font-size: var(--fs-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-mute);
+  font-weight: 600;
+}
+
+/* Hand-rolled SVG charts fill their card. */
+.chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* "+N more" overflow counter next to compact platform chips. */
+.platform-more {
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
+  align-self: center;
+}
+
+/* Small spacing utility. */
+.mb-1 {
+  margin-bottom: var(--sp-1);
+}
+
+/* Atomic font-size utilities — compose with .muted for quiet secondary text. */
+.fs-2xs {
+  font-size: 10px;
+}
+.fs-xs {
+  font-size: var(--fs-xs);
+}
+.fs-sm {
+  font-size: var(--fs-sm);
+}
+
+/* Quiet qualifier span inside a form-row label ("(28 for USD)"). */
+.label-sub {
+  font-weight: 400;
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
 }
 
 .muted {
   color: var(--fg-mute);
+}
+
+/* Help-cursor affordance for hover tooltips (title attributes). */
+.tip {
+  cursor: help;
 }
 
 .pname {
@@ -931,14 +1172,15 @@ tbody tr:hover {
   gap: 2px;
 }
 
+/* Entity name in a table — DefiLlama grammar: brand-blue link, never wraps. */
 .pname-name {
   font-weight: 500;
-  color: var(--fg);
+  color: var(--accent);
+  white-space: nowrap;
 }
 
-.pname-sub {
-  font-size: 11px;
-  color: var(--fg-mute);
+.pname:hover .pname-name {
+  color: var(--accent-bright);
 }
 
 .fiats-list {
@@ -949,28 +1191,6 @@ tbody tr:hover {
 }
 
 /* product detail */
-.detail-hero {
-  padding: 24px 0;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.detail-hero h1 {
-  font-size: 28px;
-  margin: 0;
-  letter-spacing: -0.02em;
-  font-weight: 600;
-}
-
-.detail-hero-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 4px;
-}
-
 .kpi-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -980,25 +1200,22 @@ tbody tr:hover {
 
 .kpi {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 14px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
   background: var(--bg-elev);
 }
 
 .kpi-label {
-  color: var(--fg-mute);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .kpi-value {
-  font-size: 20px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   margin-top: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Used when a KPI is structurally not disclosed by the product (provenance: 'unavailable').
@@ -1017,7 +1234,8 @@ tbody tr:hover {
   line-height: 1.2;
 }
 
-/* KYC badges — one pill per PII category with an intrinsic-colour dot. */
+/* KYC badges — one pill per PII category with an intrinsic-colour dot.
+   Same chip geometry as .tag (22px / 6px / 11px), neutral variant + dot. */
 .kyc-badges {
   display: flex;
   flex-wrap: wrap;
@@ -1028,11 +1246,12 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 9px;
+  height: 22px;
+  padding: 0 8px;
   border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--bg);
-  font-size: 11px;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font-size: var(--fs-xs);
   font-weight: 500;
   color: var(--fg);
   white-space: nowrap;
@@ -1091,7 +1310,7 @@ tbody tr:hover {
   display: inline-block;
   font-size: 11px;
   color: var(--fg-mute);
-  transition: transform 120ms ease;
+  transition: transform var(--ease);
 }
 .section-collapsible[open] > summary {
   margin-bottom: 12px;
@@ -1104,7 +1323,7 @@ tbody tr:hover {
   display: grid;
   grid-template-columns: 200px 1fr;
   gap: 8px 16px;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .kv dt {
@@ -1114,12 +1333,6 @@ tbody tr:hover {
 .kv dd {
   margin: 0;
   color: var(--fg);
-}
-
-.evidence {
-  font-size: 11px;
-  color: var(--fg-mute);
-  margin-left: 6px;
 }
 
 .back-link {
@@ -1134,19 +1347,30 @@ tbody tr:hover {
 }
 
 .cta-link {
-  display: inline-block;
-  padding: 8px 14px;
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   color: var(--fg);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   font-weight: 500;
+  transition: background var(--ease), border-color var(--ease);
 }
 
 .cta-link:hover {
-  background: var(--bg-elev);
+  background: var(--row-hover);
   border-color: var(--fg-mute);
+  color: var(--fg);
+}
+
+/* Compact variant used inside table footers ("Open venue →" next to source note). */
+.cta-link.cta-link-sm {
+  height: 24px;
+  padding: 0 8px;
+  font-size: var(--fs-xs);
 }
 
 /* composition (mix charts) */
@@ -1164,17 +1388,12 @@ tbody tr:hover {
 
 .mix-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
   background: var(--bg-elev);
 }
 
 .mix-title {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-mute);
-  font-weight: 600;
   margin-bottom: 12px;
 }
 
@@ -1208,7 +1427,7 @@ tbody tr:hover {
 
 .mix-bar-wrap {
   height: 8px;
-  background: var(--border);
+  background: var(--bg);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1226,7 +1445,8 @@ tbody tr:hover {
 
 .mix-vol {
   text-align: right;
-  font-size: 11px;
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
 }
 
 /* Dual-bar chart — used for binance's Onramp vs Offramp depth view. Each row is a
@@ -1262,22 +1482,23 @@ tbody tr:hover {
   transition: width 0.2s;
 }
 .dual-bar-fill-buy {
-  background: rgba(52, 211, 153, 0.7);  /* onramp green, matches tag-onramp */
+  background: color-mix(in srgb, var(--green) 70%, transparent); /* onramp, matches tag-onramp */
 }
 .dual-bar-fill-sell {
-  background: rgba(245, 158, 11, 0.7);  /* offramp amber, matches tag-offramp */
+  background: color-mix(in srgb, var(--amber) 70%, transparent); /* offramp, matches tag-offramp */
 }
 .dual-bar-amount {
   margin-left: 6px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   color: var(--fg-mute);
+  font-variant-numeric: tabular-nums;
 }
 .dual-legend {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   margin-left: 12px;
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-weight: 500;
   text-transform: none;
   letter-spacing: 0;
@@ -1291,10 +1512,10 @@ tbody tr:hover {
   margin-left: 4px;
 }
 .dual-legend-swatch-buy {
-  background: rgba(52, 211, 153, 0.7);
+  background: color-mix(in srgb, var(--green) 70%, transparent);
 }
 .dual-legend-swatch-sell {
-  background: rgba(245, 158, 11, 0.7);
+  background: color-mix(in srgb, var(--amber) 70%, transparent);
 }
 
 /* orderbook subpage */
@@ -1303,9 +1524,9 @@ tbody tr:hover {
   flex-wrap: wrap;
   gap: 16px;
   align-items: flex-end;
-  padding: 16px;
+  padding: var(--sp-4);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   background: var(--bg-elev);
   margin-bottom: 16px;
 }
@@ -1318,14 +1539,61 @@ tbody tr:hover {
 }
 
 .orderbook-input {
-  padding: 6px 10px;
+  height: 34px;
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   color: var(--fg);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-family: inherit;
   min-width: 120px;
+  transition: border-color var(--ease);
+}
+
+.orderbook-input:hover {
+  border-color: var(--fg-mute);
+}
+
+.orderbook-input:focus {
+  border-color: var(--accent);
+}
+
+.orderbook-input-narrow {
+  min-width: 100px;
+}
+
+/* Quiet qualifier inside a stat value ("of N", "levels", "≈ $X"). */
+.orderbook-stat-sub {
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  color: var(--fg-mute);
+}
+
+/* Stat value rendered when the metric is structurally not disclosed. */
+.orderbook-stat-value-na {
+  color: var(--fg-mute);
+  font-size: var(--fs-base);
+  font-weight: 400;
+}
+
+/* Dimmed secondary table cell (limits ranges, pricing labels). */
+.cell-dim {
+  font-size: var(--fs-sm);
+  color: var(--fg-mute);
+}
+
+/* Maker identity column. */
+.maker-name {
+  font-weight: 500;
+}
+.maker-name-sm {
+  font-weight: 500;
+  font-size: var(--fs-sm);
+}
+.maker-sub {
+  font-size: var(--fs-xs);
+  color: var(--fg-mute);
 }
 
 /* Multi-select dropdown — used in BinanceP2pOrderbookView for payment methods.
@@ -1341,16 +1609,18 @@ tbody tr:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 6px 10px;
+  height: 34px;
+  padding: 0 10px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   color: var(--fg);
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-family: inherit;
   min-width: 200px;
   cursor: pointer;
   text-align: left;
+  transition: border-color var(--ease);
 }
 
 .msd-trigger:hover {
@@ -1381,10 +1651,10 @@ tbody tr:hover {
   z-index: 100;
   min-width: 260px;
   max-width: 360px;
-  background: var(--bg-elev);
+  background: var(--bg-overlay);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-pop);
   padding: 6px;
   display: flex;
   flex-direction: column;
@@ -1393,19 +1663,19 @@ tbody tr:hover {
 .msd-search {
   width: 100%;
   box-sizing: border-box;
-  padding: 6px 8px;
+  height: 30px;
+  padding: 0 8px;
   margin-bottom: 6px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   color: var(--fg);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: inherit;
 }
 
 .msd-search:focus {
-  outline: none;
-  border-color: var(--fg-mute);
+  border-color: var(--accent);
 }
 
 .msd-list {
@@ -1418,19 +1688,20 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
+  padding: 6px 8px;
   background: transparent;
   border: none;
   color: var(--fg);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
+  transition: background var(--ease);
 }
 
 .msd-option:hover {
-  background: var(--bg);
+  background: var(--row-hover);
 }
 
 .msd-option-checked {
@@ -1451,9 +1722,9 @@ tbody tr:hover {
 }
 
 .msd-option-checked .msd-check {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
+  background: var(--accent);
+  color: var(--on-brand);
+  border-color: var(--accent);
 }
 
 .msd-option-label {
@@ -1495,76 +1766,18 @@ tbody tr:hover {
 
 .orderbook-stat {
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
+  border-radius: var(--r-lg);
+  padding: var(--sp-4);
   background: var(--bg-elev);
 }
 
-.orderbook-stat-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--fg-mute);
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
+
 
 .orderbook-stat-value {
   font-size: 18px;
   font-weight: 600;
   margin-top: 4px;
-}
-
-.orderbook-stat-best {
-  display: flex;
-  flex-direction: column;
-}
-
-.best-rates-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 6px;
-}
-
-.best-rate-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 6px;
-  border: none;
-  background: transparent;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  color: var(--fg);
-  text-align: left;
-  width: 100%;
-}
-
-.best-rate-row:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-@media (prefers-color-scheme: light) {
-  .best-rate-row:hover {
-    background: rgba(0, 0, 0, 0.04);
-  }
-}
-
-.best-rate-row-active {
-  background: rgba(110, 231, 183, 0.08);
-  outline: 1px solid rgba(110, 231, 183, 0.25);
-}
-
-.best-rate-ccy {
-  font-weight: 500;
-  color: var(--fg);
-}
-
-.best-rate-pct {
-  font-size: 13px;
-  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .last-updated {
@@ -1590,14 +1803,14 @@ tbody tr:hover {
 }
 
 .protocol-title {
-  font-size: 32px;
+  font-size: var(--fs-4xl);
   margin: 0;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .protocol-altname {
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--fg-mute);
 }
 
@@ -1621,9 +1834,9 @@ tbody tr:hover {
   padding: 14px 18px;
   border-left: 3px solid var(--accent);
   background: var(--bg-elev);
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
   color: var(--fg-dim);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.55;
 }
 
@@ -1644,13 +1857,13 @@ tbody tr:hover {
 }
 
 .tab-nav-item {
-  padding: 12px 0;
+  padding: 10px 0;
   color: var(--fg-mute);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 500;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
-  transition: color 0.1s, border-color 0.1s;
+  transition: color var(--ease), border-color var(--ease);
 }
 
 .tab-nav-item:hover {
@@ -1703,62 +1916,9 @@ tbody tr:hover {
   gap: 8px;
 }
 
-/* Platform multi-toggle chips inside the "Paying using" row */
-.quote-platform-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.platform-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  background: var(--bg-elev);
-  color: var(--fg-dim);
-  font-size: 12px;
-  font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
-}
-
-.platform-toggle:hover {
-  border-color: var(--fg-mute);
-  color: var(--fg);
-}
-
-.platform-toggle-active {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
-}
-
-.platform-toggle-active:hover {
-  background: var(--fg);
-  color: var(--bg);
-}
-
-.platform-toggle-active .platform-logo {
-  filter: invert(1);
-}
-
-@media (prefers-color-scheme: light) {
-  .platform-toggle-active .platform-logo {
-    filter: none;
-  }
-}
-
-.platform-toggle-label {
-  white-space: nowrap;
-}
-
 .quote-row {
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-md);
   padding: 14px 16px;
   background: var(--bg);
   display: flex;
@@ -1785,11 +1945,12 @@ tbody tr:hover {
   border: none;
   outline: none;
   color: var(--fg);
-  font-size: 32px;
+  font-size: var(--fs-4xl);
   font-weight: 600;
   font-family: inherit;
   letter-spacing: -0.02em;
   padding: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .quote-amount-readonly {
@@ -1812,11 +1973,29 @@ tbody tr:hover {
   gap: 6px;
   padding: 6px 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   background: var(--bg-elev);
-  font-size: 14px;
+  font-size: var(--fs-base);
   font-weight: 500;
   white-space: nowrap;
+}
+
+/* Asset pill hosting a <select> pulls its right padding in (was inline). */
+.quote-asset-pill:has(select) {
+  padding-right: var(--sp-1);
+}
+
+/* Bare <select> inside an asset pill (was an inline reset block). */
+.quote-asset-pill select {
+  background: transparent;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  outline: none;
 }
 
 .quote-asset-logo {
@@ -1880,27 +2059,28 @@ tbody tr:hover {
   display: block;
   text-align: center;
   padding: 14px;
-  border-radius: 10px;
-  background: var(--fg);
-  color: var(--bg);
-  font-size: 14px;
+  border-radius: var(--r-md);
+  background: var(--brand);
+  color: var(--on-brand);
+  font-size: var(--fs-base);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   margin-top: 4px;
-  border: 1px solid var(--fg);
-  transition: opacity 0.1s, background 0.1s;
+  border: 1px solid var(--brand);
+  transition: background var(--ease), border-color var(--ease);
 }
 
 .quote-cta:hover {
-  opacity: 0.9;
-  color: var(--bg);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
+  color: var(--on-brand);
 }
 
 .quote-cta-disabled {
-  background: var(--border-strong);
+  background: var(--bg-raise);
   color: var(--fg-mute);
-  border-color: var(--border-strong);
+  border-color: var(--bg-raise);
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -1939,11 +2119,6 @@ tbody tr:hover {
 }
 
 .quote-comparison-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-mute);
-  font-weight: 600;
   margin-bottom: 12px;
 }
 
@@ -1966,8 +2141,8 @@ tbody tr:hover {
 }
 
 .quote-comparison-best {
-  border-color: rgba(110, 231, 183, 0.4);
-  background: rgba(110, 231, 183, 0.05);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent);
+  background: color-mix(in srgb, var(--green) 5%, transparent);
 }
 
 .quote-comparison-platform {
@@ -1981,25 +2156,37 @@ tbody tr:hover {
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  background: var(--prov-good);
+  background: var(--green);
   color: var(--bg);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 
 .quote-comparison-rate {
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Payment-method tags inside a comparison row. */
+.quote-methods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
 }
 
 .link-pill {
-  padding: 6px 12px;
+  display: inline-flex;
+  align-items: center;
+  height: 30px;
+  padding: 0 12px;
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
   color: var(--fg-dim);
   background: var(--bg-elev);
   white-space: nowrap;
-  transition: color 0.1s, border-color 0.1s;
+  transition: color var(--ease), border-color var(--ease);
 }
 
 .link-pill:hover {
@@ -2023,9 +2210,9 @@ tbody tr:hover {
 
 .chart-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   background: var(--bg-elev);
-  padding: 14px 16px 8px;
+  padding: 16px 16px 8px;
   min-width: 0;
 }
 
@@ -2036,13 +2223,7 @@ tbody tr:hover {
   margin-bottom: 6px;
 }
 
-.chart-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-mute);
-  font-weight: 600;
-}
+
 
 .chart-subtitle {
   font-size: 11px;
@@ -2097,18 +2278,13 @@ tbody tr:hover {
 
 .info-card {
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-lg);
   background: var(--bg-elev);
-  padding: 16px 18px;
+  padding: var(--sp-4);
   min-width: 0;
 }
 
 .info-title {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--fg-mute);
-  font-weight: 600;
   margin-bottom: 12px;
   display: flex;
   align-items: center;
@@ -2155,24 +2331,24 @@ tbody tr:hover {
 
 .badge {
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
   background: rgba(255, 255, 255, 0.01);
 }
 
 .badge-ok {
-  border-color: rgba(110, 231, 183, 0.3);
-  background: rgba(110, 231, 183, 0.05);
+  border-color: color-mix(in srgb, var(--green) 30%, transparent);
+  background: color-mix(in srgb, var(--green) 5%, transparent);
 }
 
 .badge-warn {
-  border-color: rgba(250, 204, 21, 0.3);
-  background: rgba(250, 204, 21, 0.05);
+  border-color: color-mix(in srgb, var(--yellow) 30%, transparent);
+  background: color-mix(in srgb, var(--yellow) 5%, transparent);
 }
 
 .badge-fail {
-  border-color: rgba(248, 113, 113, 0.3);
-  background: rgba(248, 113, 113, 0.05);
+  border-color: color-mix(in srgb, var(--red) 30%, transparent);
+  background: color-mix(in srgb, var(--red) 5%, transparent);
 }
 
 .badge-head {
@@ -2212,7 +2388,8 @@ tbody tr:hover {
   line-height: 1.4;
 }
 
-/* Fiat chips with flag */
+/* Fiat chips with flag — neutral inset data chips, same 22px/6px/11px
+   geometry as the .tag system. */
 .fiat-grid {
   display: flex;
   flex-wrap: wrap;
@@ -2224,11 +2401,13 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
+  height: 22px;
+  padding: 0 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--bg);
-  font-size: 11px;
+  font-size: var(--fs-xs);
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -2243,13 +2422,6 @@ tbody tr:hover {
 }
 
 /* Platform chips with logo */
-.platform-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 6px;
-}
-
 .platform-row {
   display: flex;
   flex-wrap: wrap;
@@ -2261,13 +2433,14 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 6px;
+  height: 22px;
+  padding: 0 6px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--bg);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
-  line-height: 1.4;
+  line-height: 1;
 }
 
 .platform-chip-compact {
@@ -2279,12 +2452,6 @@ tbody tr:hover {
 
 .platform-logo {
   display: block;
-}
-
-@media (prefers-color-scheme: light) {
-  .platform-logo {
-    filter: invert(1);
-  }
 }
 
 .platform-fallback {
@@ -2328,13 +2495,14 @@ tbody tr:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 2px 8px 2px 4px;
+  height: 22px;
+  padding: 0 8px 0 4px;
   border: 1px solid var(--border-strong);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--bg);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
-  line-height: 1.4;
+  line-height: 1;
 }
 
 .asset-logo {
@@ -2416,18 +2584,19 @@ tbody tr:hover {
   flex: 1;
   min-width: 140px;
   max-width: 220px;
-  padding: 4px 8px;
+  height: 26px;
+  padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-sm);
   background: var(--bg);
   color: var(--fg);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-family: inherit;
+  transition: border-color var(--ease);
 }
 
 .count-browser-search:focus {
-  outline: none;
-  border-color: var(--fg-mute);
+  border-color: var(--accent);
 }
 
 .count-browser-search:disabled {
@@ -2487,18 +2656,18 @@ tbody tr:hover {
 .docs-layout {
   display: grid;
   grid-template-columns: 220px minmax(0, 1fr);
-  gap: 40px;
+  gap: var(--sp-10);
   padding: 24px 0 64px;
   align-items: start;
 }
 
 .docs-sidebar {
   position: sticky;
-  top: 24px;
+  top: calc(var(--chrome-h) + var(--sp-4));
   align-self: start;
 }
 .docs-sidebar-title {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--fg-mute);
@@ -2516,11 +2685,12 @@ tbody tr:hover {
 .docs-sidebar-link {
   display: block;
   padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-md);
   color: var(--fg-dim);
   text-decoration: none;
   border-left: 2px solid transparent;
+  transition: color var(--ease), background var(--ease);
 }
 .docs-sidebar-link:hover {
   color: var(--fg);
@@ -2538,7 +2708,7 @@ tbody tr:hover {
   min-width: 0;
 }
 .docs-title {
-  font-size: 28px;
+  font-size: var(--fs-3xl);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0 0 20px;
@@ -2625,15 +2795,32 @@ tbody tr:hover {
   padding: 8px 12px;
   text-align: left;
   vertical-align: top;
+  height: auto;
 }
 .prose th {
   background: var(--bg-elev);
   color: var(--fg);
   font-weight: 600;
   white-space: nowrap;
+  /* neutralize the app-wide sticky/uppercase table-header grammar — docs tables
+     are prose, not data grids */
+  position: static;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: inherit;
+  box-shadow: none;
 }
 .prose td {
   color: var(--fg-dim);
+}
+/* Edge-gutter overrides from the data-table base must not leak into docs. */
+.prose th:first-child,
+.prose td:first-child {
+  padding-left: 12px;
+}
+.prose th:last-child,
+.prose td:last-child {
+  padding-right: 12px;
 }
 
 @media (max-width: 760px) {

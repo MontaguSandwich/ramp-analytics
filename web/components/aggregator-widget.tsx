@@ -287,7 +287,7 @@ function AggregatorResults({ result }: { result: AggregatorResponse }) {
     <section className="aggregator-results">
       <h2>
         Results{' '}
-        <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+        <span className="h2-sub">
           · {availableQuotes.length} venue{availableQuotes.length === 1 ? '' : 's'} matched
         </span>
       </h2>
@@ -320,9 +320,9 @@ function AggregatorResults({ result }: { result: AggregatorResponse }) {
           <thead>
             <tr>
               <th>Venue</th>
-              <th>{amountColLabel}</th>
-              <th>Effective rate</th>
-              <th>Spread</th>
+              <th className="col-num">{amountColLabel}</th>
+              <th className="col-num">Effective rate</th>
+              <th className="col-num">Spread</th>
               <th>Via</th>
               <th>KYC</th>
               <th>Source</th>
@@ -335,19 +335,19 @@ function AggregatorResults({ result }: { result: AggregatorResponse }) {
                 <td>
                   <span className={`tag cat-${q.category}`}>{q.venue_label}</span>
                 </td>
-                <td className="mono">
+                <td className="col-num mono">
                   {q.asset_amount != null
                     ? `${q.asset_amount.toLocaleString(undefined, { maximumFractionDigits: 4 })} ${q.asset ?? ''}`
                     : '—'}
                 </td>
-                <td className="mono muted">{q.rate != null ? q.rate.toFixed(4) : '—'}</td>
-                <td className="mono">
+                <td className="col-num mono muted">{q.rate != null ? q.rate.toFixed(4) : '—'}</td>
+                <td className="col-num mono">
                   {q.effective_pct != null ? `${q.effective_pct.toFixed(2)}%` : '—'}
                 </td>
                 <td className="muted">
                   {q.payment_method ? paymentMethodLabel(q.payment_method) : '—'}
                 </td>
-                <td className="muted" style={{ fontSize: 11 }}>
+                <td className="muted fs-xs">
                   {q.non_kyc_available
                     ? 'None available'
                     : q.pii_floor === 'none'
@@ -356,7 +356,7 @@ function AggregatorResults({ result }: { result: AggregatorResponse }) {
                 </td>
                 <td>
                   <span
-                    className={`aggregator-source aggregator-source-${q.source}`}
+                    className={`tag tag-source-${q.source}`}
                     title={
                       q.source === 'live'
                         ? 'Live quote from venue API'
@@ -368,7 +368,7 @@ function AggregatorResults({ result }: { result: AggregatorResponse }) {
                     {q.source === 'live' ? '● Live' : q.source === 'approximated' ? '◐ Approx.' : '✕ n/a'}
                   </span>
                 </td>
-                <td className="muted" style={{ fontSize: 11 }}>
+                <td className="muted fs-xs">
                   {q.notes ?? ''}
                 </td>
               </tr>
@@ -376,7 +376,7 @@ function AggregatorResults({ result }: { result: AggregatorResponse }) {
           </tbody>
         </table>
       </div>
-      <div className="muted" style={{ fontSize: 11, margin: '8px 4px' }}>
+      <div className="table-footer">
         Ranked by {direction === 'buy' ? 'amount received (more is better)' : 'amount sent (less is better)'}.
         Sources: live quote APIs for Peer + Binance P2P; Ramp shown as approximated until we
         have a partner hostApiKey.

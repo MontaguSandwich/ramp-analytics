@@ -152,7 +152,7 @@ export default function GenericDetail({ product }: { product: Product }) {
         <section className="section">
           <h2>
             Fiat and Payment Methods stats{' '}
-            <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+            <span className="h2-sub">
               · {s.depth_composition.value.period}
             </span>{' '}
             <span
@@ -227,7 +227,7 @@ export default function GenericDetail({ product }: { product: Product }) {
       {s?.composition && (s.composition.value.currencies.length || s.composition.value.platforms.length) ? (
         <section className="section">
           <h2>
-            Fiat and Payment Methods stats <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>· {s.composition.value.period}</span>{' '}
+            Fiat and Payment Methods stats <span className="h2-sub">· {s.composition.value.period}</span>{' '}
             <span
               className="dot"
               style={{ background: provenanceColor(s.composition.provenance) }}
@@ -301,16 +301,16 @@ export default function GenericDetail({ product }: { product: Product }) {
         <summary>Raw data</summary>
         <dl className="kv">
           <dt>Product YAML</dt>
-          <dd className="mono">data/products/{y.id}.yaml</dd>
+          <dd className="code">data/products/{y.id}.yaml</dd>
           <dt>Snapshot JSON</dt>
-          <dd className="mono">
+          <dd className="code">
             data/snapshots/{y.id}.json{' '}
             {s ? <span className="muted">· {fmtRelTime(s.liquidity.last_verified)}</span> : <span className="muted">· not generated</span>}
           </dd>
           {y.contracts?.length ? (
             <>
               <dt>Contracts</dt>
-              <dd className="mono">
+              <dd className="code">
                 {y.contracts.map((c, i) => (
                   <div key={i}>
                     {c.chain}: {c.address}
@@ -363,7 +363,7 @@ function Kpi({ label, value, provenance, ts, notes, sub, tooltip }: KpiProps) {
       ) : isRichValue ? (
         <div className="kpi-value-rich" title={tooltip}>{value}</div>
       ) : (
-        <div className="kpi-value mono" title={tooltip} style={tooltip ? { cursor: 'help' } : undefined}>
+        <div className={`kpi-value mono${tooltip ? ' tip' : ''}`} title={tooltip}>
           {value}
         </div>
       )}
@@ -549,7 +549,7 @@ function NetworkHealthCard({ snapshot: s }: { snapshot?: Snapshot }) {
           <span
             className="dot"
             title={`${provenanceLabel(dotProv ?? 'manual')} · ${fmtRelTime(dotTs)}`}
-            style={{ background: provenanceColor(dotProv ?? 'manual'), marginLeft: 6 }}
+            style={{ background: provenanceColor(dotProv ?? 'manual') }}
           />
         ) : null}
       </div>
@@ -610,11 +610,10 @@ function LegacyNetworkHealthRows({ snapshot: s }: { snapshot?: Snapshot }) {
     <dl className="info-kv">
       <dt>Spread (~$1k)</dt>
       <dd
-        className="mono"
-        style={{
-          color: spread?.value != null ? spreadColor(spread.value) : 'var(--fg)',
-          fontWeight: 500,
-        }}
+        className="mono spread-val"
+        style={
+          { '--spread-color': spread?.value != null ? spreadColor(spread.value) : 'var(--fg)' } as React.CSSProperties
+        }
       >
         {spread?.value != null ? fmtSpreadPct(spread.value) : '—'}
       </dd>

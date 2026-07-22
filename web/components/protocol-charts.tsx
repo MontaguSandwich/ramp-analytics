@@ -10,9 +10,9 @@ interface DailyPoint {
 }
 
 const PALETTE = {
-  liquidity: '#6ee7b7',
-  volume: '#60a5fa',
-  trades: '#c084fc',
+  liquidity: 'var(--chart-2)',
+  volume: 'var(--chart-1)',
+  trades: 'var(--chart-3)',
 };
 
 function fmtUsdShort(n: number): string {
@@ -232,7 +232,7 @@ function AreaChart({ points, color, valueFormatter = fmtUsdShort }: { points: Ch
       viewBox={`0 0 ${CHART_W} ${CHART_H}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      style={{ width: '100%', height: 'auto', display: 'block' }}
+      className="chart-svg"
     >
       {yTicks.map((y, i) => (
         <g key={i}>
@@ -295,7 +295,7 @@ function BarChart({ points, color, valueFormatter = fmtUsdShort }: { points: Cha
       viewBox={`0 0 ${CHART_W} ${CHART_H}`}
       preserveAspectRatio="xMidYMid meet"
       role="img"
-      style={{ width: '100%', height: 'auto', display: 'block' }}
+      className="chart-svg"
     >
       {yTicks.map((y, i) => (
         <g key={i}>

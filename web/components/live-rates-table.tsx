@@ -76,7 +76,7 @@ export default function LiveRatesTable({
     <section className="section">
       <h2>
         Live rates{' '}
-        <span className="muted" style={{ fontWeight: 400, fontSize: 13 }}>
+        <span className="h2-sub">
           · {subtitle}
         </span>{' '}
         <span
@@ -111,11 +111,11 @@ export default function LiveRatesTable({
             <tr>
               <th>Currency</th>
               {isRamp ? <th>Method</th> : null}
-              <th>Best rate</th>
-              <th>Spread</th>
-              <th>{liquidityLabel}</th>
-              {isP2p ? <th>Ads</th> : null}
-              {isP2p ? <th>Makers</th> : null}
+              <th className="col-num">Best rate</th>
+              <th className="col-num">Spread</th>
+              <th className="col-num">{liquidityLabel}</th>
+              {isP2p ? <th className="col-num">Ads</th> : null}
+              {isP2p ? <th className="col-num">Makers</th> : null}
             </tr>
           </thead>
           <tbody>
@@ -125,28 +125,29 @@ export default function LiveRatesTable({
                   <FiatChip code={m.currency} />
                 </td>
                 {isRamp ? <td className="mono">{m.platform}</td> : null}
-                <td className="mono">{m.best_rate.toFixed(4)}</td>
+                <td className="col-num mono">{m.best_rate.toFixed(4)}</td>
                 <td
-                  className="mono"
-                  style={{ color: spreadColor(m.spread_bps), fontWeight: 500 }}
+                  className="col-num mono spread-val"
+                  style={{ '--spread-color': spreadColor(m.spread_bps) } as React.CSSProperties}
                 >
                   {fmtSpreadPct(m.spread_bps)}
                 </td>
-                <td className="mono">{fmtUsdShort(m.total_liquidity_usd)}</td>
-                {isP2p ? <td className="mono">{m.deposit_count.toLocaleString()}</td> : null}
-                {isP2p ? <td className="mono">{m.n_makers ?? '—'}</td> : null}
+                <td className="col-num mono">{fmtUsdShort(m.total_liquidity_usd)}</td>
+                {isP2p ? <td className="col-num mono">{m.deposit_count.toLocaleString()}</td> : null}
+                {isP2p ? (
+                  <td className="col-num mono">{m.n_makers ?? <span className="na">—</span>}</td>
+                ) : null}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-      <div className="muted" style={{ fontSize: 11, margin: '8px 4px' }}>
+      <div className="table-footer">
         {footerText}
         {hasOrderbookTab ? (
           <Link
             href={`/products/${productId}/orderbook`}
-            className="cta-link"
-            style={{ marginLeft: 8, padding: '2px 8px', fontSize: 11 }}
+            className="cta-link cta-link-sm table-footer-cta"
           >
             Open orderbook →
           </Link>

@@ -115,7 +115,7 @@ export default async function OverviewPage({
               <Link key={c} href={`/?category=${c}`} className="category-strip-item">
                 <span className={`tag cat-${c}`}>{CATEGORY_LABEL[c]}</span>
                 <div className="mono">{venues.length}</div>
-                <div className="muted" style={{ fontSize: 11 }}>
+                <div className="strip-sub">
                   {/* Ramp's "liquidity" is a max-single-trade proxy, not aggregate depth;
                       RTPN has no venues yet. Show N/A rather than a misleading figure. */}
                   {c === 'ramp' || c === 'rtpn'

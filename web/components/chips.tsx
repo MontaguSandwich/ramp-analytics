@@ -139,11 +139,11 @@ export function PaymentGlyph({ name }: { name: string }) {
 export type KycKind = 'wallet' | 'email' | 'id' | 'poa' | 'enhanced';
 
 const KYC_BADGE: Record<KycKind, { label: string; color: string }> = {
-  wallet: { label: 'Wallet', color: '#34d399' }, // green
-  email: { label: 'Email', color: '#f59e0b' }, // orange
-  id: { label: 'ID', color: '#ef4444' }, // red
-  poa: { label: 'Address', color: '#ef4444' }, // red — proof of address
-  enhanced: { label: 'Enhanced', color: '#ef4444' }, // red — source of funds, liveness, etc.
+  wallet: { label: 'Wallet', color: 'var(--kyc-wallet)' }, // green
+  email: { label: 'Email', color: 'var(--kyc-email)' }, // orange
+  id: { label: 'ID', color: 'var(--kyc-id)' }, // red
+  poa: { label: 'Address', color: 'var(--kyc-id)' }, // red — proof of address
+  enhanced: { label: 'Enhanced', color: 'var(--kyc-id)' }, // red — source of funds, liveness, etc.
 };
 
 export function kycKindsFor(pii: ProductYaml['pii_floor']): KycKind[] {

@@ -12,17 +12,13 @@ interface SparklineProps {
  */
 export default function Sparkline({
   values,
-  color = 'var(--accent)',
+  color = 'var(--fg-dim)',
   width = 88,
   height = 22,
   ariaLabel,
 }: SparklineProps) {
   if (values.length < 2) {
-    return (
-      <span className="muted" style={{ fontSize: 11 }}>
-        —
-      </span>
-    );
+    return <span className="muted na">—</span>;
   }
   const min = Math.min(...values);
   const max = Math.max(...values);
@@ -44,7 +40,7 @@ export default function Sparkline({
       viewBox={`0 0 ${width} ${height}`}
       role="img"
       aria-label={ariaLabel ?? `sparkline of ${values.length} days`}
-      style={{ display: 'block' }}
+      className="sparkline"
     >
       <polygon points={areaPts} fill={color} fillOpacity="0.14" />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.2" />

@@ -290,7 +290,7 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
           </select>
         </div>
 
-        <div className="orderbook-control" style={{ alignSelf: 'flex-end' }}>
+        <div className="orderbook-control">
           <button
             className="clear-btn"
             type="button"
@@ -307,7 +307,7 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
       </div>
 
       {error ? (
-        <div className="no-results" style={{ borderColor: 'var(--warn)', color: 'var(--warn)' }}>
+        <div className="no-results is-error">
           {error}
         </div>
       ) : null}
@@ -318,11 +318,11 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
             <div className="orderbook-stat-label">Liquidity</div>
             <div className="orderbook-stat-value mono">
               {fmtFiat(data.stats.total_offer_value, data.stats.fiat)}
-              <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+              <span className="orderbook-stat-sub">
                 {' '}slice
               </span>
               {usdLiquidity != null ? (
-                <div className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+                <div className="orderbook-stat-sub">
                   ≈ {fmtUsd(usdLiquidity)}
                 </div>
               ) : null}
@@ -337,12 +337,12 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
             <div className="orderbook-stat-value mono">
               {data.stats.n_ads}
               {data.stats.total_available > data.stats.n_ads ? (
-                <span className="muted" style={{ fontSize: 12, fontWeight: 400 }}>
+                <span className="orderbook-stat-sub">
                   {' '}
                   of {data.stats.total_available}
                 </span>
               ) : null}
-              <span className="muted" style={{ fontSize: 11, fontWeight: 400 }}>
+              <span className="orderbook-stat-sub">
                 {' '}ads
               </span>
             </div>
@@ -350,8 +350,7 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
           <div className="orderbook-stat">
             <div className="orderbook-stat-label">24h volume</div>
             <div
-              className="orderbook-stat-value"
-              style={{ color: 'var(--fg-mute)', fontSize: 14, fontWeight: 400 }}
+              className="orderbook-stat-value-na tip"
               title="Binance does not separately disclose P2P volume"
             >
               Not disclosed
@@ -371,13 +370,13 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
             <thead>
               <tr>
                 <th>Maker</th>
-                <th>
+                <th className="col-num">
                   Price ({fiat}/{asset})
                 </th>
-                <th>FX mid</th>
-                <th>Spread</th>
-                <th>Available ({asset})</th>
-                <th>Limits ({fiat})</th>
+                <th className="col-num">FX mid</th>
+                <th className="col-num">Spread</th>
+                <th className="col-num">Available ({asset})</th>
+                <th className="col-num">Limits ({fiat})</th>
                 <th>Payment</th>
               </tr>
             </thead>
@@ -385,29 +384,30 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
               {sortedAds.map((ad) => (
                 <tr key={ad.advNo}>
                   <td>
-                    <div style={{ fontWeight: 500 }}>{ad.maker.nickname}</div>
-                    <div className="muted" style={{ fontSize: 11 }}>
+                    <div className="maker-name">{ad.maker.nickname}</div>
+                    <div className="maker-sub">
                       {ad.maker.month_orders != null ? `${ad.maker.month_orders} orders/30d` : '—'}
                       {ad.maker.finish_rate != null
                         ? ` · ${(ad.maker.finish_rate * 100).toFixed(0)}% finish`
                         : ''}
                     </div>
                   </td>
-                  <td className="mono">{ad.price.toFixed(4)}</td>
-                  <td className="mono muted">
+                  <td className="col-num mono">{ad.price.toFixed(4)}</td>
+                  <td className="col-num mono muted">
                     {data?.stats.fx_mid_rate != null ? data.stats.fx_mid_rate.toFixed(4) : '—'}
                   </td>
                   <td
-                    className="mono"
-                    style={{
-                      color: spreadColor(spreadBps(ad.price, data?.stats.fx_mid_rate ?? null, tradeType)),
-                      fontWeight: 500,
-                    }}
+                    className="col-num mono spread-val"
+                    style={
+                      {
+                        '--spread-color': spreadColor(spreadBps(ad.price, data?.stats.fx_mid_rate ?? null, tradeType)),
+                      } as React.CSSProperties
+                    }
                   >
                     {fmtSpreadPct(spreadBps(ad.price, data?.stats.fx_mid_rate ?? null, tradeType))}
                   </td>
-                  <td className="mono">{fmtAmount(ad.surplus_amount, 2)}</td>
-                  <td className="mono muted" style={{ fontSize: 12 }}>
+                  <td className="col-num mono">{fmtAmount(ad.surplus_amount, 2)}</td>
+                  <td className="col-num mono cell-dim">
                     {fmtAmount(ad.min_single_tx, 0)} – {fmtAmount(ad.max_single_tx, 0)}
                   </td>
                   <td>
@@ -429,9 +429,9 @@ export default function BinanceP2pOrderbookView({ fiats, paymentMethods, methods
         </div>
       )}
 
-      <div className="muted" style={{ fontSize: 11, margin: '12px 4px' }}>
+      <div className="table-footer">
         Source: Binance{' '}
-        <span className="mono">bapi/c2c/v2/friendly/c2c/adv/search</span> · auto-refreshes every 30s
+        <span className="code">bapi/c2c/v2/friendly/c2c/adv/search</span> · auto-refreshes every 30s
         · upstream cache 20s · server paginates {LIMIT_OPTIONS[LIMIT_OPTIONS.length - 1]} ads max (
         {Math.ceil(LIMIT_OPTIONS[LIMIT_OPTIONS.length - 1] / 20)} parallel pages)
       </div>

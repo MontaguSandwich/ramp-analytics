@@ -215,7 +215,10 @@ export default function QuoteView({ fiats, platforms, fiatFlags }: Props) {
           {best ? (
             <div className="quote-row-sub">
               <span className="mono">rate {best.rate.toFixed(4)}</span>{' '}
-              <span className="mono" style={{ color: spreadColor(best.spread_bps), fontWeight: 500 }}>
+              <span
+                className="mono spread-val"
+                style={{ '--spread-color': spreadColor(best.spread_bps) } as React.CSSProperties}
+              >
                 {fmtSpreadPct(best.spread_bps)}
               </span>{' '}
               <span className="muted">via {platformLabel(best.platform)}</span>
@@ -291,8 +294,8 @@ export default function QuoteView({ fiats, platforms, fiatFlags }: Props) {
                   {fmtNumber(c.usdc_received, 2)} USDC
                 </div>
                 <div
-                  className="mono"
-                  style={{ color: spreadColor(c.spread_bps), fontWeight: 500, fontSize: 12 }}
+                  className="mono spread-val fs-sm"
+                  style={{ '--spread-color': spreadColor(c.spread_bps) } as React.CSSProperties}
                 >
                   {fmtSpreadPct(c.spread_bps)}
                 </div>
@@ -300,8 +303,7 @@ export default function QuoteView({ fiats, platforms, fiatFlags }: Props) {
                   href={`https://basescan.org/address/${c.depositor}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="muted mono"
-                  style={{ fontSize: 11 }}
+                  className="muted mono fs-xs"
                   title="View depositor on BaseScan"
                 >
                   {shortAddr(c.depositor)}

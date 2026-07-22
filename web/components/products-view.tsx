@@ -231,14 +231,14 @@ export default function ProductsView({
                 <th>Venues</th>
                 <th>Category</th>
                 <th>Direction</th>
-                <th># Fiats</th>
-                <th># Methods</th>
+                <th className="col-num"># Fiats</th>
+                <th className="col-num"># Methods</th>
                 <th>KYC floor</th>
                 <th>Custody</th>
-                <th>Spread (~$1k)*</th>
-                <th>30d volume</th>
-                <th>Available liquidity</th>
-                <th>Liquidity: 14d trend</th>
+                <th className="col-num">Spread (~$1k)*</th>
+                <th className="col-num">30d volume</th>
+                <th className="col-num">Available liquidity</th>
+                <th className="col-num">Liquidity: 14d trend</th>
               </tr>
             </thead>
             <tbody>
@@ -283,7 +283,7 @@ export default function ProductsView({
                           {showOff ? <span className="tag tag-offramp">Offramp</span> : null}
                         </div>
                       </td>
-                      <td>
+                      <td className="col-num">
                         <button
                           type="button"
                           className="fiats-count-btn"
@@ -300,7 +300,7 @@ export default function ProductsView({
                           ) : null}
                         </button>
                       </td>
-                      <td>
+                      <td className="col-num">
                         <button
                           type="button"
                           className="fiats-count-btn"
@@ -317,22 +317,34 @@ export default function ProductsView({
                           ) : null}
                         </button>
                       </td>
-                      <td className="muted">{p.yaml.pii_floor ?? '—'}</td>
+                      <td className="muted">{p.yaml.pii_floor ?? <span className="na">—</span>}</td>
                       <td className="muted">{p.yaml.delivery_custody}</td>
-                      <td className="mono">{fmtPct(p.snapshot?.observed_spread_bps.value)}</td>
-                      <td className="mono">{fmtUsd(p.snapshot?.volume_30d_usd.value ?? null)}</td>
-                      <td className="mono">
-                        {fmtUsd(tvl)}
+                      <td className="col-num mono">
+                        {p.snapshot?.observed_spread_bps.value != null ? (
+                          fmtPct(p.snapshot.observed_spread_bps.value)
+                        ) : (
+                          <span className="na">—</span>
+                        )}
+                      </td>
+                      <td className="col-num mono">
+                        {p.snapshot?.volume_30d_usd.value != null ? (
+                          fmtUsd(p.snapshot.volume_30d_usd.value)
+                        ) : (
+                          <span className="na">—</span>
+                        )}
+                      </td>
+                      <td className="col-num mono">
+                        {tvl != null ? fmtUsd(tvl) : <span className="na">—</span>}
                         {liqIsCapacity ? (
                           <sup
-                            style={{ cursor: 'help', marginLeft: 1 }}
+                            className="tip"
                             title="Max single trade the venue will process — not aggregate locked liquidity"
                           >
                             †
                           </sup>
                         ) : null}
                       </td>
-                      <td>
+                      <td className="col-num">
                         <Sparkline
                           values={sparklines[p.yaml.id] ?? []}
                           ariaLabel={`${p.yaml.name} 14-day liquidity trend`}
@@ -343,7 +355,7 @@ export default function ProductsView({
                       <tr className="fiats-expand-row">
                         <td colSpan={11}>
                           <div className="fiats-expand-content">
-                            <span className="muted" style={{ fontSize: 11, marginRight: 8 }}>
+                            <span className="fiats-expand-label">
                               All {fiatList.length} fiat{fiatList.length === 1 ? '' : 's'}:
                             </span>
                             <div className="fiat-grid">
@@ -359,7 +371,7 @@ export default function ProductsView({
                       <tr className="fiats-expand-row">
                         <td colSpan={11}>
                           <div className="fiats-expand-content">
-                            <span className="muted" style={{ fontSize: 11, marginRight: 8 }}>
+                            <span className="fiats-expand-label">
                               All {methodList.length} payment method{methodList.length === 1 ? '' : 's'}:
                             </span>
                             <div className="fiat-grid">
@@ -379,12 +391,12 @@ export default function ProductsView({
         </div>
       )}
 
-      <div style={{ color: 'var(--fg-mute)', fontSize: 12, margin: '12px 4px' }}>
+      <div className="table-footer">
         <div>
           * effective spread on a ~$1,000 trade in the venue&apos;s deepest USD market, measured against the
           oracle/FX mid. Methodology varies by venue type — click a row to see the live sample table.
         </div>
-        <div style={{ marginTop: 4 }}>
+        <div className="table-footer-line">
           † for Licensed Ramps, this is the largest single transaction the venue will process (max single
           trade), not aggregate locked liquidity — ramps quote against their own capacity, not a pooled order book.
         </div>

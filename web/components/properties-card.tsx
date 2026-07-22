@@ -146,7 +146,7 @@ function CostLegRow({ label, leg }: { label: string; leg: CostLeg1k }) {
     .join('\n');
   return (
     <Fragment>
-      <dt title={assumptions} style={{ cursor: 'help' }}>
+      <dt title={assumptions} className="tip">
         {label}
       </dt>
       <dd>

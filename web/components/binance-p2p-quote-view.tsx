@@ -184,7 +184,7 @@ export default function BinanceP2pQuoteView({ fiats, paymentMethods, methodsByFi
         <div className="quote-row">
           <label className="quote-row-label">
             Paying using{' '}
-            <span className="muted" style={{ fontWeight: 400, fontSize: 11 }}>
+            <span className="label-sub">
               ({activeMethodPool.length} for {fiat})
             </span>
           </label>
@@ -210,7 +210,7 @@ export default function BinanceP2pQuoteView({ fiats, paymentMethods, methodsByFi
               </span>{' '}
               <span className="muted">via {best.maker.nickname}</span>
               {best.maker.month_orders != null ? (
-                <span className="muted" style={{ fontSize: 11 }}>
+                <span className="muted fs-xs">
                   {' '}
                   · {best.maker.month_orders} orders/30d
                   {best.maker.finish_rate != null
@@ -287,8 +287,8 @@ export default function BinanceP2pQuoteView({ fiats, paymentMethods, methodsByFi
                 <div className="quote-comparison-platform">
                   {i === 0 ? <span className="quote-best-badge">Best</span> : null}
                   <div>
-                    <div style={{ fontWeight: 500, fontSize: 12 }}>{c.maker.nickname}</div>
-                    <div className="muted" style={{ fontSize: 10 }}>
+                    <div className="maker-name-sm">{c.maker.nickname}</div>
+                    <div className="muted fs-2xs">
                       {c.maker.month_orders != null ? `${c.maker.month_orders} orders/30d` : '—'}
                       {c.maker.finish_rate != null
                         ? ` · ${(c.maker.finish_rate * 100).toFixed(0)}%`
@@ -299,17 +299,17 @@ export default function BinanceP2pQuoteView({ fiats, paymentMethods, methodsByFi
                 <div className="quote-comparison-rate mono">
                   {fmtAssetAmount(c.asset_received, asset)} {asset}
                 </div>
-                <div className="mono muted" style={{ fontSize: 11 }}>
+                <div className="mono muted fs-xs">
                   rate {c.price.toFixed(4)}
                 </div>
-                <div style={{ fontSize: 10 }}>
+                <div className="quote-methods">
                   {c.payment_methods.slice(0, 2).map((m) => (
-                    <span key={m} className="tag" style={{ fontSize: 10, marginRight: 2 }}>
+                    <span key={m} className="tag tag-xs">
                       {m}
                     </span>
                   ))}
                   {c.payment_methods.length > 2 ? (
-                    <span className="muted">+{c.payment_methods.length - 2}</span>
+                    <span className="muted fs-2xs">+{c.payment_methods.length - 2}</span>
                   ) : null}
                 </div>
               </div>
@@ -355,7 +355,7 @@ function AssetSelect({
   onChange: (v: Asset) => void;
 }) {
   return (
-    <div className="quote-asset-pill" style={{ paddingRight: 4 }}>
+    <div className="quote-asset-pill">
       <span className="quote-asset-logo" aria-hidden>
         {value === 'BTC' ? '₿' : value === 'ETH' ? 'Ξ' : '$'}
       </span>
@@ -363,14 +363,6 @@ function AssetSelect({
         value={value}
         onChange={(e) => onChange(e.target.value as Asset)}
         aria-label="Asset to receive"
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: 'inherit',
-          font: 'inherit',
-          padding: 0,
-          cursor: 'pointer',
-        }}
       >
         {SUPPORTED_ASSETS.map((a) => (
           <option key={a} value={a}>

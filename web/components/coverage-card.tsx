@@ -45,7 +45,7 @@ export default function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYa
           <span
             className="dot"
             title={`${provenanceLabel(s.coverage.provenance)} · ${fmtRelTime(s.coverage.last_verified)}`}
-            style={{ background: provenanceColor(s.coverage.provenance), marginLeft: 6 }}
+            style={{ background: provenanceColor(s.coverage.provenance) }}
           />
         ) : null}
       </div>
@@ -99,7 +99,7 @@ export default function CoverageCard({ yaml: y, snapshot: s }: { yaml: ProductYa
           <>
             <dt>Withdrawn markets</dt>
             <dd>
-              <div className="info-sub" style={{ marginBottom: 4 }}>
+              <div className="info-sub mb-1">
                 Currencies the venue has withdrawn from.
               </div>
               <FiatBrowser codes={inactive} searchPlaceholder="search withdrawn currencies" />
