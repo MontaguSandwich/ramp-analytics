@@ -1,0 +1,93 @@
+id: revolut
+name: Revolut
+display_name: Revolut (in-app crypto)
+category: rtpn
+subcategory: neo-bank in-app crypto exchange
+website: https://www.revolut.com/crypto/
+launched: '2017'
+
+description: >-
+  Revolut's in-app crypto exchange: 60M+ retail users can buy/sell 300+ tokens
+  against their multi-currency account balance. Pricing is plan- and volume-
+  tiered (Standard 1.49% down to Ultra 0%), with fiat ↔ stablecoin exchanges
+  exempt from exchange fees and USDT/USD & USDC/USD converting 1:1 with no
+  spread. Assets settle to the app ledger; on-chain withdrawal is a separate
+  fee-bearing step.
+
+legal_entity: Revolut Ltd (UK); Revolut Digital Assets Europe Ltd (EEA)
+licenses:
+  - jurisdiction: GB
+    type: FCA-registered cryptoasset firm
+    authority: FCA
+    status: active
+    note: Revolut Ltd — named entity on the UK retail crypto fee schedule.
+  - jurisdiction: EU
+    type: MiCA CASP
+    authority: CySEC
+    status: active
+    note: >-
+      EEA retail crypto provided by Revolut Digital Assets Europe Ltd (named on
+      the EEA fee schedules), CySEC-authorised under MiCA (2025).
+
+direction: both
+countries_supported: []
+# Base currencies with hand-verified support in the published fee schedule (the
+# per-currency stablecoin-exchange-limit table names GBP/PLN/HUF/CHF/SEK/NOK/DKK/
+# BGN/CZK/RON; EUR and USD are held balances across EEA/UK accounts). The full
+# in-app list is wider — extend when verified per-country (community pipeline).
+fiats: [USD, EUR, GBP, CHF, PLN, RON, HUF, CZK, SEK, NOK, DKK, BGN]
+# In-app trading covers 300+ tokens; we list the ones load-bearing for this
+# dashboard's comparisons. USDT note: still on the UK fee schedule (1:1 USD
+# conversion); EEA availability is restricted post-MiCA — verify per-country.
+assets:
+  - { symbol: BTC, chain: bitcoin }
+  - { symbol: ETH, chain: ethereum }
+  - { symbol: USDC, chain: ethereum }
+  - { symbol: USDT, chain: ethereum }
+  - { symbol: SOL, chain: solana }
+  - { symbol: XRP, chain: ripple }
+payment_methods: [balance]
+# Settlement is to Revolut's internal ledger — the 'offchain' sentinel (same as
+# CEX P2P venues). On-chain withdrawal exists but is a separate fee-bearing step.
+delivery_chains: [offchain]
+
+kyc_tiers:
+  - { name: Revolut account, requirements: [id, selfie], min: 0, max: null, period: lifetime }
+non_kyc_available: false
+pii_floor: id
+
+pricing:
+  spread_method: vs_mid
+  pricing_endpoint: https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/
+  layers: [venue_quote, venue_fee]
+
+settlement_time:
+  value: { exchange: instant, withdrawal: minutes-hours }
+  provenance: self_reported
+  last_verified: '2026-07-22'
+
+chargeback_protection: false
+
+delivery_custody: hosted
+requires_account: true
+wallet_setup_required: false
+
+audits: []
+open_source:
+  is_open: false
+team_transparency: public
+
+integration_types: [none]
+sdks: []
+kyc_inheritance: none
+white_label: not_applicable
+webhooks: false
+sandbox: false
+docs_url: https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/
+integrator_fee_model: n/a
+
+address_linkage: internal
+third_party_sharing:
+  shares: true
+  partners: [KYC providers, payment processors, blockchain analytics]
+onchain_privacy: none

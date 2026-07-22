@@ -1,0 +1,110 @@
+id: revolut_ramp
+name: Revolut Ramp
+category: ramp
+subcategory: hosted onramp to external wallets
+website: https://ramp.revolut.com
+launched: '2024'
+
+description: >-
+  Revolut Ramp is Revolut's hosted onramp for buying crypto straight into an
+  external self-custodial wallet (integrated in MetaMask and the ramp.revolut.com
+  widget). Checkout runs through a Revolut account (Revolut Pay) or card; the
+  quote itemizes a service fee and a network fee on top of Revolut's own rate.
+  Unlike in-app Revolut crypto, delivery is on-chain to a wallet you control.
+
+legal_entity: Revolut Ltd (UK); Revolut Digital Assets Europe Ltd (EEA)
+licenses:
+  - jurisdiction: GB
+    type: FCA-registered cryptoasset firm
+    authority: FCA
+    status: active
+    note: Revolut Ltd registered under the UK cryptoasset regime (fee schedule names Revolut Ltd).
+  - jurisdiction: EU
+    type: MiCA CASP
+    authority: CySEC
+    status: active
+    note: >-
+      EEA service provided by Revolut Digital Assets Europe Ltd (named in the
+      crypto fee schedule for EEA countries), CySEC-authorised under MiCA (2025).
+
+direction: both
+countries_supported: []
+fiats: [GBP, EUR, USD, AUD, CAD, CHF, CZK, DKK, HKD, HUF, JPY, NOK, NZD, PLN, RON, SEK, SGD, ZAR]
+# Full list from /ramp-api/config (30 entries, 2026-07-22). No stablecoins —
+# USDC/USDT are not offered on the Ramp surface (in-app only).
+assets:
+  - { symbol: BTC, chain: bitcoin }
+  - { symbol: ETH, chain: ethereum }
+  - { symbol: ETH, chain: arbitrum }
+  - { symbol: SOL, chain: solana }
+  - { symbol: POL, chain: polygon }
+  - { symbol: XRP, chain: ripple }
+  - { symbol: LTC, chain: litecoin }
+  - { symbol: DOGE, chain: dogecoin }
+  - { symbol: ADA, chain: cardano }
+  - { symbol: AVAX, chain: avalanche }
+  - { symbol: LINK, chain: ethereum }
+  - { symbol: DOT, chain: polkadot }
+  - { symbol: XLM, chain: stellar }
+  - { symbol: BCH, chain: bitcoincash }
+  - { symbol: ALGO, chain: algorand }
+  - { symbol: XTZ, chain: tezos }
+  - { symbol: UNI, chain: ethereum }
+  - { symbol: AAVE, chain: ethereum }
+  - { symbol: QNT, chain: ethereum }
+  - { symbol: SHIB, chain: ethereum }
+  - { symbol: CHZ, chain: ethereum }
+  - { symbol: GRT, chain: ethereum }
+  - { symbol: CRV, chain: ethereum }
+  - { symbol: SNX, chain: ethereum }
+  - { symbol: 1INCH, chain: ethereum }
+  - { symbol: APE, chain: ethereum }
+  - { symbol: UMA, chain: ethereum }
+  - { symbol: ZRX, chain: ethereum }
+  - { symbol: BAL, chain: ethereum }
+  - { symbol: PERP, chain: ethereum }
+payment_methods: [revolut_pay, card]
+delivery_chains: [bitcoin, ethereum, arbitrum, solana, polygon, ripple, litecoin, dogecoin, cardano, avalanche, polkadot, stellar, bitcoincash, algorand, tezos]
+
+# Checkout requires a Revolut account (Revolut Pay), which is full-KYC by nature —
+# there is no anonymous card-only path.
+kyc_tiers:
+  - { name: Revolut account, requirements: [id, selfie], min: 0, max: null, period: lifetime }
+non_kyc_available: false
+pii_floor: id
+
+pricing:
+  spread_method: vs_mid
+  pricing_endpoint: https://ramp.revolut.com/ramp-api/orders/quote
+  layers: [venue_quote, venue_fee]
+
+settlement_time:
+  value: { revolut_pay: instant, onchain_delivery: minutes }
+  provenance: self_reported
+  last_verified: '2026-07-22'
+
+chargeback_protection: true
+
+delivery_custody: self
+requires_account: true
+wallet_setup_required: true
+
+audits: []
+open_source:
+  is_open: false
+team_transparency: public
+
+integration_types: [widget, hosted_checkout]
+sdks: []
+kyc_inheritance: none
+white_label: 'no'
+webhooks: false
+sandbox: false
+docs_url: https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/
+integrator_fee_model: rev_share
+
+address_linkage: internal
+third_party_sharing:
+  shares: true
+  partners: [KYC providers, payment processors, blockchain analytics]
+onchain_privacy: none

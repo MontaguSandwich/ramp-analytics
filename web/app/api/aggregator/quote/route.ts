@@ -2,15 +2,22 @@
 // normalizes responses into a single ranked list.
 //
 // Strategy:
-//   - zkp2p:    POST our own /api/zkp2p/quote (Peerlytics-backed)
-//   - binance:  POST our own /api/binance_p2p/quote (adv/search-backed)
-//   - ramp:     compute Approach B approximation inline (no API hop)
-//   - kraken:   excluded — RFQ-only, no programmatic quote
+//   - zkp2p:        POST our own /api/zkp2p/quote (Peerlytics-backed)
+//   - binance:      POST our own /api/binance_p2p/quote (adv/search-backed)
+//   - ramp:         compute Approach B approximation inline (no API hop)
+//   - revolut_ramp: live venue quote inline via ramp.revolut.com/ramp-api (key-less;
+//                   buy-only, no stablecoins — mirrors adapters/revolut_ramp.ts, keep
+//                   the partnerId in sync)
+//   - revolut (in-app RTPN): excluded — no public quote surface
 //
 // Calling our own routes via fetch costs one HTTP hop per venue but reuses all the
 // quote logic that already lives in those route files. Acceptable for MVP.
 
 const RAMP_BASE = 'https://api.rampnetwork.com/api';
+const REVOLUT_RAMP_BASE = 'https://ramp.revolut.com/ramp-api';
+// Same public partnerId the ramp.revolut.com widget sends — required by /orders/quote.
+// Mirror of adapters/revolut_ramp.ts WEBSITE_PARTNER_ID; keep in sync.
+const REVOLUT_RAMP_PARTNER_ID = 'e5c8d239-5843-4e7b-a967-50f4206ec5d3';
 
 // ─── Ramp Approach B fee table (mirror of adapters/ramp_network.ts) ─────────────
 // Keep in sync with that file. Both directions populated since aggregator covers
@@ -93,6 +100,7 @@ const VENUE_KYC: Record<string, { pii_floor: KycTier; non_kyc_available: boolean
   zkp2p: { pii_floor: 'none', non_kyc_available: true },
   binance_p2p: { pii_floor: 'id', non_kyc_available: false },
   ramp_network: { pii_floor: 'id', non_kyc_available: false },
+  revolut_ramp: { pii_floor: 'id', non_kyc_available: false },
 };
 
 /** Returns true if the venue's KYC matches the user's tolerance. */
@@ -152,6 +160,23 @@ async function quoteZkp2p(
       non_kyc_available: kyc.non_kyc_available,
     };
   }
+  // Peerlytics deposits are USDC-denominated — there is no asset parameter upstream.
+  // A USDC quote is comparable for dollar-stable requests, but ranking 1000 USDC
+  // against 0.51 ETH by raw asset_amount would put zkp2p first on every ETH/BTC
+  // request. Exclude it for non-stable assets instead.
+  const requestedAsset = (req.asset ?? 'USDC').toUpperCase();
+  if (requestedAsset !== 'USDC' && requestedAsset !== 'USDT') {
+    return {
+      venue: 'zkp2p',
+      venue_label: 'Peer',
+      category: 'onchain',
+      available: false,
+      source: 'unavailable',
+      notes: `zkp2p settles in USDC only — no ${requestedAsset} route`,
+      pii_floor: kyc.pii_floor,
+      non_kyc_available: kyc.non_kyc_available,
+    };
+  }
   const resp = await callJson<ZkpQuoteResp>(`${base}/api/zkp2p/quote`, {
     fiat_amount: req.fiat_amount,
     fiat_currency: req.fiat_currency,
@@ -182,6 +207,7 @@ async function quoteZkp2p(
     effective_pct: best.spread_bps / 100,
     source: 'live',
     payment_method: best.platform,
+    notes: requestedAsset === 'USDT' ? 'Settles in USDC (≈1:1 with USDT)' : undefined,
     pii_floor: kyc.pii_floor,
     non_kyc_available: kyc.non_kyc_available,
   };
@@ -321,6 +347,91 @@ async function quoteRamp(req: AggregatorRequest): Promise<VenueQuote> {
   }
 }
 
+// ─── Revolut Ramp (live inline quote) ───────────────────────────────────────────
+
+interface RevolutRampConfig {
+  fiatCurrencies: Array<{ currency: string; fractionDigits: number }>;
+  cryptoCurrencies: Array<{
+    currency: string;
+    blockchain: string;
+    fractionDigits: number;
+    buyActive: boolean;
+  }>;
+}
+
+interface RevolutRampQuote {
+  quote?: {
+    baseAmount: { amount: number };
+    counterAmount: { amount: number };
+    fee: { total: { amount: number } };
+  };
+}
+
+async function quoteRevolutRamp(req: AggregatorRequest): Promise<VenueQuote> {
+  const kyc = VENUE_KYC.revolut_ramp;
+  const unavailable = (notes: string, source: VenueQuote['source'] = 'unavailable'): VenueQuote => ({
+    venue: 'revolut_ramp',
+    venue_label: 'Revolut Ramp',
+    category: 'ramp',
+    available: false,
+    source,
+    notes,
+    pii_floor: kyc.pii_floor,
+    non_kyc_available: kyc.non_kyc_available,
+  });
+
+  // /orders/quote is buy-only (verified: side/direction params are ignored).
+  if (req.direction !== 'buy') return unavailable('Revolut Ramp quoting is buy-only');
+
+  const fiat = req.fiat_currency.toUpperCase();
+  const asset = (req.asset ?? 'USDC').toUpperCase();
+  try {
+    const cfgResp = await fetch(`${REVOLUT_RAMP_BASE}/config`, {
+      headers: { accept: 'application/json' },
+      cache: 'no-store',
+    });
+    if (!cfgResp.ok) throw new Error(`config ${cfgResp.status}`);
+    const cfg = (await cfgResp.json()) as RevolutRampConfig;
+    const fiatCfg = cfg.fiatCurrencies.find((f) => f.currency === fiat);
+    const cryptoCfg = cfg.cryptoCurrencies.find((c) => c.currency === asset && c.buyActive);
+    if (!fiatCfg) return unavailable(`${fiat} not supported on Revolut Ramp`);
+    if (!cryptoCfg) {
+      // Notably: no stablecoins on the Ramp surface (USDC/USDT are in-app only).
+      return unavailable(`${asset} not offered on Revolut Ramp (no stablecoins)`);
+    }
+
+    const fiatAmountMinor = Math.round(req.fiat_amount * 10 ** fiatCfg.fractionDigits);
+    const qResp = await fetch(
+      `${REVOLUT_RAMP_BASE}/orders/quote?fiatCurrency=${fiat}&cryptoCurrency=${asset}` +
+        `&blockchain=${cryptoCfg.blockchain}&fiatAmount=${fiatAmountMinor}&partnerId=${REVOLUT_RAMP_PARTNER_ID}`,
+      { headers: { accept: 'application/json' }, cache: 'no-store' },
+    );
+    if (!qResp.ok) throw new Error(`quote ${qResp.status}`);
+    const q = ((await qResp.json()) as RevolutRampQuote).quote;
+    if (!q || q.counterAmount.amount <= 0) return unavailable('No quote returned', 'live');
+
+    const received = q.counterAmount.amount / 10 ** cryptoCfg.fractionDigits;
+    const feeTotal = q.fee.total.amount / 10 ** fiatCfg.fractionDigits;
+    return {
+      venue: 'revolut_ramp',
+      venue_label: 'Revolut Ramp',
+      category: 'ramp',
+      available: true,
+      asset,
+      rate: req.fiat_amount / received,
+      asset_amount: received,
+      effective_pct: (feeTotal / req.fiat_amount) * 100,
+      source: 'live',
+      payment_method: 'revolut_pay',
+      notes: 'Live venue quote (itemized fee) — requires a Revolut account at checkout.',
+      pii_floor: kyc.pii_floor,
+      non_kyc_available: kyc.non_kyc_available,
+    };
+  } catch (e) {
+    return unavailable(`Revolut Ramp upstream failed: ${(e as Error).message}`, 'live');
+  }
+}
+
 // ─── KYC-excluded venue placeholder ─────────────────────────────────────────────
 // When a venue is excluded by the user's KYC filter, return a dummy VenueQuote tagged
 // with `notes` explaining why. UI surfaces it as a dimmed row in the unavailable list.
@@ -364,7 +475,7 @@ export async function POST(req: Request) {
   const kycFilter: KycFilter = body.kyc_max ?? 'any';
   // Apply KYC filter upfront — short-circuit venues the user has excluded so we don't
   // waste HTTP calls on quotes they'll never accept.
-  const [zkp2p, binance, ramp] = await Promise.all([
+  const [zkp2p, binance, ramp, revolutRamp] = await Promise.all([
     venueMatchesKyc('zkp2p', kycFilter)
       ? quoteZkp2p(base, body)
       : kycFiltered('zkp2p', 'Peer', 'onchain'),
@@ -374,6 +485,9 @@ export async function POST(req: Request) {
     venueMatchesKyc('ramp_network', kycFilter)
       ? quoteRamp(body)
       : kycFiltered('ramp_network', 'Ramp Network', 'ramp'),
+    venueMatchesKyc('revolut_ramp', kycFilter)
+      ? quoteRevolutRamp(body)
+      : kycFiltered('revolut_ramp', 'Revolut Ramp', 'ramp'),
   ]);
 
   // Rank by direction:
@@ -381,7 +495,7 @@ export async function POST(req: Request) {
   //   sell → least asset_amount (less crypto needed to receive the target fiat) wins.
   // Unavailable venues sink to the bottom either way.
   const sortDir = body.direction === 'buy' ? -1 : 1;
-  const quotes = [zkp2p, binance, ramp].sort((a, b) => {
+  const quotes = [zkp2p, binance, ramp, revolutRamp].sort((a, b) => {
     if (a.available !== b.available) return a.available ? -1 : 1;
     if (a.asset_amount == null || b.asset_amount == null) return 0;
     return (a.asset_amount - b.asset_amount) * sortDir;

@@ -44,8 +44,14 @@ Data sources & per-venue notes. The old "Open data" nav link was removed.
 | zkp2p (Peer) | real | ✓ live | ✓ (90d) | bespoke `Zkp2pDetail` | ✓ | ✓ | n/a (onramp only) |
 | binance_p2p | rich, both BUY+SELL | ✓ live (multi-page adaptive, ≤100 ads/market × 2 dirs, ~42% of all ads) | self-accum log (70+ days since 2026-05-12) | `GenericDetail` (full) | ✓ | ✓ (direction-aware) | ✓ |
 | ramp_network | full Approach B | ✓ live + approx rates | ✗ | `GenericDetail` (no orderbook) | ✗ | ✗ (Approach B in aggregator) | ✓ |
+| revolut_ramp | real, live venue quotes (key-less) | ✓ live (18 fiats × $1k ETH quote, cost_1k) | ✗ | `GenericDetail` (no orderbook) | ✗ | adapter quote() works; no venue tab yet (capabilities.quote=false); live inline in aggregator | n/a (quote endpoint buy-only) |
+| revolut (in-app, RTPN) | static published-fee snapshot | ✓ (self_reported from legal fee page) | ✗ | `GenericDetail` (no markets) | ✗ | ✗ (no public quote surface) | n/a |
 
-`kraken_otc` was **removed** during the OTC → RTPN category swap. Adapter, YAML, and snapshot deleted. RTPN category exists in the schema with 0 venues tracked — ready for Revolut etc.
+`kraken_otc` was **removed** during the OTC → RTPN category swap. **RTPN category now has its
+first venue: `revolut`** (added 2026-07-22, together with `revolut_ramp` under Licensed Ramps —
+two products because they are genuinely different surfaces: Ramp delivers on-chain to external
+wallets with key-less public quotes; in-app crypto settles to the app ledger with published
+plan-tiered fees and no public API).
 
 Category enum: `'cex_p2p' | 'ramp' | 'onchain' | 'rtpn'`. `'otc'` is **gone**.
 
@@ -134,6 +140,19 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - **zkp2p**: Peerlytics paid API (`x-api-key` from `ZKP2P_ANALYTICS_KEY` in `.env.local`). Envio GraphQL indexer for historical TVL backfill. `@zkp2p/sdk` for contract addresses + ABIs.
 - **ramp_network**: Public REST (`api.rampnetwork.com/api/host-api/v3/...`) — `/assets`, `/payment-methods`, `/currencies` are key-less. `/onramp/quote/all` requires a `hostApiKey` we don't have → Approach B (see decisions).
 - **binance_p2p**: Single public endpoint — `POST https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search`. No history, no aggregates. Probed for both BUY and SELL sides (sequential).
+- **revolut_ramp**: Key-less public REST at `ramp.revolut.com/ramp-api/` — `/config` (18 fiats
+  with fractionDigits, 30 assets with buy/sell flags — **no stablecoins**), `/crypto-stats?fiatCurrency=X`
+  (venue mids per pair), `/limits` and `/orders/quote` (**require the `partnerId` query param** —
+  the public one the widget sends, hardcoded as `WEBSITE_PARTNER_ID` in the adapter; quote 400s
+  without it). Quote returns itemized `{service, network, total}` fees + rate + 10s expiry.
+  **Buy-only** (side/direction params are silently ignored). Amounts are in MINOR units both ways
+  (fiat per fractionDigits, crypto per the config's fractionDigits — ETH counterAmount is 1e-8).
+- **revolut (in-app)**: NO public API. Fee schedule hand-transcribed from
+  https://www.revolut.com/legal/exchangingcryptocurrenciespersonalfees/ (per-country pages: UK =
+  Revolut Ltd, EEA = Revolut Digital Assets Europe Ltd "RDAEL" with EUR brackets, same percentages).
+  Revolut X (`exchange.revolut.com`) is a real web app but ALL its endpoints (incl.
+  `/api/crypto-exchange/tickers`) sit behind Revolut session auth; not on CoinGecko either —
+  its volume/orderbook are attestation-or-nothing (community pipeline target).
 
 ## Decisions locked — don't re-litigate
 
@@ -206,6 +225,14 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
   - **zkp2p**: POST to `/api/zkp2p/quote` (Peerlytics-backed). Onramp only.
   - **binance**: POST to `/api/binance_p2p/quote` (adv/search-backed). Direction-aware (BUY/SELL passed through as `tradeType`).
   - **ramp**: Approach B computed inline (no HTTP hop to ourselves). Mirrors the fee table from `adapters/ramp_network.ts` — **keep in sync** when fees update.
+  - **revolut_ramp**: live venue quote computed inline (config + orders/quote GETs). Mirrors
+    `WEBSITE_PARTNER_ID` from `adapters/revolut_ramp.ts` — **keep in sync**. Buy-only; returns
+    a "no stablecoins" unavailable row for USDC/USDT requests. `revolut` (in-app) is NOT in the
+    aggregator — no public quote surface.
+  - zkp2p is **stable-asset-only in the ranking** (fixed 2026-07-22): Peerlytics deposits are
+    USDC-denominated with no asset parameter upstream, so for BTC/ETH requests zkp2p returns an
+    unavailable row ("settles in USDC only") instead of letting 1000 USDC outrank 0.51 ETH in
+    the raw `asset_amount` sort. USDT requests still quote (≈1:1, noted "Settles in USDC").
 - KYC filter (`kyc_max: 'any' | 'none' | 'email' | 'id' | 'id+poa'`): per-venue `VENUE_KYC` constant in the aggregator route mirrors YAML `pii_floor`. Excluded venues are short-circuited before HTTP, returned as dimmed placeholder rows in the response with `notes: 'Excluded by KYC filter (venue requires id)'`.
 - Fiat list on the form is the **live union** across `snapshot.coverage.value.fiats` from every venue (server-side load in `aggregator/page.tsx`, passed as `allFiats` prop). Sorted: popular (USD/EUR/GBP/BRL/CNY/INR/JPY) first, then A-Z.
 - Response field `asset_amount` is **direction-agnostic**: for buy = asset user receives, for sell = asset user sends. Sort direction flips: buy = DESC (more = better), sell = ASC (less = better).
@@ -221,6 +248,38 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - The same fee table is **mirrored** in `web/app/api/aggregator/quote/route.ts` because the aggregator route computes ramp quotes inline (no HTTP hop to the adapter). **Keep in sync.**
 - Ramp YAML's `pii_floor` is `'id'` per docs ("All purchases require identification document"). `kyc_tiers` restructured to the docs' US/EU ladder.
 - The adapter populates `snapshot.markets[]` with 56 rows (28 fiats × 2 directions), each tagged with `direction: 'buy' | 'sell'`. Methods: PIX is buy-only, ACH is sell-only (per docs).
+
+### Revolut — two venues, one legal page (2026-07-22)
+
+- **`revolut_ramp` (Licensed Ramps)**: fully live adapter on `ramp-api` (see Data sources).
+  Snapshot = 18 per-fiat Market rows (each a real $1k-equivalent ETH quote; `spread_bps` =
+  all-in vs the venue's own mid), `ramp_capacity` liquidity from `/limits` (USD daily cap
+  $13k = max single trade; no separate single-tx ceiling exists), and a `cost_1k` onramp leg:
+  venue_fee = itemized service fee (~$9.90 = 99bps), maker_spread = rate markup vs venue mid
+  (~$0.50), withdrawal = network fee (~$0.01 — on-chain delivery IS the withdrawal; there is
+  no separate step). Offramp leg null (quote endpoint buy-only). FX inside the adapter is
+  derived from the venue's own BTC mids (BTC/fiat ÷ BTC/USD) — no CoinGecko dependency.
+  USD anchor quote retries ×3 after the chunked burst (binance lesson).
+- **`revolut` (first RTPN venue)**: static published-fee adapter. Headline facts (all from
+  the legal page, provenance `self_reported`, evidence_url attached):
+  - Plan × 30d-volume fee tiers (Standard/Plus 1.49→0.49%, Premium/Metal 0.99→0.29%,
+    Ultra 0.49→0%) — exported as `EXCHANGE_FEE_TIERS_BPS` for the community pipeline.
+  - **Tier structure is REPLACED 2026-08-10** by flat fees (Std/Plus 1.49%, Prem/Metal 0.99%)
+    — the adapter has `FLAT_FEES_FROM_AUG_2026_BPS`; update the snapshot logic after that date.
+  - **Fiat↔stablecoin exchanges are fee-exempt and USDC/USD & USDT/USD convert 1:1 with no
+    spread** → `observed_spread_bps = 0` and cost_1k onramp = withdrawal only (£3-equiv service
+    fee; variable network fee excluded as unquotable), offramp = $0. Carve-outs (depeg, abuse,
+    Standard/Plus fair-usage 1% over £1k/mo) are published in the assumptions.
+  - Withdrawal service fees: £1 (XRP/XLM/DOT/SOL/AVAX/XTZ/ALGO/ADA), £3 (everything else).
+  - EEA USDT is restricted post-MiCA; USDC is the $1k anchor asset.
+  - `delivery_chains: [offchain]` (app-ledger settlement, same sentinel as binance).
+  - The **execution-time rate markup is structurally unobservable** from outside the app —
+    this is the #1 target of the community attestation pipeline (COMMUNITY_DATA.md).
+- `ClassificationCard` has explicit `rtpn` branches (custody/KYC/disputes/settlement text);
+  PoR badge hidden for rtpn (like ramps). `LiveRatesTable` ramp copy is provenance-aware:
+  markets provenance `api` → "live venue quote" footer; else the Approach-B "approximated"
+  footer. The ramp reference asset is read from `fee_snapshot.sample_rows[0].asset` (USDC
+  for ramp_network, ETH for revolut_ramp) — don't re-hardcode it.
 
 ### Binance — offramp + maker aggregates + Market mix
 
@@ -332,6 +391,8 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 - **Binance burst-rate cliff**: don't fire all 134 fiats in one Promise.all — Cloudflare sheds requests. Chunk 10 in parallel × 300ms inter-chunk pause. Don't probe both directions in parallel either.
 - **Ramp `/onramp/quote/all`** requires a `hostApiKey`. Approach B is the current workaround.
 - **Ramp `/currencies`** returns a top-level array (NOT wrapped in `{ data: ... }`). Inconsistent with other Ramp endpoints.
+- **Revolut `ramp-api` amounts are MINOR units everywhere** (fiat per `fractionDigits` — JPY is 0! — and crypto per the config entry's `fractionDigits`). `/orders/quote` + `/limits` **400 without `partnerId`**; `/config` + `/crypto-stats` work bare. Quote endpoint is buy-only. Works from plain node fetch (no Cloudflare block observed) — but `www.revolut.com` pages DO Cloudflare-403 plain fetch; use a browser for the legal pages.
+- **Revolut X market data is 100% auth-walled** (`exchange.revolut.com/api/crypto-exchange/*` → 401 "Phone and/or passcode"). Not on CoinGecko. Don't go looking for a public Revolut X ticker — it doesn't exist.
 - **Binance has no API-provided history** — only our self-accumulated liquidity log (`charts/binance_p2p_active_liquidity.json` on the data branch, one row per UTC day since 2026-05-12; 70+ days by July 2026). A detail-page chart is now feasible from that log (future goal #5) — but only liquidity, never volume/trades series.
 - **CoinGecko free tier is ~5–15 req/min.** Disk cache at `data/cache/fx.json` (24h TTL, gitignored) is the right approach. `fxMidBatch('USDT', [...fiats], ts)` is the batch entry point. Some exotic fiats (VES, EGP, IRR) return no rate — adapter handles this.
 - **CoinGecko's `SYMBOL_TO_ID`** in `lib/fx.ts` doesn't cover BNB or FDUSD; both return null. Aggregator + orderbook code handles this with "—" fallback.
@@ -361,6 +422,8 @@ These live as standalone files and are imported by both `GenericDetail` and `Zkp
 | Adapter — zkp2p | `adapters/zkp2p.ts`, `lib/peerlytics.ts` (typed client) |
 | Adapter — binance (BUY + SELL probing) | `adapters/binance_p2p.ts` (CANDIDATE_FIATS, fetchAllMarkets, chunked probing) |
 | Adapter — ramp (Approach B) | `adapters/ramp_network.ts` (RAMP_FEE_BPS_BY_METHOD_* tables) |
+| Adapter — revolut_ramp (live quotes) | `adapters/revolut_ramp.ts` (WEBSITE_PARTNER_ID, minor-unit handling) |
+| Adapter — revolut in-app (published fees) | `adapters/revolut.ts` (EXCHANGE_FEE_TIERS_BPS, 2026-08-10 flat-fee switch) |
 | Quote routes | `web/app/api/{zkp2p,binance_p2p,aggregator}/quote/route.ts` |
 | Orderbook — zkp2p | `web/components/orderbook-view.tsx` + `web/app/api/zkp2p/orderbook/route.ts` |
 | Orderbook — binance | `web/components/binance-p2p-orderbook-view.tsx` + `web/app/api/binance_p2p/orderbook/route.ts` |
@@ -435,6 +498,18 @@ These were discussed and shelved with deliberate trade-offs noted. When revisiti
 - The Overview table's 14d-trend sparkline already consumes this log via `loadHistory` — it renders as soon as the Vercel data restore works (see pipeline section; the expired-PAT incident hid it).
 - Remaining work: a liquidity chart on the binance `GenericDetail` page, reusing zkp2p's charting infrastructure (`web/components/protocol-charts.tsx`) — hand-rolled SVG, no chart lib. Liquidity series only (no volume/trades history exists for binance).
 
-### 6. Future RTPN product (Revolut etc.)
-- Category slot exists with 0 venues. Add a YAML at `data/products/revolut.yaml` with `category: 'rtpn'`. Adapter pattern: likely a stub initially (Revolut has no public quote API for their crypto buy/sell flow).
-- The Categories page card will auto-light up once a venue is added.
+### 6. ~~Future RTPN product (Revolut etc.)~~ — SHIPPED 2026-07-22
+- `revolut` (rtpn) + `revolut_ramp` (ramp) landed together; the Categories card is lit.
+- See "Revolut — two venues, one legal page" for the live description.
+- Remaining Revolut surface: **Revolut X** (exchange.revolut.com, 0% maker / 0.09% taker,
+  auth-walled market data) — candidate for the community attestation pipeline, and would
+  need a category decision (it's a CEX orderbook, not P2P/ramp/RTPN).
+
+### 7. Community attestation pipeline (design in COMMUNITY_DATA.md)
+- Session 2026-07-22 design decisions (user-locked): both data classes (published facts +
+  observed quotes) from day one; GitHub-PR submission rail; **zkTLS (Reclaim) as launch
+  differentiator**; observations live in this repo. Provider #1 target: Revolut in-app
+  quote screen (the execution-time rate markup no public source has) + Revolut X tickers.
+- Evidence tiers: 0 = claim + public URL, 1 = redacted artifact hash, 2 = zkTLS proof
+  against a version-pinned provider template. Templates are the carefully-reviewed artifact;
+  observations against approved templates verify mechanically in CI.

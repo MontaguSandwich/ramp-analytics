@@ -57,7 +57,12 @@ export default function LiveRatesTable({
   }, [markets, direction, showToggle]);
 
   // Per-kind labels. Subtitle gets a direction qualifier when the toggle is visible.
-  const asset = isRamp ? 'USDC' : 'USDT';
+  // For ramps the reference asset varies by venue (USDC for Ramp Network's Approach B,
+  // ETH for Revolut Ramp's live quotes) — read it off the fee sample rather than assuming.
+  const asset = isRamp ? (snapshot.fee_snapshot.sample_rows[0]?.asset ?? 'USDC') : 'USDT';
+  // Ramps split by how the rows were priced: provenance 'api' = live venue quotes,
+  // anything else = Approach-B style approximation. Copy must not overclaim either way.
+  const isLiveQuotedRamp = isRamp && provenance === 'api';
   const dirSubtitle = showToggle ? (direction === 'buy' ? 'onramp' : 'offramp') : null;
   const baseSubtitle = isP2p
     ? `top ${filtered.length} deepest ${asset} markets`
@@ -68,9 +73,11 @@ export default function LiveRatesTable({
   const liquidityLabel = isP2p ? 'Liquidity (top 100)' : 'Max trade';
   const footerText = isP2p
     ? 'One row per currency · ranked top-10 by USD offer value · sorted by best spread.'
-    : isRamp
-      ? 'One row per fiat · best (cheapest) payment method per fiat · sorted by spread. Rates approximated from Ramp reference price + hand-maintained fee table — NOT user-quoted.'
-      : 'Sorted by best spread.';
+    : isLiveQuotedRamp
+      ? `One row per fiat · live venue quote for a $1k-equivalent ${asset} purchase · spread = all-in cost vs the venue's own mid.`
+      : isRamp
+        ? 'One row per fiat · best (cheapest) payment method per fiat · sorted by spread. Rates approximated from Ramp reference price + hand-maintained fee table — NOT user-quoted.'
+        : 'Sorted by best spread.';
 
   return (
     <section className="section">

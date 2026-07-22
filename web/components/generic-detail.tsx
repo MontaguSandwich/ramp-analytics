@@ -101,7 +101,7 @@ export default function GenericDetail({ product }: { product: Product }) {
             provenance={s?.cost_1k?.provenance}
             ts={s?.cost_1k?.last_verified}
             notes={s?.cost_1k?.notes}
-            sub={`${fmtUsdSigned(onrampCost.total_usd)} all-in · ${offrampCost ? `offramp ${fmtPct(offrampCost.total_bps)}` : 'USD/USDT'}`}
+            sub={`${fmtUsdSigned(onrampCost.total_usd)} all-in · ${offrampCost ? `offramp ${fmtPct(offrampCost.total_bps)}` : String(onrampCost.assumptions.market ?? 'onramp only')}`}
             tooltip={cost1kTooltip(s!.cost_1k!.value)}
           />
         ) : (
@@ -423,6 +423,7 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
   const isOnchain = y.category === 'onchain';
   const isCex = y.category === 'cex_p2p';
   const isRamp = y.category === 'ramp';
+  const isRtpn = y.category === 'rtpn';
 
   // Custody type
   const custodyDesc = isSelfCustody
@@ -431,7 +432,9 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
       ? "Custodial: purchased assets are delivered to the user's account on the exchange."
       : isRamp
         ? 'Custodial during transit: assets are forwarded to a wallet address you provide.'
-        : 'Custodial: the venue holds assets on behalf of the user.';
+        : isRtpn
+          ? "Custodial: assets sit on the app's internal ledger; on-chain withdrawal is a separate fee-bearing step."
+          : 'Custodial: the venue holds assets on behalf of the user.';
 
   // KYC requirements
   const kycDesc = isNoKyc
@@ -440,7 +443,9 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
       ? 'Users are required to verify their ID to be able to trade on P2P markets.'
       : isRamp
         ? `Identity verification (${kycLabel(y.pii_floor)}) required for fiat onramps.`
-        : `Identity verification required (${kycLabel(y.pii_floor)}).`;
+        : isRtpn
+          ? 'Full bank-grade KYC — the venue is a regulated payment institution; crypto access requires an approved account.'
+          : `Identity verification required (${kycLabel(y.pii_floor)}).`;
 
   // Disputes settlement
   const disputesDesc = isOnchain
@@ -449,7 +454,9 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
       ? 'In case of a dispute, the venue support steps in to settle it.'
       : isRamp
         ? 'No bilateral trade — refunds via venue support if a transaction fails.'
-        : 'Bilateral resolution between parties; venue may mediate.';
+        : isRtpn
+          ? 'No bilateral trade — the venue is the counterparty; support handles failed transactions.'
+          : 'Bilateral resolution between parties; venue may mediate.';
 
   // Settlement
   const settlementChain = y.contracts?.[0]?.chain;
@@ -459,7 +466,9 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
       ? 'Trades settle off-chain, on the venue.'
       : isRamp
         ? 'Direct fiat-to-crypto delivery to the user wallet.'
-        : 'Bilateral OTC settlement.';
+        : isRtpn
+          ? "Trades settle instantly against the venue's internal ledger, off-chain."
+          : 'Bilateral OTC settlement.';
 
   // Proof of Reserves (CEX-shaped concept, adapted for each category).
   // - Onchain: funds are visible on-chain by design → ok by default.
@@ -519,8 +528,9 @@ function ClassificationCard({ yaml: y }: { yaml: ProductYaml }) {
           desc={settlementDesc}
         />
         {/* Ramps quote against their own capacity, not a pooled reserve — PoR isn't a
-            meaningful signal there, so hide the badge entirely rather than warn. */}
-        {isRamp ? null : <Badge state={porState} title="Proof of Reserves" desc={porDesc} />}
+            meaningful signal there, so hide the badge entirely rather than warn. Same
+            for RTPNs (regulated e-money institutions; no pooled crypto reserve claim). */}
+        {isRamp || isRtpn ? null : <Badge state={porState} title="Proof of Reserves" desc={porDesc} />}
       </div>
     </div>
   );
