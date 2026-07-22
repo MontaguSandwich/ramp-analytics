@@ -24,30 +24,29 @@ import { fiatFlagEmoji, paymentMethodLabel } from '@/lib/format';
 
 type KycFilter = 'any' | 'none' | 'email' | 'id' | 'id+poa';
 
+import {
+  PAYMENT_METHODS,
+  VENUE_LABEL,
+  venuesSupporting,
+  type VenueId,
+} from '@/lib/payment-methods';
+
 const ASSETS = ['USDC', 'USDT', 'BTC', 'ETH'];
-const METHODS_BY_DIR: Record<'buy' | 'sell', Array<{ value: string; label: string }>> = {
-  buy: [
-    { value: '', label: 'Any payment method' },
-    { value: 'CARD_PAYMENT', label: 'Card' },
-    { value: 'APPLE_PAY', label: 'Apple Pay' },
-    { value: 'GOOGLE_PAY', label: 'Google Pay' },
-    { value: 'MANUAL_BANK_TRANSFER', label: 'Bank transfer (SEPA)' },
-    { value: 'AUTO_BANK_TRANSFER', label: 'Easy bank transfer' },
-    { value: 'PIX', label: 'PIX' },
-    { value: 'venmo', label: 'Venmo' },
-    { value: 'zelle', label: 'Zelle' },
-    { value: 'revolut', label: 'Revolut' },
-    { value: 'wise', label: 'Wise' },
-    { value: 'cashapp', label: 'Cash App' },
-  ],
-  sell: [
-    { value: '', label: 'Any payment method' },
-    { value: 'ACH', label: 'ACH' },
-    { value: 'MANUAL_BANK_TRANSFER', label: 'SEPA' },
-    { value: 'AUTO_BANK_TRANSFER', label: 'SEPA Instant' },
-    { value: 'CARD_PAYMENT', label: 'Payout to card' },
-  ],
-};
+/**
+ * Options come from the shared canonical registry, NOT a hand-written list. The old list
+ * mixed venue-native identifiers (Ramp's `MANUAL_BANK_TRANSFER` alongside a lowercase
+ * `revolut` that matched nothing anywhere), so choosing any method sent one venue's string
+ * to all of them and silently emptied the rest. Each option now carries the venues that
+ * actually offer it, so the trade-off is visible before you filter.
+ */
+const METHOD_OPTIONS = [
+  { value: '', label: 'Any payment method', venues: [] as VenueId[] },
+  ...PAYMENT_METHODS.map((m) => ({
+    value: m.id,
+    label: m.label,
+    venues: venuesSupporting(m.id),
+  })),
+];
 
 const KYC_OPTIONS: Array<{ value: KycFilter; label: string }> = [
   { value: 'any', label: 'Any KYC' },
@@ -145,7 +144,7 @@ export default function AggregatorWidget({ allFiats }: { allFiats: string[] }) {
     }
   }
 
-  const methods = METHODS_BY_DIR[direction];
+  const methods = METHOD_OPTIONS;
 
   return (
     <div className="aggregator">
@@ -241,6 +240,9 @@ export default function AggregatorWidget({ allFiats }: { allFiats: string[] }) {
               {methods.map((m) => (
                 <option key={m.value || 'any'} value={m.value}>
                   {m.label}
+                  {m.venues.length
+                    ? ` — ${m.venues.map((v) => VENUE_LABEL[v]).join(', ')}`
+                    : ''}
                 </option>
               ))}
             </select>

@@ -13,6 +13,8 @@
 // Calling our own routes via fetch costs one HTTP hop per venue but reuses all the
 // quote logic that already lives in those route files. Acceptable for MVP.
 
+import { methodById, venueMethodIds, VENUE_LABEL } from '@/lib/payment-methods';
+
 const RAMP_BASE = 'https://api.rampnetwork.com/api';
 const REVOLUT_RAMP_BASE = 'https://ramp.revolut.com/ramp-api';
 // Same public partnerId the ramp.revolut.com widget sends — required by /orders/quote.
@@ -177,10 +179,13 @@ async function quoteZkp2p(
       non_kyc_available: kyc.non_kyc_available,
     };
   }
+  const zMethodId = req.payment_methods?.[0];
+  const zNative = venueMethodIds('zkp2p', zMethodId);
+  if (zNative === null) return methodUnsupported('zkp2p', 'onchain', zMethodId!);
   const resp = await callJson<ZkpQuoteResp>(`${base}/api/zkp2p/quote`, {
     fiat_amount: req.fiat_amount,
     fiat_currency: req.fiat_currency,
-    payment_methods: req.payment_methods,
+    payment_methods: zNative,
   });
   if (!resp || !resp.best_per_platform?.length) {
     return {
@@ -223,16 +228,44 @@ interface BinanceQuoteResp {
   request: { asset: string };
 }
 
+/**
+ * A venue that genuinely doesn't offer the requested rail is EXCLUDED WITH A REASON,
+ * never silently emptied. Before this existed, choosing "Bank transfer (SEPA)" sent
+ * Ramp's identifier to Binance, matched nothing, and rendered as "No matching ads" —
+ * indistinguishable from "this venue has no liquidity", which is a different claim.
+ */
+function methodUnsupported(
+  venue: 'zkp2p' | 'binance_p2p' | 'ramp_network' | 'revolut_ramp',
+  category: VenueQuote['category'],
+  methodId: string,
+): VenueQuote {
+  const kyc = VENUE_KYC[venue];
+  const label = methodById(methodId)?.label ?? methodId;
+  return {
+    venue,
+    venue_label: VENUE_LABEL[venue],
+    category,
+    available: false,
+    source: 'unavailable',
+    notes: `${VENUE_LABEL[venue]} does not offer ${label} — try "Any payment method" to see its other rails`,
+    pii_floor: kyc.pii_floor,
+    non_kyc_available: kyc.non_kyc_available,
+  };
+}
+
 async function quoteBinance(
   base: string,
   req: AggregatorRequest,
 ): Promise<VenueQuote> {
   const kyc = VENUE_KYC.binance_p2p;
+  const methodId = req.payment_methods?.[0];
+  const nativeMethods = venueMethodIds('binance_p2p', methodId);
+  if (nativeMethods === null) return methodUnsupported('binance_p2p', 'cex_p2p', methodId!);
   const resp = await callJson<BinanceQuoteResp>(`${base}/api/binance_p2p/quote`, {
     fiat_amount: req.fiat_amount,
     fiat_currency: req.fiat_currency,
     asset: req.asset ?? 'USDT',
-    payment_methods: req.payment_methods,
+    payment_methods: nativeMethods,
     direction: req.direction,
   });
   if (!resp || !resp.best_per_method?.length) {
@@ -283,8 +316,18 @@ async function quoteRamp(req: AggregatorRequest): Promise<VenueQuote> {
   // Approach B approximation: Ramp's /assets reference price × hand-maintained fee
   // table. NOT user-quoted; flagged as 'approximated' in the response so callers can
   // surface a warning.
-  const method = req.payment_methods?.[0] ?? 'CARD_PAYMENT';
+  // An explicitly requested method that Ramp doesn't offer is EXCLUDED, not priced at a
+  // default. The old code fell through to RAMP_FEE_DEFAULT_BPS (390), so asking for
+  // "Revolut" produced a confident-looking "Ramp Network · 3.90% · via revolut" row for a
+  // rail Ramp has never supported — and because the same request zeroed Binance and
+  // zkp2p, Ramp looked like the only venue offering it. Inventing a route is worse than
+  // showing none.
+  const rMethodId = req.payment_methods?.[0];
+  const rampNative = venueMethodIds('ramp_network', rMethodId);
+  if (rampNative === null) return methodUnsupported('ramp_network', 'ramp', rMethodId!);
+  const method = rampNative[0] ?? 'CARD_PAYMENT';
   const fiat = req.fiat_currency.toUpperCase();
+  // Still defensive: a mapped-but-unpriced method falls back rather than throwing.
   const feeBps = rampFeeBps(method, fiat, req.direction) ?? RAMP_FEE_DEFAULT_BPS;
 
   try {
