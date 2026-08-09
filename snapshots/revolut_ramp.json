@@ -79,29 +79,35 @@
       "max_single_trade_usd": 13000
     },
     "provenance": "api",
-    "last_verified": 1786276616649,
+    "last_verified": 1786279496007,
     "evidence_url": "https://ramp.revolut.com/ramp-api/limits",
     "notes": "Daily account limit from /ramp-api/limits — Revolut publishes no separate single-transaction ceiling, so the daily cap is the binding max for one purchase."
   },
   "volume_30d_usd": {
     "value": null,
     "provenance": "unavailable",
-    "last_verified": 1786276616649,
+    "last_verified": 1786279496007,
     "notes": "Revolut does not publish Ramp volume statistics"
   },
   "observed_spread_bps": {
-    "value": 107.09213428513608,
+    "value": 106.36905907109195,
     "provenance": "api",
     "spread_aggregation": "effective_at_size",
     "sample_size": 1,
     "period": "usd_eth_$1k_quote",
-    "last_verified": 1786276616649,
+    "last_verified": 1786279496007,
     "evidence_url": "https://ramp.revolut.com/ramp-api/orders/quote",
     "notes": "All-in cost of a live $1k USD→ETH quote vs Revolut’s own mid: service fee + network fee + rate markup. Venue-quoted (no hostApiKey needed, unlike Ramp Network)."
   },
   "fee_snapshot": {
-    "ts": 1786276616649,
+    "ts": 1786279496007,
     "sample_rows": [
+      {
+        "fiat": "EUR",
+        "asset": "ETH",
+        "payment_method": "revolut_pay",
+        "effective_rate_bps": 88
+      },
       {
         "fiat": "NZD",
         "asset": "ETH",
@@ -112,43 +118,37 @@
         "fiat": "CAD",
         "asset": "ETH",
         "payment_method": "revolut_pay",
-        "effective_rate_bps": 95
+        "effective_rate_bps": 97
       },
       {
         "fiat": "JPY",
         "asset": "ETH",
         "payment_method": "revolut_pay",
-        "effective_rate_bps": 98
+        "effective_rate_bps": 97
       },
       {
         "fiat": "AUD",
         "asset": "ETH",
         "payment_method": "revolut_pay",
-        "effective_rate_bps": 99
+        "effective_rate_bps": 98
       },
       {
         "fiat": "USD",
         "asset": "ETH",
         "payment_method": "revolut_pay",
-        "effective_rate_bps": 107
+        "effective_rate_bps": 106
       },
       {
         "fiat": "HKD",
         "asset": "ETH",
         "payment_method": "revolut_pay",
-        "effective_rate_bps": 109
+        "effective_rate_bps": 108
       },
       {
         "fiat": "GBP",
         "asset": "ETH",
         "payment_method": "revolut_pay",
         "effective_rate_bps": 109
-      },
-      {
-        "fiat": "ZAR",
-        "asset": "ETH",
-        "payment_method": "revolut_pay",
-        "effective_rate_bps": 112
       }
     ],
     "provenance": "api"
@@ -156,12 +156,22 @@
   "markets": {
     "value": [
       {
+        "currency": "EUR",
+        "platform": "Revolut Pay",
+        "direction": "buy",
+        "best_rate": 1679.7981273258526,
+        "fx_mid_rate": 1665.2193603783649,
+        "spread_bps": 87.54862749238868,
+        "total_liquidity_usd": 13808.403794549362,
+        "deposit_count": 1
+      },
+      {
         "currency": "NZD",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 3291.185272069729,
-        "fx_mid_rate": 3261.990840935684,
-        "spread_bps": 89.49881393802706,
+        "best_rate": 3288.4924916505056,
+        "fx_mid_rate": 3259.6228835514776,
+        "spread_bps": 88.56732551703494,
         "total_liquidity_usd": 13520.543878573759,
         "deposit_count": 1
       },
@@ -169,19 +179,19 @@
         "currency": "CAD",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 2701.3655528206054,
-        "fx_mid_rate": 2676.0514827438437,
-        "spread_bps": 94.59485454594629,
-        "total_liquidity_usd": 13614.703880190606,
+        "best_rate": 2699.1409412987773,
+        "fx_mid_rate": 2673.342405414592,
+        "spread_bps": 96.50292394993265,
+        "total_liquidity_usd": 13618.607318209513,
         "deposit_count": 1
       },
       {
         "currency": "JPY",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 305564.6418461158,
-        "fx_mid_rate": 302600.6183905815,
-        "spread_bps": 97.95166550877532,
+        "best_rate": 305314.6318503961,
+        "fx_mid_rate": 302380.9533443799,
+        "spread_bps": 97.01928886622247,
         "total_liquidity_usd": 13307.563485895673,
         "deposit_count": 1
       },
@@ -189,9 +199,9 @@
         "currency": "AUD",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 2744.8723420571364,
-        "fx_mid_rate": 2718.01729314107,
-        "spread_bps": 98.80381918038417,
+        "best_rate": 2742.623944857749,
+        "fx_mid_rate": 2716.0442192013998,
+        "spread_bps": 97.86190323574529,
         "total_liquidity_usd": 13404.494738735815,
         "deposit_count": 1
       },
@@ -199,9 +209,9 @@
         "currency": "USD",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 1938.0960117647078,
-        "fx_mid_rate": 1917.5604476685492,
-        "spread_bps": 107.09213428513608,
+        "best_rate": 1936.550547997328,
+        "fx_mid_rate": 1916.168444550473,
+        "spread_bps": 106.36905907109195,
         "total_liquidity_usd": 13000,
         "deposit_count": 1
       },
@@ -209,9 +219,9 @@
         "currency": "HKD",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 15201.569520425692,
-        "fx_mid_rate": 15038.084298751062,
-        "spread_bps": 108.71412769524636,
+        "best_rate": 15189.13173784213,
+        "fx_mid_rate": 15027.167792698174,
+        "spread_bps": 107.78075242006358,
         "total_liquidity_usd": 14026.497328589827,
         "deposit_count": 1
       },
@@ -219,9 +229,9 @@
         "currency": "GBP",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 1439.501711959852,
-        "fx_mid_rate": 1423.9477899110543,
-        "spread_bps": 109.23098556702814,
+        "best_rate": 1438.3538373683546,
+        "fx_mid_rate": 1422.914112059624,
+        "spread_bps": 108.50778116454407,
         "total_liquidity_usd": 13466.508120977722,
         "deposit_count": 1
       },
@@ -229,9 +239,9 @@
         "currency": "ZAR",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 31309.70439268425,
-        "fx_mid_rate": 30961.544607399646,
-        "spread_bps": 112.44910087637949,
+        "best_rate": 31284.067322459123,
+        "fx_mid_rate": 30939.06887961419,
+        "spread_bps": 111.50899343071342,
         "total_liquidity_usd": 13625.39575581309,
         "deposit_count": 1
       },
@@ -239,29 +249,19 @@
         "currency": "HUF",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 609572.9053723437,
-        "fx_mid_rate": 602776.1697997573,
-        "spread_bps": 112.75720430096392,
+        "best_rate": 609073.9001785222,
+        "fx_mid_rate": 602338.6001216366,
+        "spread_bps": 111.81916708518091,
         "total_liquidity_usd": 13361.101987298816,
-        "deposit_count": 1
-      },
-      {
-        "currency": "SGD",
-        "platform": "Revolut Pay",
-        "direction": "buy",
-        "best_rate": 2478.28369972308,
-        "fx_mid_rate": 2450.642252120406,
-        "spread_bps": 112.79266722328707,
-        "total_liquidity_usd": 13302.034428794992,
         "deposit_count": 1
       },
       {
         "currency": "DKK",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 12557.489392095782,
-        "fx_mid_rate": 12402.780975520176,
-        "spread_bps": 124.73687706084702,
+        "best_rate": 12547.21500712095,
+        "fx_mid_rate": 12393.777499352458,
+        "spread_bps": 123.80205129268296,
         "total_liquidity_usd": 13450.834879406308,
         "deposit_count": 1
       },
@@ -269,29 +269,19 @@
         "currency": "NOK",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 18479.889651841117,
-        "fx_mid_rate": 18240.54447558888,
-        "spread_bps": 131.21602623899165,
+        "best_rate": 18464.76928224806,
+        "fx_mid_rate": 18227.303226888584,
+        "spread_bps": 130.280410877881,
         "total_liquidity_usd": 13666.415414875577,
-        "deposit_count": 1
-      },
-      {
-        "currency": "EUR",
-        "platform": "Revolut Pay",
-        "direction": "buy",
-        "best_rate": 1681.18945086261,
-        "fx_mid_rate": 1659.2190339168517,
-        "spread_bps": 132.41420509680245,
-        "total_liquidity_usd": 13868.407305876968,
         "deposit_count": 1
       },
       {
         "currency": "SEK",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 18421.101666516308,
-        "fx_mid_rate": 18180.007092255983,
-        "spread_bps": 132.61522563598137,
+        "best_rate": 18406.029819096224,
+        "fx_mid_rate": 18166.809789094124,
+        "spread_bps": 131.67971304775205,
         "total_liquidity_usd": 13711.92304446882,
         "deposit_count": 1
       },
@@ -299,9 +289,9 @@
         "currency": "CHF",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 1570.3425070591186,
-        "fx_mid_rate": 1549.687981146024,
-        "spread_bps": 133.28183585588738,
+        "best_rate": 1569.0578742888677,
+        "fx_mid_rate": 1548.563025474132,
+        "spread_bps": 132.34752785383552,
         "total_liquidity_usd": 13611.233474725177,
         "deposit_count": 1
       },
@@ -309,9 +299,9 @@
         "currency": "CZK",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 40807.71744903776,
-        "fx_mid_rate": 40234.44506902626,
-        "spread_bps": 142.48298417636641,
+        "best_rate": 40774.328440372454,
+        "fx_mid_rate": 40205.23792040248,
+        "spread_bps": 141.5463629631164,
         "total_liquidity_usd": 13344.708108339966,
         "deposit_count": 1
       },
@@ -319,25 +309,35 @@
         "currency": "PLN",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 7227.439938944612,
-        "fx_mid_rate": 7124.07455372745,
-        "spread_bps": 145.09307059831224,
+        "best_rate": 7221.526453706428,
+        "fx_mid_rate": 7118.903017151248,
+        "spread_bps": 144.15625034915448,
         "total_liquidity_usd": 13458.312607531918,
+        "deposit_count": 1
+      },
+      {
+        "currency": "SGD",
+        "platform": "Revolut Pay",
+        "direction": "buy",
+        "best_rate": 2476.2642416403214,
+        "fx_mid_rate": 2432.5758403568257,
+        "spread_bps": 179.5972834996462,
+        "total_liquidity_usd": 13391.098857818039,
         "deposit_count": 1
       },
       {
         "currency": "RON",
         "platform": "Revolut Pay",
         "direction": "buy",
-        "best_rate": 8794.491552627029,
-        "fx_mid_rate": 1917.5604476685492,
-        "spread_bps": 35862.91693343875,
+        "best_rate": 8787.296030382955,
+        "fx_mid_rate": 1916.168444550473,
+        "spread_bps": 35858.68249408745,
         "total_liquidity_usd": 61000,
         "deposit_count": 1
       }
     ],
     "provenance": "api",
-    "last_verified": 1786276616649,
+    "last_verified": 1786279496007,
     "evidence_url": "https://ramp.revolut.com/ramp-api/orders/quote",
     "notes": "Live venue quotes: $1k-equivalent ETH purchase per fiat via /ramp-api/orders/quote (key-less). spread_bps = all-in cost vs Revolut’s own published mid."
   },
@@ -348,10 +348,10 @@
         "notional_usd": 1000,
         "payment_method_fee_usd": 0,
         "venue_fee_usd": 9.9,
-        "maker_spread_usd": 0.6857413727198851,
+        "maker_spread_usd": 0.6149529726621628,
         "withdrawal_fee_usd": 0.01,
-        "total_usd": 10.595741372719885,
-        "total_bps": 105.95741372719885,
+        "total_usd": 10.524952972662163,
+        "total_bps": 105.24952972662163,
         "assumptions": {
           "market": "USD → ETH (ETHEREUM)",
           "checkout": "Revolut Pay (account balance) — card checkout may price differently",
@@ -365,7 +365,7 @@
       "offramp": null
     },
     "provenance": "api",
-    "last_verified": 1786276616649,
+    "last_verified": 1786279496007,
     "evidence_url": "https://ramp.revolut.com/ramp-api/orders/quote",
     "notes": "Offramp: /orders/quote is buy-only. Ramp sells (ETH/BTC flagged sellActive) have no quotable public endpoint."
   },
