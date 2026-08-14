@@ -3,21 +3,21 @@
     "value": {
       "kind": "ramp_capacity",
       "fiat": {
-        "DKK": {
-          "single_tx_max": 112097.87,
-          "daily_max": 112097.87
-        },
         "RON": {
           "single_tx_max": 78542.79,
           "daily_max": 78542.79
         },
-        "USD": {
-          "single_tx_max": 17351,
-          "daily_max": 17351
+        "DKK": {
+          "single_tx_max": 112097.87,
+          "daily_max": 112097.87
         },
         "MKD": {
           "single_tx_max": 923450.96,
           "daily_max": 923450.96
+        },
+        "USD": {
+          "single_tx_max": 17351,
+          "daily_max": 17351
         },
         "PEN": {
           "single_tx_max": 58495.23,
@@ -27,10 +27,6 @@
           "single_tx_max": 7802732.87,
           "daily_max": 7802732.87
         },
-        "MYR": {
-          "single_tx_max": 70894.47,
-          "daily_max": 70894.47
-        },
         "HUF": {
           "single_tx_max": 5445267.18,
           "daily_max": 5445267.18
@@ -39,9 +35,17 @@
           "single_tx_max": 104090168.25,
           "daily_max": 104090168.25
         },
+        "MYR": {
+          "single_tx_max": 70894.47,
+          "daily_max": 70894.47
+        },
         "SEK": {
           "single_tx_max": 165303.53,
           "daily_max": 165303.53
+        },
+        "RSD": {
+          "single_tx_max": 1760640.1,
+          "daily_max": 1760640.1
         },
         "CZK": {
           "single_tx_max": 363161.45,
@@ -51,33 +55,25 @@
           "single_tx_max": 300733.14,
           "daily_max": 300733.14
         },
-        "PLN": {
-          "single_tx_max": 64593.39,
-          "daily_max": 64593.39
+        "ISK": {
+          "single_tx_max": 2132502.56,
+          "daily_max": 2132502.56
         },
         "NZD": {
           "single_tx_max": 29448.39,
           "daily_max": 29448.39
         },
-        "ISK": {
-          "single_tx_max": 2132502.56,
-          "daily_max": 2132502.56
-        },
-        "CHF": {
-          "single_tx_max": 14116.84,
-          "daily_max": 14116.84
-        },
-        "RSD": {
-          "single_tx_max": 1760640.1,
-          "daily_max": 1760640.1
-        },
-        "GBP": {
-          "single_tx_max": 12825.04,
-          "daily_max": 12825.04
+        "PLN": {
+          "single_tx_max": 64593.39,
+          "daily_max": 64593.39
         },
         "BMD": {
           "single_tx_max": 17351,
           "daily_max": 17351
+        },
+        "CHF": {
+          "single_tx_max": 14116.84,
+          "daily_max": 14116.84
         },
         "BWP": {
           "single_tx_max": 233646.76,
@@ -87,10 +83,6 @@
           "single_tx_max": 90613.88,
           "daily_max": 90613.88
         },
-        "KWD": {
-          "single_tx_max": 5355.92,
-          "daily_max": 5355.92
-        },
         "EUR": {
           "single_tx_max": 15000,
           "daily_max": 15000
@@ -99,21 +91,29 @@
           "single_tx_max": 45292.86,
           "daily_max": 45292.86
         },
-        "ILS": {
-          "single_tx_max": 51273.98,
-          "daily_max": 51273.98
+        "GBP": {
+          "single_tx_max": 12825.04,
+          "daily_max": 12825.04
+        },
+        "KWD": {
+          "single_tx_max": 5355.92,
+          "daily_max": 5355.92
+        },
+        "SGD": {
+          "single_tx_max": 22195.46,
+          "daily_max": 22195.46
         },
         "DOP": {
           "single_tx_max": 1015150.72,
           "daily_max": 1015150.72
         },
+        "ILS": {
+          "single_tx_max": 51273.98,
+          "daily_max": 51273.98
+        },
         "HNL": {
           "single_tx_max": 464922.21,
           "daily_max": 464922.21
-        },
-        "SGD": {
-          "single_tx_max": 22195.46,
-          "daily_max": 22195.46
         },
         "MXN": {
           "single_tx_max": 295374.6,
@@ -127,13 +127,13 @@
       "max_single_trade_usd": 17351
     },
     "provenance": "api",
-    "last_verified": 1786742523805,
+    "last_verified": 1786744155521,
     "evidence_url": "https://api.rampnetwork.com/api/host-api/v3/assets"
   },
   "volume_30d_usd": {
     "value": null,
     "provenance": "unavailable",
-    "last_verified": 1786742523805,
+    "last_verified": 1786744155521,
     "notes": "Ramp Network does not publish public volume statistics"
   },
   "observed_spread_bps": {
@@ -142,11 +142,11 @@
     "spread_aggregation": "effective_at_size",
     "sample_size": 1,
     "period": "usd_$1k_quote_approximated",
-    "last_verified": 1786742523805,
+    "last_verified": 1786744155521,
     "notes": "Approximated: Ramp public reference price + hand-maintained payment-method fee table (adapters/ramp_network.ts RAMP_FEE_BPS_BY_METHOD_BUY/SELL). NOT a user-quoted spread — real all-in price requires partner hostApiKey and /onramp/quote/all."
   },
   "fee_snapshot": {
-    "ts": 1786742523805,
+    "ts": 1786744155521,
     "sample_rows": [
       {
         "fiat": "EUR",
@@ -187,11 +187,21 @@
         "currency": "USD",
         "platform": "ACH",
         "direction": "sell",
-        "best_rate": 0.9902354456052113,
-        "fx_mid_rate": 1.0001367999244635,
+        "best_rate": 0.9901855465659093,
+        "fx_mid_rate": 1.0000864019451665,
         "spread_bps": 99,
         "total_liquidity_usd": 17351,
         "deposit_count": 4
+      },
+      {
+        "currency": "EUR",
+        "platform": "Bank transfer",
+        "direction": "sell",
+        "best_rate": 0.854956447189859,
+        "fx_mid_rate": 0.8635051481566094,
+        "spread_bps": 99,
+        "total_liquidity_usd": 17372.561195728726,
+        "deposit_count": 5
       },
       {
         "currency": "GBP",
@@ -200,17 +210,17 @@
         "best_rate": 0.7305825489911507,
         "fx_mid_rate": 0.7378876365934256,
         "spread_bps": 99,
-        "total_liquidity_usd": 17383.126953746178,
+        "total_liquidity_usd": 17382.250999104377,
         "deposit_count": 5
       },
       {
         "currency": "EUR",
         "platform": "Bank transfer",
-        "direction": "sell",
-        "best_rate": 0.8550192770546764,
-        "fx_mid_rate": 0.8635686062566169,
-        "spread_bps": 99,
-        "total_liquidity_usd": 17372.16,
+        "direction": "buy",
+        "best_rate": 0.8755942202308019,
+        "fx_mid_rate": 0.8635051481566094,
+        "spread_bps": 140,
+        "total_liquidity_usd": 17372.561195728726,
         "deposit_count": 5
       },
       {
@@ -220,25 +230,15 @@
         "best_rate": 0.7482180635057336,
         "fx_mid_rate": 0.7378876365934256,
         "spread_bps": 140,
-        "total_liquidity_usd": 17383.126953746178,
-        "deposit_count": 5
-      },
-      {
-        "currency": "EUR",
-        "platform": "Bank transfer",
-        "direction": "buy",
-        "best_rate": 0.8756585667442096,
-        "fx_mid_rate": 0.8635686062566169,
-        "spread_bps": 140,
-        "total_liquidity_usd": 17372.16,
+        "total_liquidity_usd": 17382.250999104377,
         "deposit_count": 5
       },
       {
         "currency": "USD",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 1.024640151522613,
-        "fx_mid_rate": 1.0001367999244635,
+        "best_rate": 1.024588518792823,
+        "fx_mid_rate": 1.0000864019451665,
         "spread_bps": 245,
         "total_liquidity_usd": 17351,
         "deposit_count": 3
@@ -247,21 +247,11 @@
         "currency": "BRL",
         "platform": "PIX",
         "direction": "buy",
-        "best_rate": 5.393128973102431,
-        "fx_mid_rate": 5.241136028282246,
+        "best_rate": 5.393253522974667,
+        "fx_mid_rate": 5.241257068002592,
         "spread_bps": 290,
-        "total_liquidity_usd": 17291.342083643958,
+        "total_liquidity_usd": 17290.07145418006,
         "deposit_count": 4
-      },
-      {
-        "currency": "DKK",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 6.166490909813653,
-        "fx_mid_rate": 6.456382483314473,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17364.70930430281,
-        "deposit_count": 3
       },
       {
         "currency": "RON",
@@ -270,77 +260,97 @@
         "best_rate": 4.319460518167172,
         "fx_mid_rate": 4.522521744494997,
         "spread_bps": 449,
-        "total_liquidity_usd": 17369.410051672563,
+        "total_liquidity_usd": 17368.53478824035,
+        "deposit_count": 3
+      },
+      {
+        "currency": "DKK",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 6.166407717677277,
+        "fx_mid_rate": 6.456295380250526,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17364.068536416136,
         "deposit_count": 3
       },
       {
         "currency": "MKD",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 50.83980700662177,
-        "fx_mid_rate": 53.229826203142885,
+        "best_rate": 50.839121126723505,
+        "fx_mid_rate": 53.22910807949273,
         "spread_bps": 449,
-        "total_liquidity_usd": 17350.747764925865,
+        "total_liquidity_usd": 17350.10751222813,
         "deposit_count": 3
       },
       {
         "currency": "PEN",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 3.2204052488678068,
-        "fx_mid_rate": 3.3717990250945524,
+        "best_rate": 3.2201054338149118,
+        "fx_mid_rate": 3.3714851155009025,
         "spread_bps": 449,
-        "total_liquidity_usd": 17350.74709602685,
+        "total_liquidity_usd": 17351.488171397003,
         "deposit_count": 3
       },
       {
         "currency": "CRC",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 429.56702894056104,
-        "fx_mid_rate": 449.76131184227944,
+        "best_rate": 429.53283170181993,
+        "fx_mid_rate": 449.7255069645272,
         "spread_bps": 449,
-        "total_liquidity_usd": 17350.981682488135,
-        "deposit_count": 3
-      },
-      {
-        "currency": "MYR",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 3.9032229591810768,
-        "fx_mid_rate": 4.086716531442861,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17349.911062489908,
+        "total_liquidity_usd": 17351.488675764813,
         "deposit_count": 3
       },
       {
         "currency": "HUF",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 299.28777039806283,
-        "fx_mid_rate": 313.35752318926063,
+        "best_rate": 299.31159818160165,
+        "fx_mid_rate": 313.38247113558964,
         "spread_bps": 449,
-        "total_liquidity_usd": 17379.547925676074,
+        "total_liquidity_usd": 17377.28865926302,
         "deposit_count": 3
       },
       {
         "currency": "PYG",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 5730.097308330747,
-        "fx_mid_rate": 5999.4736764011595,
+        "best_rate": 5730.607260549797,
+        "fx_mid_rate": 6000.007601873936,
         "spread_bps": 449,
-        "total_liquidity_usd": 17352.2567798984,
+        "total_liquidity_usd": 17349.838325287627,
+        "deposit_count": 3
+      },
+      {
+        "currency": "MYR",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 3.9031703007953795,
+        "fx_mid_rate": 4.086661397545157,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17349.270840666977,
         "deposit_count": 3
       },
       {
         "currency": "SEK",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 9.08585686196363,
-        "fx_mid_rate": 9.512990118274141,
+        "best_rate": 9.086524572184736,
+        "fx_mid_rate": 9.513689218076365,
         "spread_bps": 449,
-        "total_liquidity_usd": 17378.988252372033,
+        "total_liquidity_usd": 17376.835500619978,
+        "deposit_count": 3
+      },
+      {
+        "currency": "RSD",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 96.78264116483396,
+        "fx_mid_rate": 101.33246902401211,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17376.387249699153,
         "deposit_count": 3
       },
       {
@@ -350,7 +360,7 @@
         "best_rate": 19.98003042665388,
         "fx_mid_rate": 20.919307325572067,
         "spread_bps": 449,
-        "total_liquidity_usd": 17362.483604556706,
+        "total_liquidity_usd": 17361.608690155685,
         "deposit_count": 3
       },
       {
@@ -360,27 +370,7 @@
         "best_rate": 16.55638453459269,
         "fx_mid_rate": 17.334713155264048,
         "spread_bps": 449,
-        "total_liquidity_usd": 17350.98109653457,
-        "deposit_count": 3
-      },
-      {
-        "currency": "PLN",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 3.5519787108004874,
-        "fx_mid_rate": 3.71896001549627,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17371.046233809026,
-        "deposit_count": 3
-      },
-      {
-        "currency": "NZD",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 1.6201724602572094,
-        "fx_mid_rate": 1.6963380381710915,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17362.35224040706,
+        "total_liquidity_usd": 17350.10676175742,
         "deposit_count": 3
       },
       {
@@ -390,7 +380,37 @@
         "best_rate": 117.29430685191514,
         "fx_mid_rate": 122.80840420051842,
         "spread_bps": 449,
-        "total_liquidity_usd": 17366.843092487008,
+        "total_liquidity_usd": 17365.967958406658,
+        "deposit_count": 3
+      },
+      {
+        "currency": "NZD",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 1.6201724602572094,
+        "fx_mid_rate": 1.6963380381710915,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17361.47733262562,
+        "deposit_count": 3
+      },
+      {
+        "currency": "PLN",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 3.551930791051373,
+        "fx_mid_rate": 3.7189098430021703,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17370.405232085966,
+        "deposit_count": 3
+      },
+      {
+        "currency": "BMD",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 0.9551825224978285,
+        "fx_mid_rate": 1.0000864019451665,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17351,
         "deposit_count": 3
       },
       {
@@ -400,57 +420,27 @@
         "best_rate": 0.7753027231974209,
         "fx_mid_rate": 0.8117503122159155,
         "spread_bps": 449,
-        "total_liquidity_usd": 17392.997538989854,
-        "deposit_count": 3
-      },
-      {
-        "currency": "RSD",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 96.79125437329652,
-        "fx_mid_rate": 101.34148714615907,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17375.716550252208,
-        "deposit_count": 3
-      },
-      {
-        "currency": "BMD",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 0.955230657607855,
-        "fx_mid_rate": 1.0001367999244635,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17351,
+        "total_liquidity_usd": 17392.12108695854,
         "deposit_count": 3
       },
       {
         "currency": "BWP",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 12.863049346159295,
-        "fx_mid_rate": 13.46775138326803,
+        "best_rate": 12.863248791348749,
+        "fx_mid_rate": 13.467960204532247,
         "spread_bps": 449,
-        "total_liquidity_usd": 17350.982818812296,
+        "total_liquidity_usd": 17349.839469819053,
         "deposit_count": 3
       },
       {
         "currency": "BRL",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 5.005809020612372,
-        "fx_mid_rate": 5.241136028282246,
+        "best_rate": 5.005924625649276,
+        "fx_mid_rate": 5.241257068002592,
         "spread_bps": 449,
-        "total_liquidity_usd": 17291.342083643958,
-        "deposit_count": 3
-      },
-      {
-        "currency": "KWD",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 0.2947938818393148,
-        "fx_mid_rate": 0.3086523734052087,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17354.970027782834,
+        "total_liquidity_usd": 17290.07145418006,
         "deposit_count": 3
       },
       {
@@ -460,77 +450,77 @@
         "best_rate": 2.4929731679440454,
         "fx_mid_rate": 2.610169791586269,
         "spread_bps": 449,
-        "total_liquidity_usd": 17354.83117069457,
+        "total_liquidity_usd": 17353.956641908004,
         "deposit_count": 3
       },
       {
-        "currency": "ILS",
+        "currency": "KWD",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 2.822575471666819,
-        "fx_mid_rate": 2.955266958084828,
+        "best_rate": 0.2947938818393148,
+        "fx_mid_rate": 0.3086523734052087,
         "spread_bps": 449,
-        "total_liquidity_usd": 17352.406738179685,
-        "deposit_count": 3
-      },
-      {
-        "currency": "DOP",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 55.8830560944427,
-        "fx_mid_rate": 58.51016238555408,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17352.363267282366,
-        "deposit_count": 3
-      },
-      {
-        "currency": "HNL",
-        "platform": "Card",
-        "direction": "sell",
-        "best_rate": 25.59589720238041,
-        "fx_mid_rate": 26.799180402450435,
-        "spread_bps": 449,
-        "total_liquidity_usd": 17350.74746094446,
+        "total_liquidity_usd": 17354.095491999105,
         "deposit_count": 3
       },
       {
         "currency": "SGD",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 1.221386821304883,
-        "fx_mid_rate": 1.2788051735995007,
+        "best_rate": 1.2213063375993154,
+        "fx_mid_rate": 1.2787209062918181,
         "spread_bps": 449,
-        "total_liquidity_usd": 17358.778956741702,
+        "total_liquidity_usd": 17359.048109480256,
+        "deposit_count": 3
+      },
+      {
+        "currency": "DOP",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 55.88750522165674,
+        "fx_mid_rate": 58.514820669727506,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17350.107534757877,
+        "deposit_count": 3
+      },
+      {
+        "currency": "ILS",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 2.822843959206012,
+        "fx_mid_rate": 2.9555480674337895,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17349.88198521565,
+        "deposit_count": 3
+      },
+      {
+        "currency": "HNL",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 25.59555188810007,
+        "fx_mid_rate": 26.798818854674977,
+        "spread_bps": 449,
+        "total_liquidity_usd": 17350.10720825794,
         "deposit_count": 3
       },
       {
         "currency": "MXN",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 16.257075407868577,
-        "fx_mid_rate": 17.0213332717711,
+        "best_rate": 16.256004142281217,
+        "fx_mid_rate": 17.02021164514838,
         "spread_bps": 449,
-        "total_liquidity_usd": 17355.57388520776,
+        "total_liquidity_usd": 17355.842988250777,
         "deposit_count": 3
       },
       {
         "currency": "COP",
         "platform": "Card",
         "direction": "sell",
-        "best_rate": 2988.9464128293585,
-        "fx_mid_rate": 3129.4591276613533,
+        "best_rate": 2988.7957965742175,
+        "fx_mid_rate": 3129.3014308179436,
         "spread_bps": 449,
         "total_liquidity_usd": 17472.36528954161,
-        "deposit_count": 3
-      },
-      {
-        "currency": "DKK",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 6.808255328655112,
-        "fx_mid_rate": 6.456382483314473,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17364.70930430281,
         "deposit_count": 3
       },
       {
@@ -540,77 +530,97 @@
         "best_rate": 4.768999179569975,
         "fx_mid_rate": 4.522521744494997,
         "spread_bps": 545,
-        "total_liquidity_usd": 17369.410051672563,
+        "total_liquidity_usd": 17368.53478824035,
+        "deposit_count": 3
+      },
+      {
+        "currency": "DKK",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 6.80816347847418,
+        "fx_mid_rate": 6.456295380250526,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17364.068536416136,
         "deposit_count": 3
       },
       {
         "currency": "MKD",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 56.13085173121417,
-        "fx_mid_rate": 53.229826203142885,
+        "best_rate": 56.13009446982509,
+        "fx_mid_rate": 53.22910807949273,
         "spread_bps": 545,
-        "total_liquidity_usd": 17350.747764925865,
+        "total_liquidity_usd": 17350.10751222813,
         "deposit_count": 3
       },
       {
         "currency": "PEN",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 3.5555620719622056,
-        "fx_mid_rate": 3.3717990250945524,
+        "best_rate": 3.5552310542957017,
+        "fx_mid_rate": 3.3714851155009025,
         "spread_bps": 545,
-        "total_liquidity_usd": 17350.74709602685,
+        "total_liquidity_usd": 17351.488171397003,
         "deposit_count": 3
       },
       {
         "currency": "CRC",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 474.27330333768367,
-        "fx_mid_rate": 449.76131184227944,
+        "best_rate": 474.23554709409393,
+        "fx_mid_rate": 449.7255069645272,
         "spread_bps": 545,
-        "total_liquidity_usd": 17350.981682488135,
-        "deposit_count": 3
-      },
-      {
-        "currency": "MYR",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 4.309442582406497,
-        "fx_mid_rate": 4.086716531442861,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17349.911062489908,
+        "total_liquidity_usd": 17351.488675764813,
         "deposit_count": 3
       },
       {
         "currency": "HUF",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 330.43550820307536,
-        "fx_mid_rate": 313.35752318926063,
+        "best_rate": 330.4618158124793,
+        "fx_mid_rate": 313.38247113558964,
         "spread_bps": 545,
-        "total_liquidity_usd": 17379.547925676074,
+        "total_liquidity_usd": 17377.28865926302,
         "deposit_count": 3
       },
       {
         "currency": "PYG",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 6326.444991765023,
-        "fx_mid_rate": 5999.4736764011595,
+        "best_rate": 6327.008016176066,
+        "fx_mid_rate": 6000.007601873936,
         "spread_bps": 545,
-        "total_liquidity_usd": 17352.2567798984,
+        "total_liquidity_usd": 17349.838325287627,
+        "deposit_count": 3
+      },
+      {
+        "currency": "MYR",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 4.309384443711368,
+        "fx_mid_rate": 4.086661397545157,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17349.270840666977,
         "deposit_count": 3
       },
       {
         "currency": "SEK",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 10.031448079720082,
-        "fx_mid_rate": 9.512990118274141,
+        "best_rate": 10.032185280461528,
+        "fx_mid_rate": 9.513689218076365,
         "spread_bps": 545,
-        "total_liquidity_usd": 17378.988252372033,
+        "total_liquidity_usd": 17376.835500619978,
+        "deposit_count": 3
+      },
+      {
+        "currency": "RSD",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 106.85508858582077,
+        "fx_mid_rate": 101.33246902401211,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17376.387249699153,
         "deposit_count": 3
       },
       {
@@ -620,7 +630,7 @@
         "best_rate": 22.059409574815746,
         "fx_mid_rate": 20.919307325572067,
         "spread_bps": 545,
-        "total_liquidity_usd": 17362.483604556706,
+        "total_liquidity_usd": 17361.608690155685,
         "deposit_count": 3
       },
       {
@@ -630,27 +640,7 @@
         "best_rate": 18.27945502222594,
         "fx_mid_rate": 17.334713155264048,
         "spread_bps": 545,
-        "total_liquidity_usd": 17350.98109653457,
-        "deposit_count": 3
-      },
-      {
-        "currency": "PLN",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 3.921643336340817,
-        "fx_mid_rate": 3.71896001549627,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17371.046233809026,
-        "deposit_count": 3
-      },
-      {
-        "currency": "NZD",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 1.788788461251416,
-        "fx_mid_rate": 1.6963380381710915,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17362.35224040706,
+        "total_liquidity_usd": 17350.10676175742,
         "deposit_count": 3
       },
       {
@@ -660,7 +650,37 @@
         "best_rate": 129.50146222944667,
         "fx_mid_rate": 122.80840420051842,
         "spread_bps": 545,
-        "total_liquidity_usd": 17366.843092487008,
+        "total_liquidity_usd": 17365.967958406658,
+        "deposit_count": 3
+      },
+      {
+        "currency": "NZD",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 1.788788461251416,
+        "fx_mid_rate": 1.6963380381710915,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17361.47733262562,
+        "deposit_count": 3
+      },
+      {
+        "currency": "PLN",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 3.9215904294457884,
+        "fx_mid_rate": 3.7189098430021703,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17370.405232085966,
+        "deposit_count": 3
+      },
+      {
+        "currency": "BMD",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 1.054591110851178,
+        "fx_mid_rate": 1.0000864019451665,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17351,
         "deposit_count": 3
       },
       {
@@ -670,47 +690,17 @@
         "best_rate": 0.8559907042316829,
         "fx_mid_rate": 0.8117503122159155,
         "spread_bps": 545,
-        "total_liquidity_usd": 17392.997538989854,
-        "deposit_count": 3
-      },
-      {
-        "currency": "RSD",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 106.86459819562474,
-        "fx_mid_rate": 101.34148714615907,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17375.716550252208,
-        "deposit_count": 3
-      },
-      {
-        "currency": "BMD",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 1.0546442555203468,
-        "fx_mid_rate": 1.0001367999244635,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17351,
+        "total_liquidity_usd": 17392.12108695854,
         "deposit_count": 3
       },
       {
         "currency": "BWP",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 14.201743833656138,
-        "fx_mid_rate": 13.46775138326803,
+        "best_rate": 14.201964035679254,
+        "fx_mid_rate": 13.467960204532247,
         "spread_bps": 545,
-        "total_liquidity_usd": 17350.982818812296,
-        "deposit_count": 3
-      },
-      {
-        "currency": "KWD",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 0.32547392775579254,
-        "fx_mid_rate": 0.3086523734052087,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17354.970027782834,
+        "total_liquidity_usd": 17349.839469819053,
         "deposit_count": 3
       },
       {
@@ -720,72 +710,82 @@
         "best_rate": 2.7524240452277207,
         "fx_mid_rate": 2.610169791586269,
         "spread_bps": 545,
-        "total_liquidity_usd": 17354.83117069457,
+        "total_liquidity_usd": 17353.956641908004,
         "deposit_count": 3
       },
       {
-        "currency": "ILS",
+        "currency": "KWD",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 3.116329007300451,
-        "fx_mid_rate": 2.955266958084828,
+        "best_rate": 0.32547392775579254,
+        "fx_mid_rate": 0.3086523734052087,
         "spread_bps": 545,
-        "total_liquidity_usd": 17352.406738179685,
-        "deposit_count": 3
-      },
-      {
-        "currency": "DOP",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 61.69896623556678,
-        "fx_mid_rate": 58.51016238555408,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17352.363267282366,
-        "deposit_count": 3
-      },
-      {
-        "currency": "HNL",
-        "platform": "Card",
-        "direction": "buy",
-        "best_rate": 28.259735734383984,
-        "fx_mid_rate": 26.799180402450435,
-        "spread_bps": 545,
-        "total_liquidity_usd": 17350.74746094446,
+        "total_liquidity_usd": 17354.095491999105,
         "deposit_count": 3
       },
       {
         "currency": "SGD",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 1.3485000555606734,
-        "fx_mid_rate": 1.2788051735995007,
+        "best_rate": 1.3484111956847222,
+        "fx_mid_rate": 1.2787209062918181,
         "spread_bps": 545,
-        "total_liquidity_usd": 17358.778956741702,
+        "total_liquidity_usd": 17359.048109480256,
+        "deposit_count": 3
+      },
+      {
+        "currency": "DOP",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 61.70387839622765,
+        "fx_mid_rate": 58.514820669727506,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17350.107534757877,
+        "deposit_count": 3
+      },
+      {
+        "currency": "ILS",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 3.116625437108931,
+        "fx_mid_rate": 2.9555480674337895,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17349.88198521565,
+        "deposit_count": 3
+      },
+      {
+        "currency": "HNL",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 28.259354482254764,
+        "fx_mid_rate": 26.798818854674977,
+        "spread_bps": 545,
+        "total_liquidity_usd": 17350.10720825794,
         "deposit_count": 3
       },
       {
         "currency": "MXN",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 17.948995935082625,
-        "fx_mid_rate": 17.0213332717711,
+        "best_rate": 17.947813179808964,
+        "fx_mid_rate": 17.02021164514838,
         "spread_bps": 545,
-        "total_liquidity_usd": 17355.57388520776,
+        "total_liquidity_usd": 17355.842988250777,
         "deposit_count": 3
       },
       {
         "currency": "COP",
         "platform": "Card",
         "direction": "buy",
-        "best_rate": 3300.014650118897,
-        "fx_mid_rate": 3129.4591276613533,
+        "best_rate": 3299.8483587975215,
+        "fx_mid_rate": 3129.3014308179436,
         "spread_bps": 545,
         "total_liquidity_usd": 17472.36528954161,
         "deposit_count": 3
       }
     ],
     "provenance": "self_reported",
-    "last_verified": 1786742523805,
+    "last_verified": 1786744155521,
     "evidence_url": "https://api.rampnetwork.com/api/host-api/v3/assets",
     "notes": "Approximated rates: Ramp reference price × (1 + hand-maintained payment-method fee in bps). NOT user-quoted; real prices require /onramp/quote/all with a partner hostApiKey."
   },
