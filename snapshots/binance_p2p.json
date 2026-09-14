@@ -4,78 +4,78 @@
       "kind": "p2p_offerbook",
       "top_pairs": [
         {
-          "pair": "USDT/USD",
-          "sum_offers_usd": 7751878.429999996,
-          "n_makers": 998
+          "pair": "USDT/CNY",
+          "sum_offers_usd": 6791886.149999999,
+          "n_makers": 75
         },
         {
-          "pair": "USDT/CNY",
-          "sum_offers_usd": 6667919.620000002,
-          "n_makers": 74
+          "pair": "USDT/USD",
+          "sum_offers_usd": 6312333.999999997,
+          "n_makers": 883
         },
         {
           "pair": "USDT/SAR",
-          "sum_offers_usd": 3412668.7500000005,
-          "n_makers": 76
-        },
-        {
-          "pair": "USDT/HKD",
-          "sum_offers_usd": 2279387.2199999997,
-          "n_makers": 42
-        },
-        {
-          "pair": "USDT/KWD",
-          "sum_offers_usd": 2211857.45,
-          "n_makers": 64
+          "sum_offers_usd": 3322596.0900000017,
+          "n_makers": 72
         },
         {
           "pair": "USDT/AED",
-          "sum_offers_usd": 1952440.7800000005,
-          "n_makers": 77
+          "sum_offers_usd": 2968132.1600000006,
+          "n_makers": 69
         },
         {
-          "pair": "USDT/GEL",
-          "sum_offers_usd": 1480123.63,
-          "n_makers": 63
+          "pair": "USDT/HKD",
+          "sum_offers_usd": 2279791.1799999992,
+          "n_makers": 43
+        },
+        {
+          "pair": "USDT/KWD",
+          "sum_offers_usd": 1798624.1999999997,
+          "n_makers": 52
         },
         {
           "pair": "USDT/VND",
-          "sum_offers_usd": 1395456.0399999998,
+          "sum_offers_usd": 1670052.6399999997,
           "n_makers": 51
         },
         {
+          "pair": "USDT/OMR",
+          "sum_offers_usd": 1030272.9199999999,
+          "n_makers": 75
+        },
+        {
           "pair": "USDT/EUR",
-          "sum_offers_usd": 1324741.11,
-          "n_makers": 207
+          "sum_offers_usd": 978992.6100000003,
+          "n_makers": 155
         },
         {
           "pair": "USDT/IDR",
-          "sum_offers_usd": 1182982.1599999997,
+          "sum_offers_usd": 956400.07,
           "n_makers": 64
         }
       ],
-      "total_observed_usd": 51725929.34061012,
+      "total_observed_usd": 48360116.69069001,
       "depth_bands_usd": {
-        "pct_0_5": 14034287.047268031,
-        "pct_2": 24124443.513625305,
-        "pct_5": 32177339.0777106
+        "pct_0_5": 12520449.878704386,
+        "pct_2": 21229288.888508137,
+        "pct_5": 29796822.41182845
       },
       "assets_counted": [
         "USDT",
         "USDC"
       ],
-      "markets_observed": 92,
+      "markets_observed": 91,
       "max_single_trade_usd": 272479.5640326975
     },
     "provenance": "api",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-    "notes": "Escrowed USDT across 92 fiat markets. Headline = depth priced within ±5% of the FX mid ($32.18M); the full observed book is $51.73M but includes ads priced 30%+ from mid that can never fill. USD/EUR are probed to full book depth; other markets up to 100 ads (5-page adaptive)."
+    "notes": "Escrowed USDT across 91 fiat markets. Headline = depth priced within ±5% of the FX mid ($29.80M); the full observed book is $48.36M but includes ads priced 30%+ from mid that can never fill. USD/EUR are probed to full book depth; other markets up to 100 ads (5-page adaptive)."
   },
   "volume_30d_usd": {
     "value": null,
     "provenance": "unavailable",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "notes": "Binance does not separately disclose P2P volume"
   },
   "observed_spread_bps": {
@@ -84,7 +84,7 @@
     "spread_aggregation": "effective_at_size",
     "sample_size": 1,
     "period": "usd_usdt_$1k_single_match",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
   },
   "cost_1k": {
@@ -113,27 +113,50 @@
           "withdrawal_fee_source": "https://www.binance.com/en/fee/cryptoFee"
         }
       },
-      "offramp": null
+      "offramp": {
+        "direction": "sell",
+        "notional_usd": 1000,
+        "payment_method_fee_usd": 0,
+        "venue_fee_usd": 0.07,
+        "maker_spread_usd": -100.0000000000001,
+        "withdrawal_fee_usd": 0,
+        "total_usd": -99.9300000000001,
+        "total_bps": -999.300000000001,
+        "assumptions": {
+          "market": "USD/USDT",
+          "asset_selection": "cheapest qualifying fill across USDT and USDC; USDT won this cycle",
+          "match_rule": "median of the top-5 best-paying qualifying ads (outlier-resistant: best SELL prices are often reversible-payment risk premiums)",
+          "matched_price": 1.1,
+          "fx_mid": 1,
+          "payment_methods": "Banesco, PagoMovil, BACCredomatic, BCRBank",
+          "payment_method_fee": "assumed 0 — on P2P the fiat moves bank-to-bank between taker and maker and the venue never touches it. Card/e-wallet rails can carry a third-party fee we cannot observe per-ad.",
+          "venue_fee": "flat taker fee per trade order on USDT pairs, 0.06–0.08 USDT depending on market (midpoint assumed) since 2025-09-22 — we assume 0.07 USDT. The per-fiat MAKER fee is not itemized: it is embedded in the quoted price and therefore already inside the maker spread.",
+          "venue_fee_source": "https://www.binance.com/en/support/announcement/detail/70c92ace9acb45529cd4541195248c91",
+          "maker_spread": "matched ad price vs the FX mid — the maker sets the price, the venue does not quote it. Negative means the book prices under mid, paying the taker.",
+          "withdrawal_fee": "0 — the venue charges nothing to receive a deposit. Chain gas to send USDT in is paid to the network, not the venue, and varies by chain.",
+          "withdrawal_fee_source": null
+        }
+      }
     },
     "provenance": "api",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
     "notes": "Spread legs are live $1k single-match quotes vs the CoinGecko FX mid; the optional exit-to-chain line uses Binance’s published withdrawal schedule (hand-checked)."
   },
   "fee_snapshot": {
-    "ts": 1789412469216,
+    "ts": 1789425465308,
     "sample_rows": [
-      {
-        "fiat": "USD",
-        "asset": "USDT",
-        "payment_method": "WingMoney",
-        "effective_rate_bps": -20
-      },
       {
         "fiat": "CNY",
         "asset": "USDT",
         "payment_method": "BANK",
         "effective_rate_bps": -104
+      },
+      {
+        "fiat": "USD",
+        "asset": "USDT",
+        "payment_method": "ABA",
+        "effective_rate_bps": -30
       },
       {
         "fiat": "SAR",
@@ -142,16 +165,16 @@
         "effective_rate_bps": 107
       },
       {
+        "fiat": "AED",
+        "asset": "USDT",
+        "payment_method": "BANK",
+        "effective_rate_bps": 3
+      },
+      {
         "fiat": "HKD",
         "asset": "USDT",
         "payment_method": "FPS",
         "effective_rate_bps": 38
-      },
-      {
-        "fiat": "KWD",
-        "asset": "USDT",
-        "payment_method": "Boubyan",
-        "effective_rate_bps": -22
       }
     ],
     "provenance": "api"
@@ -379,6 +402,7 @@
         "BBVABank",
         "BBVAPeru",
         "BBVAUruguay",
+        "BCAB",
         "BCAMobile",
         "BCEL",
         "BCG",
@@ -570,7 +594,6 @@
         "ChinaBank",
         "Chippercash",
         "CitiBanamex",
-        "CitiHandlowy",
         "CoOperativeBankKenya",
         "Coinplus",
         "Coinsph",
@@ -702,7 +725,6 @@
         "KashGuatemala",
         "KaspiBank",
         "Kazpost",
-        "KeremetBank",
         "Khalti",
         "KhanBank",
         "KomoBank",
@@ -774,6 +796,7 @@
         "NaranjaX",
         "NassPay",
         "Natcash",
+        "NationalBankAbuDhabi",
         "NationalBankOman",
         "NayaPay",
         "Nedbank",
@@ -1059,7 +1082,6 @@
         "nmb",
         "p2plusAUDBank",
         "p2plusAUDPayID",
-        "p2plusBitknz",
         "p2plusBkashBDT",
         "p2plusIndiaUPI",
         "p2plusNagadBDT",
@@ -1071,7 +1093,6 @@
         "springdevelopment",
         "stcpay",
         "superbank",
-        "tamkeenwallet",
         "telda",
         "thwanicash",
         "uabpay",
@@ -1094,8 +1115,6 @@
           "CIB",
           "CashDeposit",
           "EmiratesNBD",
-          "EtisalatCash",
-          "FastPay",
           "MoneyGram",
           "PerfectMoney",
           "Pyypl",
@@ -1209,6 +1228,7 @@
         "BIF": [
           "BANCOBUEnoti",
           "BANK",
+          "BCAB",
           "ECOCASHBIF",
           "Ecobank",
           "IHELACreditUnion",
@@ -1243,7 +1263,6 @@
           "StanbicBank"
         ],
         "BYN": [
-          "AlifBank",
           "BANK",
           "BSBbank",
           "BTAbank",
@@ -1399,6 +1418,7 @@
           "InstaPay",
           "NBE",
           "NBK",
+          "NationalBankAbuDhabi",
           "OrangeCash",
           "QatarNationalBank",
           "SpecificBank",
@@ -1482,7 +1502,6 @@
           "SWIFT",
           "SantanderPoland",
           "SkrillMoneybookers",
-          "SpecificBank",
           "TBCbank",
           "UniCreditEU",
           "UniCreditRussia",
@@ -1627,16 +1646,13 @@
         "HUF": [
           "AliorBank",
           "BANK",
-          "Blik",
           "CIB",
-          "CitiHandlowy",
           "CreditAgricole",
           "ING",
           "MKBBank",
           "RaiffeisenBank",
           "Wise",
-          "ZEN",
-          "mBank"
+          "ZEN"
         ],
         "IDR": [
           "AladinBank",
@@ -1764,7 +1780,6 @@
           "HalykBank",
           "KICB",
           "KKB",
-          "KeremetBank",
           "KompanionBank",
           "Mobiletopup",
           "OMoney",
@@ -1776,6 +1791,7 @@
         "KHR": [
           "ABA",
           "ACLEDA",
+          "Bakong",
           "BankTransferCambodia",
           "KHQR",
           "TrueMoneyCambodia",
@@ -2111,7 +2127,6 @@
           "BankPekao",
           "BankPocztowy",
           "Blik",
-          "CitiHandlowy",
           "CreditAgricole",
           "GetinNobleBank",
           "ING",
@@ -2156,7 +2171,6 @@
           "QIIB",
           "QNB",
           "QatarNationalBank",
-          "Raast",
           "SkrillMoneybookers",
           "SpecificBank"
         ],
@@ -2170,7 +2184,6 @@
           "CEC",
           "CreditAgricole",
           "ING",
-          "PKObank",
           "RaiffeisenBank",
           "SaltBank",
           "SkrillMoneybookers",
@@ -2181,7 +2194,6 @@
         "RSD": [
           "Addikobank",
           "AikBank",
-          "AliorBank",
           "BANK",
           "BancaIntesa",
           "CashDeposit",
@@ -2219,7 +2231,6 @@
           "GPay",
           "LivKSA",
           "MPay",
-          "MoneyGram",
           "Payme",
           "PerfectMoney",
           "Pyypl",
@@ -2230,7 +2241,6 @@
           "SpecificBank",
           "UnitedBankLimited",
           "WECHAT",
-          "WesternUnion",
           "alinmapay",
           "barq",
           "mobilypay",
@@ -2265,8 +2275,7 @@
           "BANK",
           "ShamCash",
           "SpecificBank",
-          "WesternUnion",
-          "p2plusBitknz"
+          "WesternUnion"
         ],
         "TJS": [
           "AlifBank",
@@ -2505,7 +2514,6 @@
           "GlobalBankPanama",
           "GrabrFi",
           "HSBCuruguay",
-          "Hashbank",
           "IMPS",
           "ISBANK",
           "Interbank",
@@ -2555,6 +2563,7 @@
           "SWIFT",
           "SadaPay",
           "SantanderArgentina",
+          "SantanderPoland",
           "SantanderUrug",
           "ScotiabankCostaRica",
           "ScotiabankPanama",
@@ -2694,7 +2703,6 @@
           "floosak",
           "mahfathati",
           "shillingewallet",
-          "tamkeenwallet",
           "thwanicash"
         ],
         "ZAR": [
@@ -2720,23 +2728,11 @@
       }
     },
     "provenance": "api",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://www.binance.com/bapi/c2c/v1/public/c2c/agent/trade-methods"
   },
   "markets": {
     "value": [
-      {
-        "currency": "USD",
-        "asset": "USDT",
-        "platform": "binance_p2p",
-        "direction": "buy",
-        "best_rate": 0.998,
-        "fx_mid_rate": 1,
-        "spread_bps": -20.000000000000018,
-        "total_liquidity_usd": 7751878.429999996,
-        "deposit_count": 1436,
-        "n_makers": 998
-      },
       {
         "currency": "CNY",
         "asset": "USDT",
@@ -2745,9 +2741,21 @@
         "best_rate": 6.64,
         "fx_mid_rate": 6.71,
         "spread_bps": -104.32190760059655,
-        "total_liquidity_usd": 6667919.620000002,
-        "deposit_count": 671,
-        "n_makers": 74
+        "total_liquidity_usd": 6791886.149999999,
+        "deposit_count": 744,
+        "n_makers": 75
+      },
+      {
+        "currency": "USD",
+        "asset": "USDT",
+        "platform": "binance_p2p",
+        "direction": "buy",
+        "best_rate": 0.997,
+        "fx_mid_rate": 1,
+        "spread_bps": -30.00000000000003,
+        "total_liquidity_usd": 6312333.999999997,
+        "deposit_count": 1253,
+        "n_makers": 883
       },
       {
         "currency": "SAR",
@@ -2757,9 +2765,21 @@
         "best_rate": 3.79,
         "fx_mid_rate": 3.75,
         "spread_bps": 106.66666666666677,
-        "total_liquidity_usd": 3412668.7500000005,
-        "deposit_count": 400,
-        "n_makers": 76
+        "total_liquidity_usd": 3322596.0900000017,
+        "deposit_count": 286,
+        "n_makers": 72
+      },
+      {
+        "currency": "AED",
+        "asset": "USDT",
+        "platform": "binance_p2p",
+        "direction": "buy",
+        "best_rate": 3.671,
+        "fx_mid_rate": 3.67,
+        "spread_bps": 2.724795640326675,
+        "total_liquidity_usd": 2968132.1600000006,
+        "deposit_count": 113,
+        "n_makers": 69
       },
       {
         "currency": "HKD",
@@ -2769,9 +2789,9 @@
         "best_rate": 7.87,
         "fx_mid_rate": 7.84,
         "spread_bps": 38.2653061224493,
-        "total_liquidity_usd": 2279387.2199999997,
-        "deposit_count": 107,
-        "n_makers": 42
+        "total_liquidity_usd": 2279791.1799999992,
+        "deposit_count": 109,
+        "n_makers": 43
       },
       {
         "currency": "KWD",
@@ -2779,35 +2799,11 @@
         "platform": "binance_p2p",
         "direction": "buy",
         "best_rate": 0.308,
-        "fx_mid_rate": 0.308694,
-        "spread_bps": -22.481810466028747,
-        "total_liquidity_usd": 2211857.45,
-        "deposit_count": 109,
-        "n_makers": 64
-      },
-      {
-        "currency": "AED",
-        "asset": "USDT",
-        "platform": "binance_p2p",
-        "direction": "buy",
-        "best_rate": 3.668,
-        "fx_mid_rate": 3.67,
-        "spread_bps": -5.44959128065335,
-        "total_liquidity_usd": 1952440.7800000005,
-        "deposit_count": 147,
-        "n_makers": 77
-      },
-      {
-        "currency": "GEL",
-        "asset": "USDT",
-        "platform": "binance_p2p",
-        "direction": "buy",
-        "best_rate": 2.61,
-        "fx_mid_rate": 2.6,
-        "spread_bps": 38.46153846153764,
-        "total_liquidity_usd": 1480123.63,
-        "deposit_count": 93,
-        "n_makers": 63
+        "fx_mid_rate": 0.30874,
+        "spread_bps": -23.968387640086103,
+        "total_liquidity_usd": 1798624.1999999997,
+        "deposit_count": 75,
+        "n_makers": 52
       },
       {
         "currency": "VND",
@@ -2815,10 +2811,10 @@
         "platform": "binance_p2p",
         "direction": "buy",
         "best_rate": 25697,
-        "fx_mid_rate": 25985,
-        "spread_bps": -110.83317298441409,
-        "total_liquidity_usd": 1395456.0399999998,
-        "deposit_count": 416,
+        "fx_mid_rate": 25983,
+        "spread_bps": -110.07197013431859,
+        "total_liquidity_usd": 1670052.6399999997,
+        "deposit_count": 400,
         "n_makers": 51
       },
       {
@@ -2826,96 +2822,72 @@
         "asset": "USDT",
         "platform": "binance_p2p",
         "direction": "buy",
-        "best_rate": 0.861,
-        "fx_mid_rate": 0.865173,
-        "spread_bps": -48.23312794088561,
-        "total_liquidity_usd": 1324741.11,
-        "deposit_count": 266,
-        "n_makers": 207
+        "best_rate": 0.871,
+        "fx_mid_rate": 0.865621,
+        "spread_bps": 62.14035934895321,
+        "total_liquidity_usd": 978992.6100000003,
+        "deposit_count": 195,
+        "n_makers": 155
       },
       {
         "currency": "IDR",
         "asset": "USDT",
         "platform": "binance_p2p",
         "direction": "buy",
-        "best_rate": 17582,
-        "fx_mid_rate": 17671.99,
-        "spread_bps": -50.92239187550559,
-        "total_liquidity_usd": 1182982.1599999997,
-        "deposit_count": 171,
+        "best_rate": 17588,
+        "fx_mid_rate": 17635.26,
+        "spread_bps": -26.798584200061924,
+        "total_liquidity_usd": 956400.07,
+        "deposit_count": 152,
         "n_makers": 64
       },
       {
-        "currency": "VND",
-        "asset": "USDT",
-        "platform": "binance_p2p",
-        "direction": "sell",
-        "best_rate": 25761,
-        "fx_mid_rate": 25985,
-        "spread_bps": 86.20357898787762,
-        "total_liquidity_usd": 152359393.47999993,
-        "deposit_count": 599,
-        "n_makers": 42
-      },
-      {
-        "currency": "VND",
+        "currency": "AED",
         "asset": "USDC",
         "platform": "binance_p2p",
-        "direction": "sell",
-        "best_rate": 25728,
-        "fx_mid_rate": 25985,
-        "spread_bps": 98.90321339234174,
-        "total_liquidity_usd": 100663432.09216538,
-        "deposit_count": 88,
-        "n_makers": 50
+        "direction": "buy",
+        "best_rate": 3.719,
+        "fx_mid_rate": 3.67,
+        "spread_bps": 133.51498637602162,
+        "total_liquidity_usd": 807477.1356576399,
+        "deposit_count": 13,
+        "n_makers": 8
       },
       {
         "currency": "HKD",
         "asset": "USDT",
         "platform": "binance_p2p",
         "direction": "sell",
-        "best_rate": 7.87,
+        "best_rate": 7.88,
         "fx_mid_rate": 7.84,
-        "spread_bps": -38.2653061224493,
-        "total_liquidity_usd": 92020717.52999999,
-        "deposit_count": 97,
-        "n_makers": 42
+        "spread_bps": -51.02040816326535,
+        "total_liquidity_usd": 88955416.95000002,
+        "deposit_count": 94,
+        "n_makers": 41
+      },
+      {
+        "currency": "VND",
+        "asset": "USDC",
+        "platform": "binance_p2p",
+        "direction": "sell",
+        "best_rate": 25689,
+        "fx_mid_rate": 25984,
+        "spread_bps": 113.53140394088669,
+        "total_liquidity_usd": 87512514.01554568,
+        "deposit_count": 77,
+        "n_makers": 46
       },
       {
         "currency": "AED",
         "asset": "USDC",
         "platform": "binance_p2p",
         "direction": "sell",
-        "best_rate": 3.66,
+        "best_rate": 3.655,
         "fx_mid_rate": 3.67,
-        "spread_bps": 27.24795640326917,
-        "total_liquidity_usd": 79992738.71112457,
-        "deposit_count": 117,
-        "n_makers": 62
-      },
-      {
-        "currency": "PHP",
-        "asset": "USDT",
-        "platform": "binance_p2p",
-        "direction": "sell",
-        "best_rate": 62.9,
-        "fx_mid_rate": 62.82,
-        "spread_bps": -12.734797835084096,
-        "total_liquidity_usd": 72069354.77,
-        "deposit_count": 159,
-        "n_makers": 56
-      },
-      {
-        "currency": "PHP",
-        "asset": "USDC",
-        "platform": "binance_p2p",
-        "direction": "sell",
-        "best_rate": 62.64,
-        "fx_mid_rate": 62.82,
-        "spread_bps": 28.653295128939785,
-        "total_liquidity_usd": 64846228.32785665,
-        "deposit_count": 68,
-        "n_makers": 26
+        "spread_bps": 40.87193460490498,
+        "total_liquidity_usd": 83168690.63821429,
+        "deposit_count": 93,
+        "n_makers": 54
       },
       {
         "currency": "KWD",
@@ -2923,11 +2895,23 @@
         "platform": "binance_p2p",
         "direction": "sell",
         "best_rate": 0.407,
-        "fx_mid_rate": 0.308694,
-        "spread_bps": -3184.577607598461,
-        "total_liquidity_usd": 59000350.70000001,
-        "deposit_count": 216,
-        "n_makers": 85
+        "fx_mid_rate": 0.30874,
+        "spread_bps": -3182.613202047028,
+        "total_liquidity_usd": 63417226.56000001,
+        "deposit_count": 194,
+        "n_makers": 81
+      },
+      {
+        "currency": "PHP",
+        "asset": "USDC",
+        "platform": "binance_p2p",
+        "direction": "sell",
+        "best_rate": 62.68,
+        "fx_mid_rate": 62.82,
+        "spread_bps": 22.285896211397734,
+        "total_liquidity_usd": 61287147.01793722,
+        "deposit_count": 64,
+        "n_makers": 26
       },
       {
         "currency": "CNY",
@@ -2937,21 +2921,21 @@
         "best_rate": 6.64,
         "fx_mid_rate": 6.71,
         "spread_bps": 104.32190760059655,
-        "total_liquidity_usd": 57262290.34532208,
-        "deposit_count": 155,
-        "n_makers": 65
+        "total_liquidity_usd": 55046620.21171698,
+        "deposit_count": 177,
+        "n_makers": 64
       },
       {
-        "currency": "TRY",
-        "asset": "USDC",
+        "currency": "PHP",
+        "asset": "USDT",
         "platform": "binance_p2p",
         "direction": "sell",
-        "best_rate": 49.03,
-        "fx_mid_rate": 48.62,
-        "spread_bps": -84.3274372686145,
-        "total_liquidity_usd": 56974008.565658,
-        "deposit_count": 66,
-        "n_makers": 48
+        "best_rate": 62.78,
+        "fx_mid_rate": 62.82,
+        "spread_bps": 6.367398917542048,
+        "total_liquidity_usd": 51792183.33999999,
+        "deposit_count": 176,
+        "n_makers": 56
       },
       {
         "currency": "SAR",
@@ -2961,13 +2945,37 @@
         "best_rate": 3.77,
         "fx_mid_rate": 3.75,
         "spread_bps": -53.333333333333385,
-        "total_liquidity_usd": 54639047.33582601,
-        "deposit_count": 76,
-        "n_makers": 51
+        "total_liquidity_usd": 43428141.87830082,
+        "deposit_count": 61,
+        "n_makers": 41
+      },
+      {
+        "currency": "AED",
+        "asset": "USDT",
+        "platform": "binance_p2p",
+        "direction": "sell",
+        "best_rate": 3.665,
+        "fx_mid_rate": 3.67,
+        "spread_bps": 13.623978201634586,
+        "total_liquidity_usd": 37274783.77999998,
+        "deposit_count": 261,
+        "n_makers": 91
+      },
+      {
+        "currency": "ARS",
+        "asset": "USDC",
+        "platform": "binance_p2p",
+        "direction": "sell",
+        "best_rate": 1589.3,
+        "fx_mid_rate": 1507.73,
+        "spread_bps": -541.0119849044586,
+        "total_liquidity_usd": 36208697.49066572,
+        "deposit_count": 148,
+        "n_makers": 54
       }
     ],
     "provenance": "api",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
     "notes": "Top 10 deepest markets (by USDT depth in top-20 ad slice), filtered to those with FX mids available."
   },
@@ -2975,921 +2983,911 @@
     "value": {
       "currencies": [
         {
-          "key": "VND",
-          "label": "VND",
-          "liquidity_usd": 254756480.56912425,
-          "share_pct": 11.081349969339142,
-          "buy_liquidity_usd": 1733654.99695893,
-          "sell_liquidity_usd": 253022825.5721653,
-          "ad_count": 451,
-          "n_makers": 64
+          "key": "AED",
+          "label": "AED",
+          "liquidity_usd": 124219083.7138719,
+          "share_pct": 6.269328766046077,
+          "buy_liquidity_usd": 3775609.2956576403,
+          "sell_liquidity_usd": 120443474.41821426,
+          "ad_count": 126,
+          "n_makers": 69
         },
         {
           "key": "PHP",
           "label": "PHP",
-          "liquidity_usd": 137523153.8648449,
-          "share_pct": 5.981956547127455,
-          "buy_liquidity_usd": 607570.76698826,
-          "sell_liquidity_usd": 136915583.09785664,
-          "ad_count": 126,
-          "n_makers": 52
+          "liquidity_usd": 113652636.08580653,
+          "share_pct": 5.736040867850513,
+          "buy_liquidity_usd": 573305.7278693101,
+          "sell_liquidity_usd": 113079330.35793722,
+          "ad_count": 134,
+          "n_makers": 56
         },
         {
           "key": "HKD",
           "label": "HKD",
-          "liquidity_usd": 120663591.16002223,
-          "share_pct": 5.248602426970086,
-          "buy_liquidity_usd": 2298278.87104479,
-          "sell_liquidity_usd": 118365312.28897744,
-          "ad_count": 113,
-          "n_makers": 43
+          "liquidity_usd": 113604777.17831862,
+          "share_pct": 5.733625432021695,
+          "buy_liquidity_usd": 2298682.8310447894,
+          "sell_liquidity_usd": 111306094.34727383,
+          "ad_count": 115,
+          "n_makers": 44
         },
         {
-          "key": "AED",
-          "label": "AED",
-          "liquidity_usd": 112017655.51496638,
-          "share_pct": 4.87252312770668,
-          "buy_liquidity_usd": 2774019.0738418302,
-          "sell_liquidity_usd": 109243636.44112456,
-          "ad_count": 165,
-          "n_makers": 80
-        },
-        {
-          "key": "TRY",
-          "label": "TRY",
-          "liquidity_usd": 81972016.27231617,
-          "share_pct": 3.5656035048711106,
-          "buy_liquidity_usd": 211082.30665817,
-          "sell_liquidity_usd": 81760933.96565801,
-          "ad_count": 193,
-          "n_makers": 111
-        },
-        {
-          "key": "KZT",
-          "label": "KZT",
-          "liquidity_usd": 80410566.05064124,
-          "share_pct": 3.4976838337898197,
-          "buy_liquidity_usd": 272337.57205665996,
-          "sell_liquidity_usd": 80138228.47858457,
-          "ad_count": 117,
-          "n_makers": 88
-        },
-        {
-          "key": "CNY",
-          "label": "CNY",
-          "liquidity_usd": 79253209.71204598,
-          "share_pct": 3.4473413632133862,
-          "buy_liquidity_usd": 6729622.826723902,
-          "sell_liquidity_usd": 72523586.88532208,
-          "ad_count": 694,
-          "n_makers": 87
+          "key": "VND",
+          "label": "VND",
+          "liquidity_usd": 89472894.38278729,
+          "share_pct": 4.515690937050195,
+          "buy_liquidity_usd": 1960380.3672415998,
+          "sell_liquidity_usd": 87512514.01554568,
+          "ad_count": 429,
+          "n_makers": 63
         },
         {
           "key": "KWD",
           "label": "KWD",
-          "liquidity_usd": 72472796.30319877,
-          "share_pct": 3.1524082029170035,
-          "buy_liquidity_usd": 2211857.45,
-          "sell_liquidity_usd": 70260938.85319877,
-          "ad_count": 109,
-          "n_makers": 64
+          "liquidity_usd": 76281438.91319877,
+          "share_pct": 3.849919070369845,
+          "buy_liquidity_usd": 1798624.1999999997,
+          "sell_liquidity_usd": 74482814.71319877,
+          "ad_count": 75,
+          "n_makers": 52
+        },
+        {
+          "key": "CNY",
+          "label": "CNY",
+          "liquidity_usd": 62081465.1525691,
+          "share_pct": 3.133247353649772,
+          "buy_liquidity_usd": 7034844.94085212,
+          "sell_liquidity_usd": 55046620.21171698,
+          "ad_count": 773,
+          "n_makers": 93
         },
         {
           "key": "SAR",
           "label": "SAR",
-          "liquidity_usd": 65712553.66870714,
-          "share_pct": 2.858352427208787,
-          "buy_liquidity_usd": 3514000.1728811306,
-          "sell_liquidity_usd": 62198553.495826006,
-          "ad_count": 414,
-          "n_makers": 84
-        },
-        {
-          "key": "IDR",
-          "label": "IDR",
-          "liquidity_usd": 62849970.61214887,
-          "share_pct": 2.733836322279258,
-          "buy_liquidity_usd": 1477171.2056209797,
-          "sell_liquidity_usd": 61372799.40652789,
-          "ad_count": 190,
-          "n_makers": 70
-        },
-        {
-          "key": "KGS",
-          "label": "KGS",
-          "liquidity_usd": 59286139.76859164,
-          "share_pct": 2.578817471646851,
-          "buy_liquidity_usd": 299188.16298585,
-          "sell_liquidity_usd": 58986951.605605796,
-          "ad_count": 65,
-          "n_makers": 56
-        },
-        {
-          "key": "TJS",
-          "label": "TJS",
-          "liquidity_usd": 58030937.57826636,
-          "share_pct": 2.524218920425692,
-          "buy_liquidity_usd": 225970.63666539005,
-          "sell_liquidity_usd": 57804966.94160097,
-          "ad_count": 47,
-          "n_makers": 35
-        },
-        {
-          "key": "BHD",
-          "label": "BHD",
-          "liquidity_usd": 56960816.24626229,
-          "share_pct": 2.4776709819273233,
-          "buy_liquidity_usd": 464143.24000000005,
-          "sell_liquidity_usd": 56496673.00626229,
-          "ad_count": 22,
-          "n_makers": 20
-        },
-        {
-          "key": "CHF",
-          "label": "CHF",
-          "liquidity_usd": 52143590.113048166,
-          "share_pct": 2.2681321763026796,
-          "buy_liquidity_usd": 170186.98933009995,
-          "sell_liquidity_usd": 51973403.12371807,
-          "ad_count": 25,
-          "n_makers": 17
-        },
-        {
-          "key": "XAF",
-          "label": "XAF",
-          "liquidity_usd": 45258781.005379714,
-          "share_pct": 1.9686580313320405,
-          "buy_liquidity_usd": 282534.42666448,
-          "sell_liquidity_usd": 44976246.578715235,
-          "ad_count": 94,
-          "n_makers": 71
-        },
-        {
-          "key": "COP",
-          "label": "COP",
-          "liquidity_usd": 42708883.31474459,
-          "share_pct": 1.8577430562436228,
-          "buy_liquidity_usd": 445521.24194323,
-          "sell_liquidity_usd": 42263362.07280136,
-          "ad_count": 343,
-          "n_makers": 108
-        },
-        {
-          "key": "PLN",
-          "label": "PLN",
-          "liquidity_usd": 39085452.25800547,
-          "share_pct": 1.7001317266327012,
-          "buy_liquidity_usd": 72105.25122421,
-          "sell_liquidity_usd": 39013347.00678126,
-          "ad_count": 59,
-          "n_makers": 40
-        },
-        {
-          "key": "EUR",
-          "label": "EUR",
-          "liquidity_usd": 38263174.40979306,
-          "share_pct": 1.664364437856687,
-          "buy_liquidity_usd": 1556433.11693957,
-          "sell_liquidity_usd": 36706741.29285349,
-          "ad_count": 324,
-          "n_makers": 210
-        },
-        {
-          "key": "MWK",
-          "label": "MWK",
-          "liquidity_usd": 37497177.470000006,
-          "share_pct": 1.6310452455585096,
-          "buy_liquidity_usd": 0,
-          "sell_liquidity_usd": 37497177.470000006,
-          "ad_count": 0,
-          "n_makers": 0
-        },
-        {
-          "key": "JOD",
-          "label": "JOD",
-          "liquidity_usd": 36630795.321174,
-          "share_pct": 1.593359516124341,
-          "buy_liquidity_usd": 604374.44516733,
-          "sell_liquidity_usd": 36026420.87600667,
-          "ad_count": 203,
-          "n_makers": 103
-        },
-        {
-          "key": "XOF",
-          "label": "XOF",
-          "liquidity_usd": 36291336.94832828,
-          "share_pct": 1.578593819011858,
-          "buy_liquidity_usd": 86362.06896410002,
-          "sell_liquidity_usd": 36204974.87936418,
-          "ad_count": 274,
-          "n_makers": 80
-        },
-        {
-          "key": "MXN",
-          "label": "MXN",
-          "liquidity_usd": 29590956.651017677,
-          "share_pct": 1.2871419241030766,
-          "buy_liquidity_usd": 1020528.6876616697,
-          "sell_liquidity_usd": 28570427.963356007,
-          "ad_count": 230,
+          "liquidity_usd": 57413498.88342959,
+          "share_pct": 2.8976554112920367,
+          "buy_liquidity_usd": 3381128.125128762,
+          "sell_liquidity_usd": 54032370.758300826,
+          "ad_count": 295,
           "n_makers": 74
-        },
-        {
-          "key": "RON",
-          "label": "RON",
-          "liquidity_usd": 27939069.01541331,
-          "share_pct": 1.215288423225444,
-          "buy_liquidity_usd": 87978.82867754,
-          "sell_liquidity_usd": 27851090.18673577,
-          "ad_count": 21,
-          "n_makers": 16
-        },
-        {
-          "key": "ARS",
-          "label": "ARS",
-          "liquidity_usd": 27114895.334463816,
-          "share_pct": 1.1794386698699382,
-          "buy_liquidity_usd": 387958.9978062,
-          "sell_liquidity_usd": 26726936.336657617,
-          "ad_count": 345,
-          "n_makers": 114
-        },
-        {
-          "key": "AMD",
-          "label": "AMD",
-          "liquidity_usd": 26270889.74492995,
-          "share_pct": 1.1427262718465032,
-          "buy_liquidity_usd": 206451.01550750996,
-          "sell_liquidity_usd": 26064438.72942244,
-          "ad_count": 76,
-          "n_makers": 55
-        },
-        {
-          "key": "AZN",
-          "label": "AZN",
-          "liquidity_usd": 26235282.571626756,
-          "share_pct": 1.1411774376503714,
-          "buy_liquidity_usd": 328121.70561455,
-          "sell_liquidity_usd": 25907160.86601221,
-          "ad_count": 122,
-          "n_makers": 90
-        },
-        {
-          "key": "OMR",
-          "label": "OMR",
-          "liquidity_usd": 26127574.43603782,
-          "share_pct": 1.1364923692181979,
-          "buy_liquidity_usd": 1127070.1199999999,
-          "sell_liquidity_usd": 25000504.31603782,
-          "ad_count": 95,
-          "n_makers": 85
-        },
-        {
-          "key": "BOB",
-          "label": "BOB",
-          "liquidity_usd": 24131167.499424923,
-          "share_pct": 1.049653031916939,
-          "buy_liquidity_usd": 923976.9456350902,
-          "sell_liquidity_usd": 23207190.55378983,
-          "ad_count": 165,
-          "n_makers": 67
-        },
-        {
-          "key": "YER",
-          "label": "YER",
-          "liquidity_usd": 23205422.493883446,
-          "share_pct": 1.0093851479916491,
-          "buy_liquidity_usd": 147499.43538107,
-          "sell_liquidity_usd": 23057923.058502376,
-          "ad_count": 88,
-          "n_makers": 68
-        },
-        {
-          "key": "PEN",
-          "label": "PEN",
-          "liquidity_usd": 22238905.384607032,
-          "share_pct": 0.9673437666877498,
-          "buy_liquidity_usd": 1086503.2219881304,
-          "sell_liquidity_usd": 21152402.1626189,
-          "ad_count": 211,
-          "n_makers": 97
-        },
-        {
-          "key": "IQD",
-          "label": "IQD",
-          "liquidity_usd": 21988879.35077403,
-          "share_pct": 0.9564681808099745,
-          "buy_liquidity_usd": 306687.26195355994,
-          "sell_liquidity_usd": 21682192.088820472,
-          "ad_count": 114,
-          "n_makers": 85
-        },
-        {
-          "key": "QAR",
-          "label": "QAR",
-          "liquidity_usd": 21466824.243931208,
-          "share_pct": 0.9337599249521364,
-          "buy_liquidity_usd": 360679.32217569003,
-          "sell_liquidity_usd": 21106144.92175552,
-          "ad_count": 74,
-          "n_makers": 67
-        },
-        {
-          "key": "CZK",
-          "label": "CZK",
-          "liquidity_usd": 20656833.841272634,
-          "share_pct": 0.8985271131955375,
-          "buy_liquidity_usd": 28992.833093579997,
-          "sell_liquidity_usd": 20627841.008179054,
-          "ad_count": 15,
-          "n_makers": 12
-        },
-        {
-          "key": "MAD",
-          "label": "MAD",
-          "liquidity_usd": 20140227.010638587,
-          "share_pct": 0.876055845442042,
-          "buy_liquidity_usd": 193941.85842455993,
-          "sell_liquidity_usd": 19946285.152214028,
-          "ad_count": 340,
-          "n_makers": 115
-        },
-        {
-          "key": "UAH",
-          "label": "UAH",
-          "liquidity_usd": 19959516.022888098,
-          "share_pct": 0.8681953125358935,
-          "buy_liquidity_usd": 249556.8406068,
-          "sell_liquidity_usd": 19709959.182281297,
-          "ad_count": 551,
-          "n_makers": 140
-        },
-        {
-          "key": "KHR",
-          "label": "KHR",
-          "liquidity_usd": 19931229.259999998,
-          "share_pct": 0.8669649001893166,
-          "buy_liquidity_usd": 81651.04,
-          "sell_liquidity_usd": 19849578.22,
-          "ad_count": 9,
-          "n_makers": 3
-        },
-        {
-          "key": "LBP",
-          "label": "LBP",
-          "liquidity_usd": 18482351.8479759,
-          "share_pct": 0.8039419002269936,
-          "buy_liquidity_usd": 94595.01466258998,
-          "sell_liquidity_usd": 18387756.83331331,
-          "ad_count": 49,
-          "n_makers": 21
-        },
-        {
-          "key": "CLP",
-          "label": "CLP",
-          "liquidity_usd": 17359136.01528915,
-          "share_pct": 0.7550844670213749,
-          "buy_liquidity_usd": 636035.7101217698,
-          "sell_liquidity_usd": 16723100.305167379,
-          "ad_count": 142,
-          "n_makers": 75
-        },
-        {
-          "key": "GNF",
-          "label": "GNF",
-          "liquidity_usd": 16645899.12,
-          "share_pct": 0.7240602213178413,
-          "buy_liquidity_usd": 141886.8,
-          "sell_liquidity_usd": 16504012.319999998,
-          "ad_count": 30,
-          "n_makers": 27
-        },
-        {
-          "key": "ZAR",
-          "label": "ZAR",
-          "liquidity_usd": 16563581.278244939,
-          "share_pct": 0.7204795751604965,
-          "buy_liquidity_usd": 339934.91000000015,
-          "sell_liquidity_usd": 16223646.368244939,
-          "ad_count": 49,
-          "n_makers": 36
-        },
-        {
-          "key": "VES",
-          "label": "VES",
-          "liquidity_usd": 15907702.377245974,
-          "share_pct": 0.691950276815511,
-          "buy_liquidity_usd": 545195.3354092999,
-          "sell_liquidity_usd": 15362507.041836673,
-          "ad_count": 1404,
-          "n_makers": 133
-        },
-        {
-          "key": "AUD",
-          "label": "AUD",
-          "liquidity_usd": 15849628.336928967,
-          "share_pct": 0.689424183020179,
-          "buy_liquidity_usd": 25780.57,
-          "sell_liquidity_usd": 15823847.766928967,
-          "ad_count": 10,
-          "n_makers": 7
-        },
-        {
-          "key": "INR",
-          "label": "INR",
-          "liquidity_usd": 14917944.513616232,
-          "share_pct": 0.6488979735049749,
-          "buy_liquidity_usd": 418898.08695430984,
-          "sell_liquidity_usd": 14499046.426661922,
-          "ad_count": 495,
-          "n_makers": 112
-        },
-        {
-          "key": "RSD",
-          "label": "RSD",
-          "liquidity_usd": 14905222.72790334,
-          "share_pct": 0.6483446036381729,
-          "buy_liquidity_usd": 188007.53948656,
-          "sell_liquidity_usd": 14717215.18841678,
-          "ad_count": 54,
-          "n_makers": 39
-        },
-        {
-          "key": "LKR",
-          "label": "LKR",
-          "liquidity_usd": 13447493.326109031,
-          "share_pct": 0.5849365614726073,
-          "buy_liquidity_usd": 109240.33000000002,
-          "sell_liquidity_usd": 13338252.996109031,
-          "ad_count": 50,
-          "n_makers": 37
-        },
-        {
-          "key": "MDL",
-          "label": "MDL",
-          "liquidity_usd": 12285347.163409619,
-          "share_pct": 0.5343857440189078,
-          "buy_liquidity_usd": 42871.32584068,
-          "sell_liquidity_usd": 12242475.837568939,
-          "ad_count": 40,
-          "n_makers": 26
-        },
-        {
-          "key": "TND",
-          "label": "TND",
-          "liquidity_usd": 11696706.05131246,
-          "share_pct": 0.5087811424993806,
-          "buy_liquidity_usd": 55928.75999999998,
-          "sell_liquidity_usd": 11640777.29131246,
-          "ad_count": 91,
-          "n_makers": 88
-        },
-        {
-          "key": "EGP",
-          "label": "EGP",
-          "liquidity_usd": 11461691.98947438,
-          "share_pct": 0.498558544584989,
-          "buy_liquidity_usd": 451051.4815732299,
-          "sell_liquidity_usd": 11010640.50790115,
-          "ad_count": 186,
-          "n_makers": 104
-        },
-        {
-          "key": "TZS",
-          "label": "TZS",
-          "liquidity_usd": 11418474.828237081,
-          "share_pct": 0.4966786925502851,
-          "buy_liquidity_usd": 269401.47279142006,
-          "sell_liquidity_usd": 11149073.35544566,
-          "ad_count": 57,
-          "n_makers": 39
-        },
-        {
-          "key": "UGX",
-          "label": "UGX",
-          "liquidity_usd": 11181729.986332292,
-          "share_pct": 0.48638080948673335,
-          "buy_liquidity_usd": 179360.15,
-          "sell_liquidity_usd": 11002369.836332291,
-          "ad_count": 121,
-          "n_makers": 79
-        },
-        {
-          "key": "HUF",
-          "label": "HUF",
-          "liquidity_usd": 10355987.46860563,
-          "share_pct": 0.45046281516113046,
-          "buy_liquidity_usd": 9998,
-          "sell_liquidity_usd": 10345989.46860563,
-          "ad_count": 2,
-          "n_makers": 1
-        },
-        {
-          "key": "KES",
-          "label": "KES",
-          "liquidity_usd": 9932202.985100081,
-          "share_pct": 0.43202911658431875,
-          "buy_liquidity_usd": 379984.43751222,
-          "sell_liquidity_usd": 9552218.54758786,
-          "ad_count": 143,
-          "n_makers": 88
-        },
-        {
-          "key": "CAD",
-          "label": "CAD",
-          "liquidity_usd": 9691716.567063471,
-          "share_pct": 0.4215684831386727,
-          "buy_liquidity_usd": 145977.25706347,
-          "sell_liquidity_usd": 9545739.31,
-          "ad_count": 35,
-          "n_makers": 30
-        },
-        {
-          "key": "JPY",
-          "label": "JPY",
-          "liquidity_usd": 9397659.10456555,
-          "share_pct": 0.40877762637320114,
-          "buy_liquidity_usd": 7470.919999999999,
-          "sell_liquidity_usd": 9390188.18456555,
-          "ad_count": 11,
-          "n_makers": 11
-        },
-        {
-          "key": "BYN",
-          "label": "BYN",
-          "liquidity_usd": 9178004.569073802,
-          "share_pct": 0.39922313427667433,
-          "buy_liquidity_usd": 12053.479999999998,
-          "sell_liquidity_usd": 9165951.089073801,
-          "ad_count": 14,
-          "n_makers": 13
-        },
-        {
-          "key": "SDG",
-          "label": "SDG",
-          "liquidity_usd": 8935488.063730078,
-          "share_pct": 0.3886741964712405,
-          "buy_liquidity_usd": 29342.28,
-          "sell_liquidity_usd": 8906145.783730078,
-          "ad_count": 35,
-          "n_makers": 35
-        },
-        {
-          "key": "ZMW",
-          "label": "ZMW",
-          "liquidity_usd": 8853535.01,
-          "share_pct": 0.3851094177955018,
-          "buy_liquidity_usd": 102667.07999999997,
-          "sell_liquidity_usd": 8750867.93,
-          "ad_count": 52,
-          "n_makers": 37
-        },
-        {
-          "key": "MOP",
-          "label": "MOP",
-          "liquidity_usd": 8384818.73,
-          "share_pct": 0.36472128429874695,
-          "buy_liquidity_usd": 392704.83000000013,
-          "sell_liquidity_usd": 7992113.9,
-          "ad_count": 22,
-          "n_makers": 19
-        },
-        {
-          "key": "USD",
-          "label": "USD",
-          "liquidity_usd": 8012967.096750256,
-          "share_pct": 0.34854655117515637,
-          "buy_liquidity_usd": 8012967.096750256,
-          "sell_liquidity_usd": 0,
-          "ad_count": 1559,
-          "n_makers": 1007
-        },
-        {
-          "key": "NOK",
-          "label": "NOK",
-          "liquidity_usd": 7753524.07160318,
-          "share_pct": 0.33726134676215724,
-          "buy_liquidity_usd": 1249.71,
-          "sell_liquidity_usd": 7752274.36160318,
-          "ad_count": 2,
-          "n_makers": 1
-        },
-        {
-          "key": "PKR",
-          "label": "PKR",
-          "liquidity_usd": 7615361.80680997,
-          "share_pct": 0.33125159028683715,
-          "buy_liquidity_usd": 349710.2368099698,
-          "sell_liquidity_usd": 7265651.57,
-          "ad_count": 561,
-          "n_makers": 112
-        },
-        {
-          "key": "GMD",
-          "label": "GMD",
-          "liquidity_usd": 7428838.14,
-          "share_pct": 0.32313821854897923,
-          "buy_liquidity_usd": 96663.58,
-          "sell_liquidity_usd": 7332174.56,
-          "ad_count": 13,
-          "n_makers": 13
-        },
-        {
-          "key": "BDT",
-          "label": "BDT",
-          "liquidity_usd": 7232708.34807039,
-          "share_pct": 0.3146070013688299,
-          "buy_liquidity_usd": 120664.23707594004,
-          "sell_liquidity_usd": 7112044.11099445,
-          "ad_count": 205,
-          "n_makers": 101
-        },
-        {
-          "key": "NPR",
-          "label": "NPR",
-          "liquidity_usd": 6952337.58,
-          "share_pct": 0.30241148588981387,
-          "buy_liquidity_usd": 9825.5,
-          "sell_liquidity_usd": 6942512.08,
-          "ad_count": 49,
-          "n_makers": 49
-        },
-        {
-          "key": "DZD",
-          "label": "DZD",
-          "liquidity_usd": 6384297.468019281,
-          "share_pct": 0.27770298283851275,
-          "buy_liquidity_usd": 62704.71582369002,
-          "sell_liquidity_usd": 6321592.75219559,
-          "ad_count": 130,
-          "n_makers": 93
-        },
-        {
-          "key": "SEK",
-          "label": "SEK",
-          "liquidity_usd": 5764487.348583709,
-          "share_pct": 0.25074259763983336,
-          "buy_liquidity_usd": 9936.630000000001,
-          "sell_liquidity_usd": 5754550.71858371,
-          "ad_count": 3,
-          "n_makers": 1
-        },
-        {
-          "key": "RWF",
-          "label": "RWF",
-          "liquidity_usd": 5108967.1339643095,
-          "share_pct": 0.22222890136821732,
-          "buy_liquidity_usd": 203783.64423829998,
-          "sell_liquidity_usd": 4905183.48972601,
-          "ad_count": 79,
-          "n_makers": 60
-        },
-        {
-          "key": "DOP",
-          "label": "DOP",
-          "liquidity_usd": 4595817.92,
-          "share_pct": 0.1999080323809929,
-          "buy_liquidity_usd": 341309.9600000001,
-          "sell_liquidity_usd": 4254507.96,
-          "ad_count": 98,
-          "n_makers": 74
-        },
-        {
-          "key": "CDF",
-          "label": "CDF",
-          "liquidity_usd": 4489117.8999999985,
-          "share_pct": 0.19526681477304797,
-          "buy_liquidity_usd": 109633.34,
-          "sell_liquidity_usd": 4379484.559999999,
-          "ad_count": 60,
-          "n_makers": 60
-        },
-        {
-          "key": "BIF",
-          "label": "BIF",
-          "liquidity_usd": 4099970.499999999,
-          "share_pct": 0.1783397536069304,
-          "buy_liquidity_usd": 24339.03,
-          "sell_liquidity_usd": 4075631.4699999993,
-          "ad_count": 45,
-          "n_makers": 44
-        },
-        {
-          "key": "LRD",
-          "label": "LRD",
-          "liquidity_usd": 3722731.2,
-          "share_pct": 0.16193066875794168,
-          "buy_liquidity_usd": 15628.34,
-          "sell_liquidity_usd": 3707102.8600000003,
-          "ad_count": 6,
-          "n_makers": 6
-        },
-        {
-          "key": "MZN",
-          "label": "MZN",
-          "liquidity_usd": 3292625.409999999,
-          "share_pct": 0.14322200716793407,
-          "buy_liquidity_usd": 700234.9299999997,
-          "sell_liquidity_usd": 2592390.4799999995,
-          "ad_count": 82,
-          "n_makers": 64
-        },
-        {
-          "key": "LAK",
-          "label": "LAK",
-          "liquidity_usd": 2174020.4299999997,
-          "share_pct": 0.09456513597418151,
-          "buy_liquidity_usd": 238981.02,
-          "sell_liquidity_usd": 1935039.4099999997,
-          "ad_count": 28,
-          "n_makers": 16
-        },
-        {
-          "key": "GEL",
-          "label": "GEL",
-          "liquidity_usd": 1494486.55664111,
-          "share_pct": 0.06500689804481409,
-          "buy_liquidity_usd": 1494486.55664111,
-          "sell_liquidity_usd": 0,
-          "ad_count": 102,
-          "n_makers": 63
-        },
-        {
-          "key": "MGA",
-          "label": "MGA",
-          "liquidity_usd": 1301726.02,
-          "share_pct": 0.05662223610402325,
-          "buy_liquidity_usd": 39157.25,
-          "sell_liquidity_usd": 1262568.77,
-          "ad_count": 22,
-          "n_makers": 22
-        },
-        {
-          "key": "CRC",
-          "label": "CRC",
-          "liquidity_usd": 1155927.13,
-          "share_pct": 0.050280303127002074,
-          "buy_liquidity_usd": 432317.27,
-          "sell_liquidity_usd": 723609.8599999999,
-          "ad_count": 81,
-          "n_makers": 55
-        },
-        {
-          "key": "PAB",
-          "label": "PAB",
-          "liquidity_usd": 1060640.0348938901,
-          "share_pct": 0.04613552280159637,
-          "buy_liquidity_usd": 498640.03489389014,
-          "sell_liquidity_usd": 562000,
-          "ad_count": 188,
-          "n_makers": 87
-        },
-        {
-          "key": "UYU",
-          "label": "UYU",
-          "liquidity_usd": 1044454.5199999999,
-          "share_pct": 0.04543148828764617,
-          "buy_liquidity_usd": 365481.95999999996,
-          "sell_liquidity_usd": 678972.5599999999,
-          "ad_count": 79,
-          "n_makers": 58
-        },
-        {
-          "key": "MNT",
-          "label": "MNT",
-          "liquidity_usd": 652095.34,
-          "share_pct": 0.028364721712955624,
-          "buy_liquidity_usd": 81938.9,
-          "sell_liquidity_usd": 570156.44,
-          "ad_count": 8,
-          "n_makers": 6
-        },
-        {
-          "key": "GTQ",
-          "label": "GTQ",
-          "liquidity_usd": 651300.3200000001,
-          "share_pct": 0.028330140080987165,
-          "buy_liquidity_usd": 223496.59999999995,
-          "sell_liquidity_usd": 427803.7200000001,
-          "ad_count": 71,
-          "n_makers": 59
-        },
-        {
-          "key": "SYP",
-          "label": "SYP",
-          "liquidity_usd": 526399.6694518899,
-          "share_pct": 0.022897234833474944,
-          "buy_liquidity_usd": 43634.90971735001,
-          "sell_liquidity_usd": 482764.75973453996,
-          "ad_count": 34,
-          "n_makers": 31
-        },
-        {
-          "key": "HNL",
-          "label": "HNL",
-          "liquidity_usd": 424196.82999999996,
-          "share_pct": 0.01845163474786976,
-          "buy_liquidity_usd": 143533.80000000002,
-          "sell_liquidity_usd": 280663.02999999997,
-          "ad_count": 62,
-          "n_makers": 60
         },
         {
           "key": "GBP",
           "label": "GBP",
-          "liquidity_usd": 394317.0400592201,
-          "share_pct": 0.017151929207094404,
-          "buy_liquidity_usd": 394317.0400592201,
-          "sell_liquidity_usd": 0,
-          "ad_count": 77,
-          "n_makers": 50
+          "liquidity_usd": 54775531.31652844,
+          "share_pct": 2.764517366342644,
+          "buy_liquidity_usd": 665533.3449700399,
+          "sell_liquidity_usd": 54109997.9715584,
+          "ad_count": 82,
+          "n_makers": 47
+        },
+        {
+          "key": "BHD",
+          "label": "BHD",
+          "liquidity_usd": 53532975.34221734,
+          "share_pct": 2.701805650233752,
+          "buy_liquidity_usd": 215899.17,
+          "sell_liquidity_usd": 53317076.17221734,
+          "ad_count": 15,
+          "n_makers": 13
+        },
+        {
+          "key": "CHF",
+          "label": "CHF",
+          "liquidity_usd": 52152131.689827845,
+          "share_pct": 2.632114564351343,
+          "buy_liquidity_usd": 223731.59610976995,
+          "sell_liquidity_usd": 51928400.093718074,
+          "ad_count": 24,
+          "n_makers": 16
+        },
+        {
+          "key": "IDR",
+          "label": "IDR",
+          "liquidity_usd": 49564882.57165445,
+          "share_pct": 2.501536276084027,
+          "buy_liquidity_usd": 1250563.7409003899,
+          "sell_liquidity_usd": 48314318.83075406,
+          "ad_count": 170,
+          "n_makers": 70
+        },
+        {
+          "key": "JOD",
+          "label": "JOD",
+          "liquidity_usd": 46270230.033879705,
+          "share_pct": 2.3352553850031077,
+          "buy_liquidity_usd": 617585.9583788598,
+          "sell_liquidity_usd": 45652644.075500846,
+          "ad_count": 143,
+          "n_makers": 84
+        },
+        {
+          "key": "EUR",
+          "label": "EUR",
+          "liquidity_usd": 43185872.37081267,
+          "share_pct": 2.179588062046664,
+          "buy_liquidity_usd": 1230849.0908692703,
+          "sell_liquidity_usd": 41955023.2799434,
+          "ad_count": 244,
+          "n_makers": 158
+        },
+        {
+          "key": "TRY",
+          "label": "TRY",
+          "liquidity_usd": 43159682.393518865,
+          "share_pct": 2.178266255661356,
+          "buy_liquidity_usd": 292315.66489498003,
+          "sell_liquidity_usd": 42867366.72862388,
+          "ad_count": 103,
+          "n_makers": 96
+        },
+        {
+          "key": "XAF",
+          "label": "XAF",
+          "liquidity_usd": 42388894.0210691,
+          "share_pct": 2.139364618558123,
+          "buy_liquidity_usd": 244622.16666448,
+          "sell_liquidity_usd": 42144271.85440462,
+          "ad_count": 80,
+          "n_makers": 57
+        },
+        {
+          "key": "USD",
+          "label": "USD",
+          "liquidity_usd": 40258154.77588764,
+          "share_pct": 2.0318263527508407,
+          "buy_liquidity_usd": 6657489.4552056175,
+          "sell_liquidity_usd": 33600665.32068202,
+          "ad_count": 1362,
+          "n_makers": 890
+        },
+        {
+          "key": "QAR",
+          "label": "QAR",
+          "liquidity_usd": 40026597.37890858,
+          "share_pct": 2.0201396665632703,
+          "buy_liquidity_usd": 264983.8000000001,
+          "sell_liquidity_usd": 39761613.578908585,
+          "ad_count": 47,
+          "n_makers": 45
+        },
+        {
+          "key": "AZN",
+          "label": "AZN",
+          "liquidity_usd": 39224521.70889346,
+          "share_pct": 1.9796589616648652,
+          "buy_liquidity_usd": 321807.31561454997,
+          "sell_liquidity_usd": 38902714.39327891,
+          "ad_count": 101,
+          "n_makers": 86
+        },
+        {
+          "key": "UAH",
+          "label": "UAH",
+          "liquidity_usd": 38851132.572522774,
+          "share_pct": 1.9608140371686429,
+          "buy_liquidity_usd": 175481.19164249004,
+          "sell_liquidity_usd": 38675651.38088028,
+          "ad_count": 323,
+          "n_makers": 110
+        },
+        {
+          "key": "OMR",
+          "label": "OMR",
+          "liquidity_usd": 38705722.389569856,
+          "share_pct": 1.9534751950551186,
+          "buy_liquidity_usd": 1030272.9199999999,
+          "sell_liquidity_usd": 37675449.469569854,
+          "ad_count": 83,
+          "n_makers": 75
+        },
+        {
+          "key": "MWK",
+          "label": "MWK",
+          "liquidity_usd": 37496769.42,
+          "share_pct": 1.892459420326177,
+          "buy_liquidity_usd": 0,
+          "sell_liquidity_usd": 37496769.42,
+          "ad_count": 0,
+          "n_makers": 0
+        },
+        {
+          "key": "ARS",
+          "label": "ARS",
+          "liquidity_usd": 37035050.851770535,
+          "share_pct": 1.8691565153692686,
+          "buy_liquidity_usd": 315466.34110481,
+          "sell_liquidity_usd": 36719584.51066572,
+          "ad_count": 341,
+          "n_makers": 116
+        },
+        {
+          "key": "MXN",
+          "label": "MXN",
+          "liquidity_usd": 35666845.253865354,
+          "share_pct": 1.8001032712431868,
+          "buy_liquidity_usd": 839710.0986330202,
+          "sell_liquidity_usd": 34827135.15523233,
+          "ad_count": 231,
+          "n_makers": 71
+        },
+        {
+          "key": "YER",
+          "label": "YER",
+          "liquidity_usd": 33120591.01552728,
+          "share_pct": 1.6715939917926175,
+          "buy_liquidity_usd": 124121.35413521997,
+          "sell_liquidity_usd": 32996469.66139206,
+          "ad_count": 76,
+          "n_makers": 60
+        },
+        {
+          "key": "XOF",
+          "label": "XOF",
+          "liquidity_usd": 32445566.91632743,
+          "share_pct": 1.637525571092978,
+          "buy_liquidity_usd": 108155.49999999999,
+          "sell_liquidity_usd": 32337411.41632743,
+          "ad_count": 242,
+          "n_makers": 81
+        },
+        {
+          "key": "COP",
+          "label": "COP",
+          "liquidity_usd": 32410792.79781278,
+          "share_pct": 1.6357705236799733,
+          "buy_liquidity_usd": 585621.4563948201,
+          "sell_liquidity_usd": 31825171.341417957,
+          "ad_count": 365,
+          "n_makers": 101
+        },
+        {
+          "key": "PKR",
+          "label": "PKR",
+          "liquidity_usd": 31729892.626458146,
+          "share_pct": 1.6014055380155152,
+          "buy_liquidity_usd": 359719.54583597986,
+          "sell_liquidity_usd": 31370173.080622166,
+          "ad_count": 399,
+          "n_makers": 102
+        },
+        {
+          "key": "VES",
+          "label": "VES",
+          "liquidity_usd": 26225450.28911812,
+          "share_pct": 1.3235967049861506,
+          "buy_liquidity_usd": 899914.1986211201,
+          "sell_liquidity_usd": 25325536.090497,
+          "ad_count": 1269,
+          "n_makers": 138
+        },
+        {
+          "key": "MAD",
+          "label": "MAD",
+          "liquidity_usd": 25932104.645104777,
+          "share_pct": 1.308791570143558,
+          "buy_liquidity_usd": 236387.23743781,
+          "sell_liquidity_usd": 25695717.407666966,
+          "ad_count": 334,
+          "n_makers": 115
+        },
+        {
+          "key": "IQD",
+          "label": "IQD",
+          "liquidity_usd": 23511234.22525947,
+          "share_pct": 1.1866104035446667,
+          "buy_liquidity_usd": 247748.64195356,
+          "sell_liquidity_usd": 23263485.58330591,
+          "ad_count": 88,
+          "n_makers": 65
+        },
+        {
+          "key": "PEN",
+          "label": "PEN",
+          "liquidity_usd": 22840835.81024874,
+          "share_pct": 1.1527754408136615,
+          "buy_liquidity_usd": 933684.6685659899,
+          "sell_liquidity_usd": 21907151.14168275,
+          "ad_count": 200,
+          "n_makers": 100
+        },
+        {
+          "key": "KZT",
+          "label": "KZT",
+          "liquidity_usd": 22061111.569258492,
+          "share_pct": 1.1134228110286641,
+          "buy_liquidity_usd": 190496.79205666,
+          "sell_liquidity_usd": 21870614.77720183,
+          "ad_count": 59,
+          "n_makers": 49
+        },
+        {
+          "key": "INR",
+          "label": "INR",
+          "liquidity_usd": 20611706.84912807,
+          "share_pct": 1.0402714526875634,
+          "buy_liquidity_usd": 192485.94361771003,
+          "sell_liquidity_usd": 20419220.905510362,
+          "ad_count": 338,
+          "n_makers": 107
+        },
+        {
+          "key": "RON",
+          "label": "RON",
+          "liquidity_usd": 18392048.663728412,
+          "share_pct": 0.9282454539725069,
+          "buy_liquidity_usd": 58146.62872745,
+          "sell_liquidity_usd": 18333902.03500096,
+          "ad_count": 12,
+          "n_makers": 9
+        },
+        {
+          "key": "PLN",
+          "label": "PLN",
+          "liquidity_usd": 17653660.22333224,
+          "share_pct": 0.8909790392519268,
+          "buy_liquidity_usd": 24828.473596220003,
+          "sell_liquidity_usd": 17628831.749736022,
+          "ad_count": 26,
+          "n_makers": 21
+        },
+        {
+          "key": "BOB",
+          "label": "BOB",
+          "liquidity_usd": 16241245.499915332,
+          "share_pct": 0.8196945635468802,
+          "buy_liquidity_usd": 819080.0873659304,
+          "sell_liquidity_usd": 15422165.4125494,
+          "ad_count": 147,
+          "n_makers": 73
+        },
+        {
+          "key": "KHR",
+          "label": "KHR",
+          "liquidity_usd": 16188082.830000002,
+          "share_pct": 0.8170114471865333,
+          "buy_liquidity_usd": 239006.13,
+          "sell_liquidity_usd": 15949076.700000001,
+          "ad_count": 12,
+          "n_makers": 5
+        },
+        {
+          "key": "AUD",
+          "label": "AUD",
+          "liquidity_usd": 15856994.936928969,
+          "share_pct": 0.8003014635828785,
+          "buy_liquidity_usd": 41309.14000000001,
+          "sell_liquidity_usd": 15815685.796928968,
+          "ad_count": 9,
+          "n_makers": 5
+        },
+        {
+          "key": "ZAR",
+          "label": "ZAR",
+          "liquidity_usd": 15166573.355085967,
+          "share_pct": 0.7654559329740901,
+          "buy_liquidity_usd": 277722.4200000001,
+          "sell_liquidity_usd": 14888850.935085967,
+          "ad_count": 31,
+          "n_makers": 24
+        },
+        {
+          "key": "RSD",
+          "label": "RSD",
+          "liquidity_usd": 14747449.590304341,
+          "share_pct": 0.7443027848706032,
+          "buy_liquidity_usd": 124674.39948656001,
+          "sell_liquidity_usd": 14622775.19081778,
+          "ad_count": 34,
+          "n_makers": 28
+        },
+        {
+          "key": "TND",
+          "label": "TND",
+          "liquidity_usd": 13865674.73781246,
+          "share_pct": 0.699799667614989,
+          "buy_liquidity_usd": 52997.17999999999,
+          "sell_liquidity_usd": 13812677.55781246,
+          "ad_count": 87,
+          "n_makers": 84
+        },
+        {
+          "key": "CZK",
+          "label": "CZK",
+          "liquidity_usd": 12138683.79338762,
+          "share_pct": 0.6126385512802157,
+          "buy_liquidity_usd": 865.42,
+          "sell_liquidity_usd": 12137818.37338762,
+          "ad_count": 5,
+          "n_makers": 5
+        },
+        {
+          "key": "GEL",
+          "label": "GEL",
+          "liquidity_usd": 11933121.442785129,
+          "share_pct": 0.6022638333277252,
+          "buy_liquidity_usd": 414845.2486020999,
+          "sell_liquidity_usd": 11518276.19418303,
+          "ad_count": 51,
+          "n_makers": 32
+        },
+        {
+          "key": "TZS",
+          "label": "TZS",
+          "liquidity_usd": 11817076.680532351,
+          "share_pct": 0.596407062013777,
+          "buy_liquidity_usd": 258255.91010261,
+          "sell_liquidity_usd": 11558820.770429742,
+          "ad_count": 48,
+          "n_makers": 33
+        },
+        {
+          "key": "SDG",
+          "label": "SDG",
+          "liquidity_usd": 11672215.338721277,
+          "share_pct": 0.5890959198756164,
+          "buy_liquidity_usd": 36758.38,
+          "sell_liquidity_usd": 11635456.958721276,
+          "ad_count": 28,
+          "n_makers": 26
+        },
+        {
+          "key": "GNF",
+          "label": "GNF",
+          "liquidity_usd": 11092158.25,
+          "share_pct": 0.5598204777813423,
+          "buy_liquidity_usd": 119613.33000000002,
+          "sell_liquidity_usd": 10972544.92,
+          "ad_count": 29,
+          "n_makers": 28
+        },
+        {
+          "key": "UGX",
+          "label": "UGX",
+          "liquidity_usd": 10990384.97633229,
+          "share_pct": 0.554683987532474,
+          "buy_liquidity_usd": 181715.94000000003,
+          "sell_liquidity_usd": 10808669.03633229,
+          "ad_count": 89,
+          "n_makers": 60
+        },
+        {
+          "key": "LBP",
+          "label": "LBP",
+          "liquidity_usd": 10610226.602578402,
+          "share_pct": 0.5354974200826741,
+          "buy_liquidity_usd": 46960.63760194,
+          "sell_liquidity_usd": 10563265.964976462,
+          "ad_count": 32,
+          "n_makers": 13
+        },
+        {
+          "key": "CAD",
+          "label": "CAD",
+          "liquidity_usd": 9593841.149999999,
+          "share_pct": 0.4842005149314653,
+          "buy_liquidity_usd": 187151.02999999994,
+          "sell_liquidity_usd": 9406690.12,
+          "ad_count": 36,
+          "n_makers": 31
+        },
+        {
+          "key": "KGS",
+          "label": "KGS",
+          "liquidity_usd": 9430145.018147541,
+          "share_pct": 0.4759387822119019,
+          "buy_liquidity_usd": 213916.89298585,
+          "sell_liquidity_usd": 9216228.12516169,
+          "ad_count": 49,
+          "n_makers": 41
+        },
+        {
+          "key": "JPY",
+          "label": "JPY",
+          "liquidity_usd": 9414417.744565548,
+          "share_pct": 0.47514502777634204,
+          "buy_liquidity_usd": 20339.369999999995,
+          "sell_liquidity_usd": 9394078.37456555,
+          "ad_count": 19,
+          "n_makers": 19
+        },
+        {
+          "key": "NPR",
+          "label": "NPR",
+          "liquidity_usd": 9252174.06,
+          "share_pct": 0.46695659997325956,
+          "buy_liquidity_usd": 7914.89,
+          "sell_liquidity_usd": 9244259.17,
+          "ad_count": 37,
+          "n_makers": 37
+        },
+        {
+          "key": "KES",
+          "label": "KES",
+          "liquidity_usd": 8988199.566577472,
+          "share_pct": 0.4536338251174386,
+          "buy_liquidity_usd": 302814.91164009,
+          "sell_liquidity_usd": 8685384.65493738,
+          "ad_count": 86,
+          "n_makers": 67
+        },
+        {
+          "key": "ZMW",
+          "label": "ZMW",
+          "liquidity_usd": 8817129.03,
+          "share_pct": 0.44499990668942563,
+          "buy_liquidity_usd": 76954.11,
+          "sell_liquidity_usd": 8740174.92,
+          "ad_count": 43,
+          "n_makers": 33
+        },
+        {
+          "key": "RWF",
+          "label": "RWF",
+          "liquidity_usd": 8665797.568783958,
+          "share_pct": 0.4373622180618483,
+          "buy_liquidity_usd": 136671.86423829998,
+          "sell_liquidity_usd": 8529125.704545658,
+          "ad_count": 51,
+          "n_makers": 40
+        },
+        {
+          "key": "CLP",
+          "label": "CLP",
+          "liquidity_usd": 8651721.77929455,
+          "share_pct": 0.43665181391691016,
+          "buy_liquidity_usd": 673819.0531206098,
+          "sell_liquidity_usd": 7977902.726173941,
+          "ad_count": 163,
+          "n_makers": 81
+        },
+        {
+          "key": "HUF",
+          "label": "HUF",
+          "liquidity_usd": 8593198.91164876,
+          "share_pct": 0.43369816873910166,
+          "buy_liquidity_usd": 0,
+          "sell_liquidity_usd": 8593198.91164876,
+          "ad_count": 0,
+          "n_makers": 0
+        },
+        {
+          "key": "MOP",
+          "label": "MOP",
+          "liquidity_usd": 8384914.7,
+          "share_pct": 0.4231860786434236,
+          "buy_liquidity_usd": 387677.0400000001,
+          "sell_liquidity_usd": 7997237.66,
+          "ad_count": 22,
+          "n_makers": 19
+        },
+        {
+          "key": "LKR",
+          "label": "LKR",
+          "liquidity_usd": 7950052.520991999,
+          "share_pct": 0.4012386138368072,
+          "buy_liquidity_usd": 90729.76,
+          "sell_liquidity_usd": 7859322.760991999,
+          "ad_count": 43,
+          "n_makers": 31
+        },
+        {
+          "key": "EGP",
+          "label": "EGP",
+          "liquidity_usd": 7733092.584795611,
+          "share_pct": 0.3902886605091154,
+          "buy_liquidity_usd": 495530.3207595099,
+          "sell_liquidity_usd": 7237562.264036101,
+          "ad_count": 166,
+          "n_makers": 96
+        },
+        {
+          "key": "NOK",
+          "label": "NOK",
+          "liquidity_usd": 7460429.5622106595,
+          "share_pct": 0.3765273761732368,
+          "buy_liquidity_usd": 1249.71,
+          "sell_liquidity_usd": 7459179.8522106595,
+          "ad_count": 2,
+          "n_makers": 1
+        },
+        {
+          "key": "DZD",
+          "label": "DZD",
+          "liquidity_usd": 7052607.0003077695,
+          "share_pct": 0.3559445990158258,
+          "buy_liquidity_usd": 55602.41327873002,
+          "sell_liquidity_usd": 6997004.58702904,
+          "ad_count": 91,
+          "n_makers": 86
+        },
+        {
+          "key": "GMD",
+          "label": "GMD",
+          "liquidity_usd": 5901538.39,
+          "share_pct": 0.29785024398968823,
+          "buy_liquidity_usd": 74105.28000000001,
+          "sell_liquidity_usd": 5827433.109999999,
+          "ad_count": 11,
+          "n_makers": 11
+        },
+        {
+          "key": "SEK",
+          "label": "SEK",
+          "liquidity_usd": 5569237.658583709,
+          "share_pct": 0.281079048516656,
+          "buy_liquidity_usd": 9936.630000000001,
+          "sell_liquidity_usd": 5559301.028583709,
+          "ad_count": 3,
+          "n_makers": 1
+        },
+        {
+          "key": "DOP",
+          "label": "DOP",
+          "liquidity_usd": 4951408.79,
+          "share_pct": 0.24989726724359865,
+          "buy_liquidity_usd": 209504.49999999997,
+          "sell_liquidity_usd": 4741904.29,
+          "ad_count": 84,
+          "n_makers": 66
+        },
+        {
+          "key": "CDF",
+          "label": "CDF",
+          "liquidity_usd": 4205288.809999999,
+          "share_pct": 0.21224064224135386,
+          "buy_liquidity_usd": 45269.37,
+          "sell_liquidity_usd": 4160019.439999999,
+          "ad_count": 35,
+          "n_makers": 35
+        },
+        {
+          "key": "TJS",
+          "label": "TJS",
+          "liquidity_usd": 4156384.3575976603,
+          "share_pct": 0.20977243783131383,
+          "buy_liquidity_usd": 180071.37666539,
+          "sell_liquidity_usd": 3976312.98093227,
+          "ad_count": 34,
+          "n_makers": 24
+        },
+        {
+          "key": "BIF",
+          "label": "BIF",
+          "liquidity_usd": 3823246.9099999997,
+          "share_pct": 0.19295901334911447,
+          "buy_liquidity_usd": 33355.409999999996,
+          "sell_liquidity_usd": 3789891.4999999995,
+          "ad_count": 39,
+          "n_makers": 39
+        },
+        {
+          "key": "LRD",
+          "label": "LRD",
+          "liquidity_usd": 3676221.45,
+          "share_pct": 0.18553864831210995,
+          "buy_liquidity_usd": 15279.699999999999,
+          "sell_liquidity_usd": 3660941.75,
+          "ad_count": 5,
+          "n_makers": 5
+        },
+        {
+          "key": "BDT",
+          "label": "BDT",
+          "liquidity_usd": 3217917.9582111402,
+          "share_pct": 0.16240810203252573,
+          "buy_liquidity_usd": 138624.90938362002,
+          "sell_liquidity_usd": 3079293.04882752,
+          "ad_count": 135,
+          "n_makers": 92
+        },
+        {
+          "key": "AMD",
+          "label": "AMD",
+          "liquidity_usd": 2747153.64616758,
+          "share_pct": 0.13864865899621395,
+          "buy_liquidity_usd": 60095.13550751,
+          "sell_liquidity_usd": 2687058.51066007,
+          "ad_count": 33,
+          "n_makers": 26
+        },
+        {
+          "key": "MZN",
+          "label": "MZN",
+          "liquidity_usd": 2564305.4800000004,
+          "share_pct": 0.12942032439817694,
+          "buy_liquidity_usd": 634887.49,
+          "sell_liquidity_usd": 1929417.9900000002,
+          "ad_count": 55,
+          "n_makers": 43
+        },
+        {
+          "key": "BYN",
+          "label": "BYN",
+          "liquidity_usd": 2039094.8990738,
+          "share_pct": 0.10291298184832448,
+          "buy_liquidity_usd": 9249.019999999999,
+          "sell_liquidity_usd": 2029845.8790738,
+          "ad_count": 10,
+          "n_makers": 9
+        },
+        {
+          "key": "PAB",
+          "label": "PAB",
+          "liquidity_usd": 1927315.2748938901,
+          "share_pct": 0.09727147176487286,
+          "buy_liquidity_usd": 591593.84489389,
+          "sell_liquidity_usd": 1335721.4300000002,
+          "ad_count": 180,
+          "n_makers": 83
+        },
+        {
+          "key": "CRC",
+          "label": "CRC",
+          "liquidity_usd": 1239779.37,
+          "share_pct": 0.0625715810768253,
+          "buy_liquidity_usd": 465122.56999999995,
+          "sell_liquidity_usd": 774656.8000000002,
+          "ad_count": 86,
+          "n_makers": 62
+        },
+        {
+          "key": "MDL",
+          "label": "MDL",
+          "liquidity_usd": 1070294.3029837601,
+          "share_pct": 0.054017681190494854,
+          "buy_liquidity_usd": 10371.571614979997,
+          "sell_liquidity_usd": 1059922.7313687801,
+          "ad_count": 18,
+          "n_makers": 17
+        },
+        {
+          "key": "LAK",
+          "label": "LAK",
+          "liquidity_usd": 1057279.87,
+          "share_pct": 0.05336084363671926,
+          "buy_liquidity_usd": 225586.70999999996,
+          "sell_liquidity_usd": 831693.16,
+          "ad_count": 27,
+          "n_makers": 13
+        },
+        {
+          "key": "PYG",
+          "label": "PYG",
+          "liquidity_usd": 664404.41,
+          "share_pct": 0.03353244570291186,
+          "buy_liquidity_usd": 249047.82000000004,
+          "sell_liquidity_usd": 415356.59,
+          "ad_count": 71,
+          "n_makers": 60
+        },
+        {
+          "key": "GTQ",
+          "label": "GTQ",
+          "liquidity_usd": 637333.89,
+          "share_pct": 0.032166198386688306,
+          "buy_liquidity_usd": 205780.68999999997,
+          "sell_liquidity_usd": 431553.20000000007,
+          "ad_count": 70,
+          "n_makers": 59
+        },
+        {
+          "key": "MNT",
+          "label": "MNT",
+          "liquidity_usd": 621281.0399999999,
+          "share_pct": 0.03135601213129908,
+          "buy_liquidity_usd": 50730.600000000006,
+          "sell_liquidity_usd": 570550.44,
+          "ad_count": 7,
+          "n_makers": 5
+        },
+        {
+          "key": "SYP",
+          "label": "SYP",
+          "liquidity_usd": 479899.20945188997,
+          "share_pct": 0.024220480691595388,
+          "buy_liquidity_usd": 16585.72971735,
+          "sell_liquidity_usd": 463313.47973454,
+          "ad_count": 29,
+          "n_makers": 28
+        },
+        {
+          "key": "HNL",
+          "label": "HNL",
+          "liquidity_usd": 434437.70999999996,
+          "share_pct": 0.02192604188444861,
+          "buy_liquidity_usd": 127389.90999999999,
+          "sell_liquidity_usd": 307047.8,
+          "ad_count": 59,
+          "n_makers": 57
+        },
+        {
+          "key": "UYU",
+          "label": "UYU",
+          "liquidity_usd": 359447.9299999998,
+          "share_pct": 0.0181413127521972,
+          "buy_liquidity_usd": 330417.9399999998,
+          "sell_liquidity_usd": 29029.99,
+          "ad_count": 82,
+          "n_makers": 60
         },
         {
           "key": "BWP",
           "label": "BWP",
-          "liquidity_usd": 338630.8,
-          "share_pct": 0.014729699502890995,
+          "liquidity_usd": 332364.8,
+          "share_pct": 0.016774429010125262,
           "buy_liquidity_usd": 53214.74,
-          "sell_liquidity_usd": 285416.06,
+          "sell_liquidity_usd": 279150.06,
           "ad_count": 5,
           "n_makers": 3
         },
         {
           "key": "NIO",
           "label": "NIO",
-          "liquidity_usd": 316325.22000000003,
-          "share_pct": 0.013759455536194242,
-          "buy_liquidity_usd": 120547.97000000002,
-          "sell_liquidity_usd": 195777.25,
-          "ad_count": 56,
-          "n_makers": 53
-        },
-        {
-          "key": "PYG",
-          "label": "PYG",
-          "liquidity_usd": 255221.82000000004,
-          "share_pct": 0.011101591217281286,
-          "buy_liquidity_usd": 255221.82000000004,
-          "sell_liquidity_usd": 0,
-          "ad_count": 68,
-          "n_makers": 58
+          "liquidity_usd": 290540.94000000006,
+          "share_pct": 0.014663581620451577,
+          "buy_liquidity_usd": 105833.75000000001,
+          "sell_liquidity_usd": 184707.19000000003,
+          "ad_count": 49,
+          "n_makers": 47
         },
         {
           "key": "HTG",
           "label": "HTG",
-          "liquidity_usd": 224300.66,
-          "share_pct": 0.009756588355519114,
-          "buy_liquidity_usd": 68250.47,
-          "sell_liquidity_usd": 156050.19,
-          "ad_count": 27,
-          "n_makers": 27
+          "liquidity_usd": 226138.58999999997,
+          "share_pct": 0.011413199365290254,
+          "buy_liquidity_usd": 71964.50000000001,
+          "sell_liquidity_usd": 154174.08999999997,
+          "ad_count": 26,
+          "n_makers": 26
         },
         {
           "key": "SOS",
           "label": "SOS",
-          "liquidity_usd": 203891.82,
-          "share_pct": 0.00886884843226765,
-          "buy_liquidity_usd": 16640.68,
+          "liquidity_usd": 200957.99000000002,
+          "share_pct": 0.010142336183833133,
+          "buy_liquidity_usd": 13706.85,
           "sell_liquidity_usd": 187251.14,
+          "ad_count": 1,
+          "n_makers": 1
+        },
+        {
+          "key": "ERN",
+          "label": "ERN",
+          "liquidity_usd": 159943.73,
+          "share_pct": 0.00807234925148404,
+          "buy_liquidity_usd": 10730.840000000002,
+          "sell_liquidity_usd": 149212.89,
           "ad_count": 3,
           "n_makers": 3
         },
         {
           "key": "LYD",
           "label": "LYD",
-          "liquidity_usd": 151794.52,
-          "share_pct": 0.006602729774685519,
-          "buy_liquidity_usd": 3210.77,
-          "sell_liquidity_usd": 148583.75,
-          "ad_count": 4,
+          "liquidity_usd": 149007.21,
+          "share_pct": 0.007520383825669346,
+          "buy_liquidity_usd": 678.25,
+          "sell_liquidity_usd": 148328.96,
+          "ad_count": 3,
           "n_makers": 2
         },
         {
-          "key": "ERN",
-          "label": "ERN",
-          "liquidity_usd": 151619.77,
-          "share_pct": 0.006595128531714915,
-          "buy_liquidity_usd": 1879.1799999999998,
-          "sell_liquidity_usd": 149740.59,
-          "ad_count": 4,
-          "n_makers": 4
-        },
-        {
-          "key": "AFN",
-          "label": "AFN",
-          "liquidity_usd": 124756.65000000001,
-          "share_pct": 0.005426641538475963,
-          "buy_liquidity_usd": 22224.11,
-          "sell_liquidity_usd": 102532.54000000001,
-          "ad_count": 4,
-          "n_makers": 4
+          "key": "MGA",
+          "label": "MGA",
+          "liquidity_usd": 142234.65999999997,
+          "share_pct": 0.007178573684545724,
+          "buy_liquidity_usd": 8657.460000000001,
+          "sell_liquidity_usd": 133577.19999999998,
+          "ad_count": 13,
+          "n_makers": 13
         },
         {
           "key": "NZD",
           "label": "NZD",
-          "liquidity_usd": 103433.38,
-          "share_pct": 0.004499125909303984,
-          "buy_liquidity_usd": 17202.760000000002,
+          "liquidity_usd": 103487.61,
+          "share_pct": 0.0052230126877832106,
+          "buy_liquidity_usd": 17256.99,
           "sell_liquidity_usd": 86230.62,
           "ad_count": 5,
           "n_makers": 5
@@ -3898,17 +3896,27 @@
           "key": "TMT",
           "label": "TMT",
           "liquidity_usd": 99727.8,
-          "share_pct": 0.0043379412802509775,
+          "share_pct": 0.005033255330997658,
           "buy_liquidity_usd": 0,
           "sell_liquidity_usd": 99727.8,
           "ad_count": 0,
           "n_makers": 0
         },
         {
+          "key": "AFN",
+          "label": "AFN",
+          "liquidity_usd": 42636.77,
+          "share_pct": 0.0021518749024747458,
+          "buy_liquidity_usd": 191.89,
+          "sell_liquidity_usd": 42444.88,
+          "ad_count": 1,
+          "n_makers": 1
+        },
+        {
           "key": "JMD",
           "label": "JMD",
           "liquidity_usd": 10705.630000000001,
-          "share_pct": 0.0004656715009064,
+          "share_pct": 0.0005403124231075834,
           "buy_liquidity_usd": 501.84000000000003,
           "sell_liquidity_usd": 10203.79,
           "ad_count": 2,
@@ -3918,7 +3926,7 @@
           "key": "TTD",
           "label": "TTD",
           "liquidity_usd": 10371.67,
-          "share_pct": 0.000451144970992448,
+          "share_pct": 0.0005234574844611881,
           "buy_liquidity_usd": 0,
           "sell_liquidity_usd": 10371.67,
           "ad_count": 0,
@@ -3928,7 +3936,7 @@
           "key": "ALL",
           "label": "ALL",
           "liquidity_usd": 2943.56,
-          "share_pct": 0.00012803842494164684,
+          "share_pct": 0.00014856127441005882,
           "buy_liquidity_usd": 0,
           "sell_liquidity_usd": 2943.56,
           "ad_count": 0,
@@ -3938,20 +3946,20 @@
       "period": "current snapshot"
     },
     "provenance": "api",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
-    "notes": "Per-fiat share of USDT escrow observed in the top-20 BUY ad slice across 92 fiat markets. Snapshot, not a window — Binance doesn't publish historical volume."
+    "notes": "Per-fiat share of USDT escrow observed in the top-20 BUY ad slice across 91 fiat markets. Snapshot, not a window — Binance doesn't publish historical volume."
   },
   "network_health": {
     "value": {
-      "active_makers": 5485,
-      "active_ads": 13398,
-      "avg_maker_month_finish_rate_pct": 97.3077119416587,
-      "avg_maker_month_order_count": 940.1615314494074,
-      "merchant_share_pct": 46.94621695533272
+      "active_makers": 4816,
+      "active_ads": 11295,
+      "avg_maker_month_finish_rate_pct": 96.95772425249112,
+      "avg_maker_month_order_count": 976.3455149501661,
+      "merchant_share_pct": 46.553156146179404
     },
     "provenance": "api",
-    "last_verified": 1789412469216,
+    "last_verified": 1789425465308,
     "evidence_url": "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search",
     "notes": "Maker-reputation aggregates across distinct advertisers seen in the top-20 slice of every probed market. Snapshot of currently-posting makers, not a 30d window."
   }
