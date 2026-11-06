@@ -2,16 +2,33 @@
   "liquidity": {
     "value": {
       "kind": "ramp_capacity",
-      "fiat": {}
+      "fiat": {
+        "PYG": {
+          "single_tx_max": 104527590.76,
+          "daily_max": 104527590.76
+        },
+        "CZK": {
+          "single_tx_max": 365204.35,
+          "daily_max": 365204.35
+        },
+        "RSD": {
+          "single_tx_max": 1766038.51,
+          "daily_max": 1766038.51
+        },
+        "PLN": {
+          "single_tx_max": 65993.53,
+          "daily_max": 65993.53
+        }
+      }
     },
     "provenance": "api",
-    "last_verified": 1793988736805,
+    "last_verified": 1794007357849,
     "evidence_url": "https://api.rampnetwork.com/api/host-api/v3/assets"
   },
   "volume_30d_usd": {
     "value": null,
     "provenance": "unavailable",
-    "last_verified": 1793988736805,
+    "last_verified": 1794007357849,
     "notes": "Ramp Network does not publish public volume statistics"
   },
   "observed_spread_bps": {
@@ -20,11 +37,11 @@
     "spread_aggregation": "effective_at_size",
     "sample_size": 0,
     "period": "usd_$1k_quote_approximated",
-    "last_verified": 1793988736805,
+    "last_verified": 1794007357849,
     "notes": "Approximated: Ramp public reference price + hand-maintained payment-method fee table (adapters/ramp_network.ts RAMP_FEE_BPS_BY_METHOD_BUY/SELL). NOT a user-quoted spread — real all-in price requires partner hostApiKey and /onramp/quote/all."
   },
   "fee_snapshot": {
-    "ts": 1793988736805,
+    "ts": 1794007357849,
     "sample_rows": [
       {
         "fiat": "EUR",
@@ -58,6 +75,94 @@
       }
     ],
     "provenance": "self_reported"
+  },
+  "markets": {
+    "value": [
+      {
+        "currency": "PYG",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 5974.9492558627835,
+        "fx_mid_rate": 6255.836306002287,
+        "spread_bps": 449,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "CZK",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 20.875611729536196,
+        "fx_mid_rate": 21.856990607827658,
+        "spread_bps": 449,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "RSD",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 100.94933161367278,
+        "fx_mid_rate": 105.69503885841566,
+        "spread_bps": 449,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "PLN",
+        "platform": "Card",
+        "direction": "sell",
+        "best_rate": 3.772285674878293,
+        "fx_mid_rate": 3.949623782722535,
+        "spread_bps": 449,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "PYG",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 6596.779384679411,
+        "fx_mid_rate": 6255.836306002287,
+        "spread_bps": 545,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "CZK",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 23.048196595954266,
+        "fx_mid_rate": 21.856990607827658,
+        "spread_bps": 545,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "RSD",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 111.45541847619931,
+        "fx_mid_rate": 105.69503885841566,
+        "spread_bps": 545,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      },
+      {
+        "currency": "PLN",
+        "platform": "Card",
+        "direction": "buy",
+        "best_rate": 4.164878278880913,
+        "fx_mid_rate": 3.949623782722535,
+        "spread_bps": 545,
+        "total_liquidity_usd": 0,
+        "deposit_count": 3
+      }
+    ],
+    "provenance": "self_reported",
+    "last_verified": 1794007357849,
+    "evidence_url": "https://api.rampnetwork.com/api/host-api/v3/assets",
+    "notes": "Approximated rates: Ramp reference price × (1 + hand-maintained payment-method fee in bps). NOT user-quoted; real prices require /onramp/quote/all with a partner hostApiKey."
   },
   "capabilities": {
     "orderbook": false,
